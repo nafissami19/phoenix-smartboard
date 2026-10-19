@@ -4,7 +4,6 @@ import {SettingsSections} from '@/components/SettingsSections';
 import {DeviceStorage} from '@/components/DeviceStorage';
 import {PenStore} from '@/components/PenStore';
 import {MenuScreen,MenuScreenContext} from './MenuScreen';
-import {CommunityLinks} from '@/components/CommunityLinks';
 import {BackupConnections} from '@/components/BackupConnections';
 import {BRANDING} from '@/config/branding';
 "use client";
@@ -199,7 +198,6 @@ export function SettingsPanel({
           {id:'connections',label:'Import sources',description:'Import teaching material from other apps.',content:<ImportSources/>},
           {id:'display',label:'Smartboard display',description:'Touch targets, orientation and native Android display options.',content:<SmartboardSettings/>},
         {id:'addons',label:'Add-ons',description:'Optional tools that load when needed.',content:<AddonsSettings/>},
-        {id:'community',label:'Community',description:'Get involved with Phoenix Smartboard.',content:<CommunityLinks/>},
         ]}/>
         <div className="flex justify-end gap-2 pt-2">
           <button
