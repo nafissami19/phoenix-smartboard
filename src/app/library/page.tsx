@@ -43,7 +43,7 @@ function LibraryInner() {
   const [cover, setCover] = useState(COVER_COLORS[0]);
   const [busy, setBusy] = useState(false);
   const [query,setQuery]=useState(''),[filter,setFilter]=useState('all'),[sort,setSort]=useState('recent');
-  const [view,setView]=useState<'grid'|'list'>(()=>{try{return (localStorage.getItem('phoenix-library-view')??localStorage.getItem('kopy-library-view'))==='list'?'list':'grid';}catch{return 'grid';}});
+  const [view,setView]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('phoenix-library-view')==='list'?'list':'grid';}catch{return 'grid';}});
   const [loadError,setLoadError]=useState(false);
   const visible=notebooks.filter(n=>(filter==='all'||n.subject===filter)&&`${n.title} ${n.subject}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).sort((a,b)=>sort==='title'?a.title.localeCompare(b.title):sort==='pages'?b.pageCount-a.pageCount:new Date(b.updatedAt).getTime()-new Date(a.updatedAt).getTime());
   const subjects=[...new Set(notebooks.map(n=>n.subject))].sort();

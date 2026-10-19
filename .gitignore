@@ -15,7 +15,6 @@ test-results/
 *.pem
 *.log
 *.ps
-*.kopy
 coverage/
 .DS_Store
 Thumbs.db
@@ -31,4 +30,3 @@ branding/*highest res.png
 
 # Original editable examples distributed with the teaching guides.
 !public/samples/*.ps
-!public/samples/*.kopy

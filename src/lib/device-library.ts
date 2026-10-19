@@ -4,15 +4,14 @@ import {Capacitor,registerPlugin} from '@capacitor/core';
 import {database} from './local-store';
 export type DeviceStatus={available:boolean;folder?:string|null;savedAt?:number|null;error?:string;restored?:boolean};
 type NativeLibrary={onFlush?:(callback:()=>Promise<void>)=>()=>void;status:()=>Promise<DeviceStatus>;choose:()=>Promise<DeviceStatus>;read:()=>Promise<{data:string|null}>;write:(data:string)=>Promise<{savedAt:number;folder?:string}>};
-declare global{interface Window{phoenixDeviceLibrary?:NativeLibrary;kopyDeviceLibrary?:NativeLibrary;phoenixDisplay?:{start:()=>Promise<unknown>;command:(action:string,value?:unknown)=>Promise<unknown>;onState:(callback:(state:unknown)=>void)=>()=>void};kopyDisplay?:{start:()=>Promise<unknown>;command:(action:string,value?:unknown)=>Promise<unknown>;onState:(callback:(state:unknown)=>void)=>()=>void};}}
+declare global{interface Window{phoenixDeviceLibrary?:NativeLibrary;phoenixDisplay?:{start:()=>Promise<unknown>;command:(action:string,value?:unknown)=>Promise<unknown>;onState:(callback:(state:unknown)=>void)=>()=>void};}}
 const android=registerPlugin<{status:()=>Promise<DeviceStatus>;choose:()=>Promise<DeviceStatus>;read:()=>Promise<{data:string|null}>;write:(options:{data:string})=>Promise<{savedAt:number}>}>('DeviceLibrary');
 export function deviceBridge():NativeLibrary|undefined{
  if(window.phoenixDeviceLibrary)return window.phoenixDeviceLibrary;
- if(window.kopyDeviceLibrary)return window.kopyDeviceLibrary;
  if(Capacitor.getPlatform()==='android')return {...android,status:()=>android.status(),choose:()=>android.choose(),read:()=>android.read(),write:data=>android.write({data})};
 }
 let status:DeviceStatus={available:false},initialized=false,dirty=false,timer:ReturnType<typeof setTimeout>|undefined,writing:Promise<void>|undefined;
-const publish=(next:DeviceStatus)=>{status=next;window.dispatchEvent(new CustomEvent('phoenix-device-status',{detail:status}));window.dispatchEvent(new CustomEvent('kopy-device-status',{detail:status}));};
+const publish=(next:DeviceStatus)=>{status=next;window.dispatchEvent(new CustomEvent('phoenix-device-status',{detail:status}));};
 export const deviceStatus=()=>status;
 async function encodeOffThread(records:SnapshotRecords):Promise<string>{
  const tier=getPerformanceProfile().tier,limit=(tier==='low'?32:tier==='balanced'?64:160)*1024*1024;
@@ -27,13 +26,13 @@ export async function createDeviceSnapshot(){
  const db=await database();try{
   const tx=db.transaction(['profile','notebooks','pages','assets'],'readonly');
   const [profile,notebooks,pages,assets]=await Promise.all([tx.objectStore('profile').get(1),tx.objectStore('notebooks').getAll(),tx.objectStore('pages').getAll(),tx.objectStore('assets').getAll()]);await tx.done;
-  const preferences:Record<string,string>={};for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i)!;if(key.startsWith('phoenix-')||key.startsWith('kopy-'))preferences[key]=localStorage.getItem(key)!;}
+  const preferences:Record<string,string>={};for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i)!;if(key.startsWith('phoenix-'))preferences[key]=localStorage.getItem(key)!;}
   return encodeOffThread({profile,notebooks,pages,assets,preferences});
  }finally{db.close();}
 }
 export async function restoreDeviceSnapshot(data:string){
  if(new Blob([data]).size>160*1024*1024)throw new Error('Device copy is too large.');
- const value=JSON.parse(data);if((value.format!=='phoenix-device-library'&&value.format!=='kopy-device-library')||value.version!==1||!Array.isArray(value.notebooks)||!Array.isArray(value.pages)||!Array.isArray(value.assets)||value.notebooks.length>10000||value.pages.length>50000)throw new Error('Invalid device copy.');
+ const value=JSON.parse(data);if(value.format!=='phoenix-device-library'||value.version!==1||!Array.isArray(value.notebooks)||!Array.isArray(value.pages)||!Array.isArray(value.assets)||value.notebooks.length>10000||value.pages.length>50000)throw new Error('Invalid device copy.');
  const ids=new Set(value.notebooks.map((n:any)=>n.id));if(ids.size!==value.notebooks.length||value.notebooks.some((n:any)=>typeof n.id!=='string'||typeof n.title!=='string'))throw new Error('Invalid lessons in device copy.');
  const assetIds=new Set(value.assets.map((a:any)=>a.id));
  for(const page of value.pages)if(typeof page.id!=='string'||!ids.has(page.notebookId)||!Array.isArray(page.objects)||!Array.isArray(page.media)||page.media.some((m:any)=>!assetIds.has(m.assetId)))throw new Error('Invalid pages in device copy.');
@@ -42,19 +41,18 @@ export async function restoreDeviceSnapshot(data:string){
  const db=await database();try{const tx=db.transaction(['profile','notebooks','pages','assets'],'readwrite',{durability:'strict'});if(await tx.objectStore('notebooks').count()){tx.abort();await tx.done.catch(()=>{});throw new Error('Existing lessons were kept. Device recovery only fills an empty library.');}
   if(value.profile)await tx.objectStore('profile').put({...dates(value.profile),id:1});for(const n of value.notebooks)await tx.objectStore('notebooks').put(dates(n));for(const p of value.pages)await tx.objectStore('pages').put(dates(p));for(const a of assets)await tx.objectStore('assets').put(a);await tx.done;
  }finally{db.close();}
- if(value.preferences&&typeof value.preferences==='object')for(const [key,item] of Object.entries(value.preferences))if((key.startsWith('phoenix-')||key.startsWith('kopy-'))&&typeof item==='string'){try{localStorage.setItem(key,item);}catch{}}
+ if(value.preferences&&typeof value.preferences==='object')for(const [key,item] of Object.entries(value.preferences))if(key.startsWith('phoenix-')&&typeof item==='string'){try{localStorage.setItem(key,item);}catch{}}
 }
 export async function initializeDeviceLibrary(){
  const bridge=deviceBridge();if(!bridge){initialized=true;return;}
  try{status=await bridge.status();if(status.folder){const db=await database();const count=await db.count('notebooks');db.close();if(!count){const copy=await bridge.read();if(copy.data){await restoreDeviceSnapshot(copy.data);status={...status,restored:true};}}}publish(status);}catch(error){publish({...status,available:true,error:error instanceof Error?error.message:'Device recovery failed. Your device files were kept.'});}finally{initialized=true;}
  if(status.folder&&!status.error)scheduleDeviceSave();
  window.addEventListener('phoenix-preferences-changed',scheduleDeviceSave);
- window.addEventListener('kopy-preferences-changed',scheduleDeviceSave);
  const originalSet=Storage.prototype.setItem,originalRemove=Storage.prototype.removeItem;
- const isPrefKey=(k:string)=>(k.startsWith('phoenix-')||k.startsWith('kopy-'))&&!k.includes('-view:')&&!k.includes('-last-page:');
+ const isPrefKey=(k:string)=>k.startsWith('phoenix-')&&!k.includes('-view:')&&!k.includes('-last-page:');
  Storage.prototype.setItem=function(key,value){originalSet.call(this,key,value);if(this===localStorage&&isPrefKey(key))scheduleDeviceSave();};
  Storage.prototype.removeItem=function(key){originalRemove.call(this,key);if(this===localStorage&&isPrefKey(key))scheduleDeviceSave();};
- bridge.onFlush?.(async()=>{const detail:{pending:Promise<unknown>[]}={pending:[]};window.dispatchEvent(new CustomEvent('phoenix-flush-board',{detail}));window.dispatchEvent(new CustomEvent('kopy-flush-board',{detail}));await Promise.all(detail.pending);scheduleDeviceSave();await flushDeviceSave();});
+ bridge.onFlush?.(async()=>{const detail:{pending:Promise<unknown>[]}={pending:[]};window.dispatchEvent(new CustomEvent('phoenix-flush-board',{detail}));await Promise.all(detail.pending);scheduleDeviceSave();await flushDeviceSave();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)void flushDeviceSave();});
  window.addEventListener('pagehide',()=>{void flushDeviceSave();});
  window.addEventListener('storage',event=>{if(event.key&&isPrefKey(event.key))scheduleDeviceSave();});

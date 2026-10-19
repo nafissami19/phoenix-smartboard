@@ -7,10 +7,10 @@ function install({app,BrowserWindow,ipcMain,getMain,getFolder}){
  let strokes=[],undo=[],redo=[],display;
  const preferences={contextIsolation:true,nodeIntegration:false,sandbox:true,preload:path.join(__dirname,'preload.cjs')};
  const allowed=sender=>[getMain(),overlay,controls].some(w=>w&&!w.isDestroyed()&&w.webContents===sender);
- const send=()=>{for(const w of [overlay,controls])if(w&&!w.isDestroyed()){w.webContents.send('phoenix-display-state',{...state,strokes});w.webContents.send('kopy-display-state',{...state,strokes});}};
+ const send=()=>{for(const w of [overlay,controls])if(w&&!w.isDestroyed()){w.webContents.send('phoenix-display-state',{...state,strokes});}};
  const save=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(()=>{const folder=path.join(getFolder(),'Annotations');void fs.mkdir(folder,{recursive:true}).then(()=>fs.writeFile(path.join(folder,'last-session.json.pending'),JSON.stringify({format:'phoenix-display',version:1,strokes}))).then(()=>fs.rename(path.join(folder,'last-session.json.pending'),path.join(folder,'last-session.json'))).catch(()=>{});},500);};
  function close(restore=true){if(closing)return;closing=true;active=false;for(const w of [overlay,controls])if(w&&!w.isDestroyed())w.close();overlay=controls=undefined;if(restore&&getMain()&&!getMain().isDestroyed()){getMain().restore();getMain().show();getMain().focus();}closing=false;}
- async function start(){const main=getMain();if(!main||main.isDestroyed())return;if(active){controls?.show();return;}if(!strokes.length){try{const saved=JSON.parse(await fs.readFile(path.join(getFolder(),'Annotations','last-session.json'),'utf8'));if((saved.format==='phoenix-display'||saved.format==='kopy-display')&&saved.version===1&&Array.isArray(saved.strokes)&&saved.strokes.length<=2000)strokes=saved.strokes.filter(s=>['pen','marker','line','rect','ellipse'].includes(s.tool)&&/^#[a-f0-9]{6}$/i.test(s.color)&&Number.isFinite(s.width)&&Array.isArray(s.points)&&s.points.length<=20000&&s.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));}catch{}}
+ async function start(){const main=getMain();if(!main||main.isDestroyed())return;if(active){controls?.show();return;}if(!strokes.length){try{const saved=JSON.parse(await fs.readFile(path.join(getFolder(),'Annotations','last-session.json'),'utf8'));if(saved.format==='phoenix-display'&&saved.version===1&&Array.isArray(saved.strokes)&&saved.strokes.length<=2000)strokes=saved.strokes.filter(s=>['pen','marker','line','rect','ellipse'].includes(s.tool)&&/^#[a-f0-9]{6}$/i.test(s.color)&&Number.isFinite(s.width)&&Array.isArray(s.points)&&s.points.length<=20000&&s.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));}catch{}}
   display=screen.getDisplayMatching(main.getBounds());const area=display.bounds;overlay=new BrowserWindow({x:area.x,y:area.y,width:area.width,height:area.height,frame:false,transparent:true,backgroundColor:'#00000000',resizable:false,skipTaskbar:true,hasShadow:false,show:false,webPreferences:preferences});controls=new BrowserWindow({x:area.x+Math.round((area.width-680)/2),y:display.workArea.y+display.workArea.height-100,width:Math.min(680,area.width-16),height:92,frame:false,transparent:true,backgroundColor:'#00000000',resizable:false,skipTaskbar:true,alwaysOnTop:true,show:false,webPreferences:preferences});
   for(const w of [overlay,controls]){w.setAlwaysOnTop(true,'screen-saver');w.setMenuBarVisibility(false);w.webContents.setWindowOpenHandler(()=>({action:'deny'}));w.webContents.on('will-navigate',event=>event.preventDefault());w.on('closed',()=>{if(active)close();});}
   overlay.setIgnoreMouseEvents(true,{forward:true});state={...state,mode:'mouse'};
@@ -18,7 +18,6 @@ function install({app,BrowserWindow,ipcMain,getMain,getFolder}){
  }
  const handleStart=event=>{if(event.sender!==getMain()?.webContents)throw new Error('Open display annotation from Phoenix Smartboard.');return start();};
  ipcMain.handle('phoenix-display-start',handleStart);
- ipcMain.handle('kopy-display-start',handleStart);
  const handleCommand=async(event,action,value)=>{
   if(!allowed(event.sender))throw new Error('Unknown annotation window.');
   if(action==='state'){send();return {...state,strokes};}
@@ -39,7 +38,6 @@ function install({app,BrowserWindow,ipcMain,getMain,getFolder}){
   }send();
  };
  ipcMain.handle('phoenix-display-command',handleCommand);
- ipcMain.handle('kopy-display-command',handleCommand);
  const reframe=()=>{if(!active)return;const next=screen.getAllDisplays().find(d=>d.id===display.id)||screen.getPrimaryDisplay();display=next;overlay.setBounds(next.bounds);controls.setPosition(next.workArea.x+Math.max(0,Math.round((next.workArea.width-controls.getBounds().width)/2)),next.workArea.y+next.workArea.height-controls.getBounds().height-8);};
  screen.on('display-metrics-changed',reframe);screen.on('display-removed',reframe);
  return {close:()=>close(false)};

@@ -1,7 +1,7 @@
-﻿import {test,expect} from '@playwright/test';
+import {test,expect} from '@playwright/test';
 test('Start teaching saves the selected theme and toolbar order survives side swapping',async({page})=>{
  await page.route('**/__local-note3-theme',route=>route.fulfill({status:204,body:''}));
- await page.goto('/#/app');await page.evaluate(async()=>{const {localRequest}=await import('/src/lib/local-store.ts' as string);const {BUILTIN_THEMES}=await import('/src/lib/theme-pack.ts' as string);await localRequest('/api/profile',{method:'PUT',body:JSON.stringify({onboarded:1,theme:BUILTIN_THEMES.find((t:{id:string})=>t.id==='kopy-night')})});});
+ await page.goto('/#/app');await page.evaluate(async()=>{const {localRequest}=await import('/src/lib/local-store.ts' as string);const {BUILTIN_THEMES}=await import('/src/lib/theme-pack.ts' as string);await localRequest('/api/profile',{method:'PUT',body:JSON.stringify({onboarded:1,theme:BUILTIN_THEMES.find((t:{id:string})=>t.id==='phoenix-obsidian')})});});
  await page.goto('/#/onboarding');await page.reload();
  await page.getByText('Theme packs',{exact:true}).click();await page.getByRole('button',{name:'Apply theme org-note3',exact:true}).click();await expect(page.getByRole('button',{name:'Apply theme org-note3',exact:true})).toHaveAttribute('aria-pressed','true');
  await page.getByRole('textbox',{name:'Teacher name',exact:true}).fill('Theme regression');

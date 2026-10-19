@@ -1,6 +1,5 @@
 export type StoreCredits={author:string;addedBy:string;license?:string;source?:string;origin?:string};
 export const PHOENIX_CREDITS:StoreCredits={author:'Phoenix Smartboard Team',addedBy:'Phoenix Smartboard',license:'MIT',source:'https://github.com/phoenix-smartboard/phoenix-smartboard'};
-export const KOPY_CREDITS = PHOENIX_CREDITS; // backward-compat alias
 export const CLASSIC_CREDITS:StoreCredits={author:'Classic Board Theme',addedBy:'Phoenix Smartboard',license:'Open Source',origin:'Classic classroom tools layout'};
 export const NOTE3_CREDITS = CLASSIC_CREDITS; // backward-compat alias
 export function parseStoreCredits(value:unknown):StoreCredits|undefined{

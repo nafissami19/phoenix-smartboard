@@ -68,7 +68,7 @@ Phoenix Smartboard runs **100% locally and offline**:
 Phoenix Smartboard uses the modern, open **`.ps`** format (`application/vnd.phoenix-smartboard+json`):
 - Single-file portable lesson archives containing vector strokes, background settings, multi-page slides, and embedded assets.
 - Human-readable JSON structure allowing programmatic creation and inspection.
-- **100% Backward Compatibility**: Seamlessly opens legacy `.kopy` and `.enb` lesson archives, automatically converting them without data loss.
+- **Broad Compatibility**: Seamlessly opens `.ps` and `.enb` lesson archives without data loss.
 
 ### Universal Document Converter
 Import existing educational materials directly into your canvas:

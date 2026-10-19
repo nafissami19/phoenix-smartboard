@@ -1,5 +1,5 @@
 import {defineConfig,devices} from '@playwright/test';
-const browser=process.env.PHOENIX_DEVICE_BROWSER || process.env.KOPY_DEVICE_BROWSER;
+const browser=process.env.PHOENIX_DEVICE_BROWSER;
 const projects=[
   {name:'ipad-portrait',use:{...devices['iPad (gen 7)'],browserName:'webkit' as const}},
   {name:'ipad-landscape',use:{...devices['iPad (gen 7) landscape'],browserName:'webkit' as const}},

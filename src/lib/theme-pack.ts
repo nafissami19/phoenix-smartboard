@@ -13,9 +13,8 @@ export const BUILTIN_THEMES:ThemePack[]=[
 ];
 export function isRasterData(value:unknown):value is string{return typeof value==='string'&&value.length<=750000&&/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);}
 export function parseThemePack(value:unknown):ThemePack{
-  if(!value||typeof value!=='object')throw new Error('Choose a valid theme pack.');
   const v=value as Record<string,unknown>,colors=v.colors as ThemePack['colors'];
-  if((v.schema!==THEME_SCHEMA&&v.schema!=='org.kopynotes.theme')||v.version!==1)throw new Error('Unsupported theme format or version.');
+  if(v.schema!==THEME_SCHEMA||v.version!==1)throw new Error('Unsupported theme format or version.');
   if(typeof v.id!=='string'||!/^[a-z0-9_-]{1,80}$/i.test(v.id)||typeof v.name!=='string'||!v.name.trim()||v.name.length>48)throw new Error('A theme needs a valid ID and name.');
   if(!colors||!['panel','surface','ink','muted','line','accent'].every(key=>/^#[a-f\d]{6}$/i.test(String(colors[key as keyof typeof colors]))))throw new Error('Theme colors must be six-digit hex colors.');
   const icons:ThemePack['icons']={};

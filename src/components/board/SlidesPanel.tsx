@@ -49,10 +49,10 @@ export function SlidesPanel({previewFrames,pages,activePageId,onGo,onReorder,onC
   const [menuOpen,setMenuOpen]=useState(false);
   const pageById=new Map(pages.map(page=>[page.id,page]));
   const activeIndex=Math.max(0,pages.findIndex(page=>page.id===activePageId));
-  const [compact,setCompact]=useState(()=>{try{return (localStorage.getItem('phoenix-slides-compact')??localStorage.getItem('kopy-slides-compact'))==='true';}catch{return false;}});
+  const [compact,setCompact]=useState(()=>{try{return (localStorage.getItem('phoenix-slides-compact'))==='true';}catch{return false;}});
   useEffect(()=>{try{localStorage.setItem('phoenix-slides-compact',String(compact));}catch{}},[compact]);
   useEffect(()=>{document.querySelector<HTMLElement>(`.kn-slide-row[data-slide-id="${activePageId}"]`)?.scrollIntoView({block:'nearest'});},[activePageId]);
-  const [large,setLarge]=useState(()=>{try{return (localStorage.getItem('phoenix-large-slides')??localStorage.getItem('kopy-large-slides'))==='true';}catch{return false;}}),[confirmDelete,setConfirmDelete]=useState<string|null>(null);
+  const [large,setLarge]=useState(()=>{try{return (localStorage.getItem('phoenix-large-slides'))==='true';}catch{return false;}}),[confirmDelete,setConfirmDelete]=useState<string|null>(null);
   useEffect(()=>{try{localStorage.setItem('phoenix-large-slides',String(large));}catch{}},[large]);
   const [order,setOrder]=useState(pages.map(page=>page.id)),[dragId,setDragId]=useState<string|null>(null),[busy,setBusy]=useState(false),[announcement,setAnnouncement]=useState('');
   const orderRef=useRef(order),suppressClick=useRef(false),drag=useRef<{id:string;pointerId:number;startX:number;startY:number;active:boolean;scrolling:boolean;scrollTop:number;element:HTMLElement;cleanup?:()=>void}|null>(null),timer=useRef<ReturnType<typeof setTimeout>|null>(null);

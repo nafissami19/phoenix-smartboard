@@ -63,7 +63,7 @@ export function ExportPanel({onClose, pageTitle, pageCount = 1, onPNG, onPDF, on
       <div className="space-y-3">
         <div className="rounded-xl border border-line bg-base-2 p-4">
           <div className="flex items-center gap-3"><Icon name="doc" className="h-5 w-5 text-brand-light" /><h3 className="text-sm font-semibold">PDF document</h3></div>
-          <p className="mt-2 text-xs text-muted">Save complete pages, including content outside the visible board. PDF pages are pictures; use .kopy to keep lessons editable.</p>
+          <p className="mt-2 text-xs text-muted">Save complete pages, including content outside the visible board. PDF pages are pictures; use .ps to keep lessons editable.</p>
           <label className="mt-3 block text-xs font-medium" htmlFor="pdf-export-scope">Pages to export</label>
           <CustomSelect id="pdf-export-scope" value={scope} disabled={pending} onChange={e => {setScope(e.target.value as PDFScope); setReady(null); setError('');}}
             className="kn-focus mt-1 w-full rounded-lg border border-line bg-base p-2 text-sm">

@@ -27,15 +27,15 @@ export function MenuScreen({title,icon,onClose,children,width}:{title:string;ico
     };
     const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(place);};
     const observer=new ResizeObserver(schedule);observer.observe(screen);if(menu)observer.observe(menu);
-    window.addEventListener('resize',schedule);window.addEventListener('phoenix-popup-layout',schedule);window.addEventListener('kopy-popup-layout',schedule);window.addEventListener('phoenix-layout-updated',schedule);window.addEventListener('kopy-layout-updated',schedule);place();
-    return()=>{observer.disconnect();cancelAnimationFrame(frame);window.removeEventListener('resize',schedule);window.removeEventListener('phoenix-popup-layout',schedule);window.removeEventListener('kopy-popup-layout',schedule);window.removeEventListener('phoenix-layout-updated',schedule);window.removeEventListener('kopy-layout-updated',schedule);if(previous?.isConnected)previous.focus({preventScroll:true});};
+    window.addEventListener('resize',schedule);window.addEventListener('phoenix-popup-layout',schedule);window.addEventListener('phoenix-layout-updated',schedule);place();
+    return()=>{observer.disconnect();cancelAnimationFrame(frame);window.removeEventListener('resize',schedule);window.removeEventListener('phoenix-popup-layout',schedule);window.removeEventListener('phoenix-layout-updated',schedule);if(previous?.isConnected)previous.focus({preventScroll:true});};
   },[width]);
   const root=document.querySelector('.kn-board');if(!root)return null;
   return createPortal(<dialog open ref={ref} aria-label={title} aria-modal="false" data-side={position?.side} className="kn-menu-screen" style={{left:position?.x??8,top:position?.y??8,width:position?.width??width,maxHeight:position?.height??'calc(100dvh - 16px)',visibility:position?'visible':'hidden'}} onKeyDown={event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();onClose();}}}>
     <header className="flex shrink-0 items-center gap-2 border-b border-line bg-panel-2 px-3 py-2">
       <button type="button" aria-label="Back to menu" onClick={onClose} className="kn-focus grid h-11 w-11 shrink-0 place-items-center rounded-lg hover:bg-elevated"><Icon name="back"/></button>
       {icon}<h2 className="min-w-0 flex-1 text-sm font-semibold">{title}</h2>
-      <button type="button" aria-label="Close" onClick={()=>{onClose();window.dispatchEvent(new Event('phoenix-close-file-menu'));window.dispatchEvent(new Event('kopy-close-file-menu'));}} className="kn-focus grid h-11 w-11 shrink-0 place-items-center rounded-lg hover:bg-elevated"><Icon name="close"/></button>
+      <button type="button" aria-label="Close" onClick={()=>{onClose();window.dispatchEvent(new Event('phoenix-close-file-menu'));}} className="kn-focus grid h-11 w-11 shrink-0 place-items-center rounded-lg hover:bg-elevated"><Icon name="close"/></button>
     </header>
     <div className="kn-modal-body kn-scroll min-h-0 overflow-y-auto overscroll-contain p-4">{children}</div>
   </dialog>,root);

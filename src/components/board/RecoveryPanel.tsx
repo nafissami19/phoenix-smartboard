@@ -15,5 +15,5 @@ export function RecoveryPanel({lessonId,flush}:{lessonId:string;flush:()=>Promis
  {destinations.map(target=><div className="recovery-row" key={target.label}><span>{target.label} · {target.directory.name}</span><button disabled={busy} onClick={()=>void removeBackupTarget(target.label).then(async()=>setDestinations(await backupTargets()))}>Disconnect</button></div>)}{targetStatus.map(target=><p key={target.label}>{target.label}: {target.ok?'Saved locally in folder':'Needs attention'} · {target.message}</p>)}
  <button disabled={busy} onClick={()=>void snapshots().then(setCopies)}>Recovery from all lessons</button>
  {copies.map(copy=><div key={copy.id} className="recovery-row"><span>{new Date(copy.savedAt).toLocaleString()}</span><button disabled={busy} onClick={()=>void (async()=>{setBusy(true);try{await latestFlush.current();const id=await importLesson(copy.blob);window.location.hash=`/board/${id}`;setOpen(false);}catch(e){setStatus(e instanceof Error?e.message:'Restore failed');}finally{setBusy(false);}})()}>Restore as copy</button></div>)}
- <p>After reinstalling, import any saved .ps or .kopy file from the Import menu. Re-enable folder permission after reopening the browser.</p></section>}</div>;
+ <p>After reinstalling, import any saved .ps file from the Import menu. Re-enable folder permission after reopening the browser.</p></section>}</div>;
 }

@@ -57,9 +57,9 @@ export function ImportPanel({
     if (!files || busy) return;
     setSelectionError("");
     const list = Array.from(files);
-    const special = list.find(file=>/\.(ps|kopy|enb)$/i.test(file.name));
+    const special = list.find(file=>/\.(ps|enb)$/i.test(file.name));
     if(special){
-      if(list.length!==1){setSelectionError("Open a .ps, .kopy, or .enb lesson on its own. Import documents separately.");return;}
+      if(list.length!==1){setSelectionError("Open a .ps or .enb lesson on its own. Import documents separately.");return;}
       setArchive(special);setPicked([]);return;
     }
     setArchive(null);
@@ -215,12 +215,12 @@ export function ImportPanel({
       >
         <Icon name="import" className="mx-auto mb-2 h-8 w-8 text-muted" />
         <p className="text-sm font-medium">Choose files or drop here</p>
-        <p className="mt-1 text-xs text-muted">PDF, images, DOCX, PPTX, ODP - up to 25 MB each</p><span className="kn-import-archive-hint">Open Phoenix (.ps) lessons, or legacy (.kopy, .enb) lessons</span>
+        <p className="mt-1 text-xs text-muted">PDF, images, DOCX, PPTX, ODP - up to 25 MB each</p><span className="kn-import-archive-hint">Open Phoenix (.ps) lessons, or earlier (.enb) lessons</span>
         <input
           ref={inputRef}
           type="file"
           multiple
-          accept=".ps,.kopy,.enb,.pdf,image/*,.docx,.pptx,.odp,application/pdf"
+          accept=".ps,.enb,.pdf,image/*,.docx,.pptx,.odp,application/pdf"
           className="hidden"
           onChange={(e) => {addFiles(e.target.files);e.target.value="";}}
         />

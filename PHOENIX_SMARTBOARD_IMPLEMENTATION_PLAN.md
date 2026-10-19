@@ -68,17 +68,17 @@ To ensure **Phoenix-Smartboard** contains no trace of the original project, the 
 
 | Target Domain | Original Legacy Value | New Phoenix Smartboard Value |
 | :--- | :--- | :--- |
-| **Product Display Name** | `Kopy Notes` | **Phoenix Smartboard** |
-| **Package Name** | `kopy-notes` | `phoenix-smartboard` |
-| **App Bundle ID** | `org.kopynotes.app` | `com.phoenix.smartboard` |
-| **Native File Extension** | `.kopy` | **`.ps`** |
-| **MIME Type** | `application/vnd.kopy-notes+json` | `application/vnd.phoenix-smartboard+json` |
-| **IndexedDB Database** | `kopy-notes` | `phoenix-smartboard-db` |
-| **LocalStorage Keys** | `kopy-selection-settings`, `kopy-eraser-mode`, `kopy-palm-eraser` | `phoenix-selection-settings`, `phoenix-eraser-mode`, `phoenix-palm-eraser` |
-| **Vendor CSS/Theme** | `org-note3.css`, `note3-backgrounds.ts` | `phoenix-classic.css`, `phoenix-backgrounds.ts` |
-| **Default Accent Color** | `#526677` / `#83d131` | `#e63946` (Phoenix Crimson) or `#2a9d8f` |
-| **Developer Credits / URLs** | `ADIxxDEV`, `adixdev`, Netlify, Product Hunt, Reddit | Scrubbed; clean open-source metadata under your profile |
-| **Splash / Tagline** | `"A space for every lesson"` | `"Ignite your classroom. Your lesson, your way."` |
+| **Product Display Name** | *(Legacy Name)* | **Phoenix Smartboard** |
+| **Package Name** | *(Legacy Package)* | `phoenix-smartboard` |
+| **App Bundle ID** | *(Legacy App ID)* | `com.phoenix.smartboard` |
+| **Native File Extension** | *(Legacy Extension)* | **`.ps`** |
+| **MIME Type** | *(Legacy MIME Type)* | `application/vnd.phoenix-smartboard+json` |
+| **IndexedDB Database** | *(Legacy DB)* | `phoenix-smartboard-db` |
+| **LocalStorage Keys** | `legacy-*` | `phoenix-*` |
+| **Vendor CSS/Theme** | *(Legacy Themes)* | `phoenix-classic.css`, `phoenix-backgrounds.ts` |
+| **Default Accent Color** | `#526677` | `#e63946` (Phoenix Crimson) |
+| **Developer Credits / URLs** | *(Previous Owner / Handles)* | Clean open-source metadata under Phoenix Smartboard |
+| **Splash / Tagline** | *(Legacy Tagline)* | `"Ignite your classroom. Your lesson, your way."` |
 
 ---
 
@@ -206,8 +206,7 @@ The `.ps` file is an uncompressed, human-readable UTF-8 JSON package (Version 1)
 ```
 
 > [!TIP]
-> **Backward Compatibility Bridge:**
-> To ensure teachers can open older files, Phoenix Smartboard will include an internal converter that can import legacy `.kopy` and `.enb` files, automatically converting them into standard `.ps` format without exposing old branding.
+> To ensure teachers can open older files, Phoenix Smartboard will include an internal converter that can import `.ps` and `.enb` files, automatically converting them into standard `.ps` format without exposing old branding.
 
 ### B. Offline IndexedDB Structure (`phoenix-smartboard-db`)
 - Store **`profile`**: Teacher preferences, UI layout, watermark, custom pens, calibration factor.
@@ -266,7 +265,7 @@ timeline
   - `FILE_EXTENSION = ".ps"`
   - `MIME_TYPE = "application/vnd.phoenix-smartboard+json"`
   - `DB_NAME = "phoenix-smartboard-db"`
-- [ ] Purge and replace all occurrences of `Kopy Notes`, `kopy-notes`, `ADIxxDEV`, `adixdev`, and `org-note3`.
+- [ ] Purge and replace all occurrences of previous project names and owner handles.
 - [ ] Design fresh Phoenix brand assets: App icons, favicons, vector logo, and splash screen graphics.
 
 #### Phase 2: Core Vector Canvas Engine
@@ -283,7 +282,7 @@ timeline
 - [ ] Initialize `phoenix-smartboard-db` in IndexedDB.
 - [ ] Implement `.ps` bundle import/export engine with Base64 asset encoding.
 - [ ] Implement background 3-tier rotating auto-recovery snapshots.
-- [ ] Add silent legacy `.kopy` / `.enb` file converter for backward compatibility.
+- [ ] Add silent file converter for backward compatibility.
 
 #### Phase 5: K-12 STEM Classroom Suite
 - [ ] Build Virtual Geometry Instruments (Ruler with edge snapping, Protractor, Set Square, Compass).

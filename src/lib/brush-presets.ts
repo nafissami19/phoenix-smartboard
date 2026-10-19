@@ -26,12 +26,12 @@ export function parseCustomPen(value:unknown):CustomPen{
  return {...(typeof p.enabled==='boolean'?{enabled:p.enabled}:{}),id:typeof p.id==='string'&&/^[a-zA-Z0-9_-]{1,80}$/.test(p.id)?p.id:crypto.randomUUID(),name:p.name.trim(),brush:p.brush,color:p.color,size:p.size,opacity:p.opacity,pressure:p.pressure,settings:{...p.settings}};
 }
 const key='phoenix-custom-pens';
-export function loadCustomPens():CustomPen[]{try{const values=JSON.parse(localStorage.getItem(key)??localStorage.getItem('kopy-custom-pens')??'[]');return Array.isArray(values)?values.slice(0,40).flatMap(v=>{try{return [parseCustomPen(v)];}catch{return [];}}):[];}catch{return [];}}
+export function loadCustomPens():CustomPen[]{try{const values=JSON.parse(localStorage.getItem(key)??'[]');return Array.isArray(values)?values.slice(0,40).flatMap(v=>{try{return [parseCustomPen(v)];}catch{return [];}}):[];}catch{return [];}}
 export function saveCustomPens(pens:CustomPen[]){if(pens.length>40)throw new Error('You can save up to 40 custom pens.');localStorage.setItem(key,JSON.stringify(pens.map(parseCustomPen)));window.dispatchEvent(new Event('phoenix-pen-store-updated'));}
 export function exportCustomPen(pen:CustomPen){return JSON.stringify({schema:'com.phoenix.smartboard.pen',version:1,pen:parseCustomPen(pen)},null,2);}
 export function importCustomPen(text:string):CustomPen{
  if(text.length>128*1024)throw new Error('Pen files must be smaller than 128 KB.');
- const pack=JSON.parse(text);if((pack.schema!=='com.phoenix.smartboard.pen'&&pack.schema!=='org.kopynotes.pen')||pack.version!==1)throw new Error('Unsupported pen file.');
+ const pack=JSON.parse(text);if(pack.schema!=='com.phoenix.smartboard.pen'||pack.version!==1)throw new Error('Unsupported pen file.');
  return {...parseCustomPen(pack.pen),id:crypto.randomUUID()};
 }
 
@@ -44,5 +44,5 @@ export const PEN_STORE_ITEMS=[
  {id:'chalk',label:'Chalk',tool:'pen',extra:true},{id:'oil-pastel',label:'Oil pastel',tool:'pen',extra:true},
  {id:'oil-paint',label:'Oil paint',tool:'pen',extra:true}
 ];
-export function loadPenMenu():string[]{try{const v=JSON.parse(localStorage.getItem('phoenix-pen-menu')??localStorage.getItem('kopy-pen-menu')??'null');return Array.isArray(v)?['normal',...v.filter((id:unknown)=>typeof id==='string'&&id!=='normal'&&PEN_STORE_ITEMS.some(i=>i.id===id))]:[...PEN_MENU_DEFAULTS];}catch{return [...PEN_MENU_DEFAULTS];}}
+export function loadPenMenu():string[]{try{const v=JSON.parse(localStorage.getItem('phoenix-pen-menu')??'null');return Array.isArray(v)?['normal',...v.filter((id:unknown)=>typeof id==='string'&&id!=='normal'&&PEN_STORE_ITEMS.some(i=>i.id===id))]:[...PEN_MENU_DEFAULTS];}catch{return [...PEN_MENU_DEFAULTS];}}
 export function savePenMenu(ids:string[]){const valid=PEN_STORE_ITEMS.map(p=>p.id).filter(id=>id==='normal'||ids.includes(id));localStorage.setItem('phoenix-pen-menu',JSON.stringify(valid));window.dispatchEvent(new Event('phoenix-pen-store-updated'));}

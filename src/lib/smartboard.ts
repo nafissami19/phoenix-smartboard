@@ -11,12 +11,11 @@ const bridge=registerPlugin<{
  addListener(event:'appState',callback:(event:NativeAppState)=>void):Promise<PluginListenerHandle>;
 }>('Smartboard');
 let initialization:Promise<void>|undefined;
-export function displayPreferences():DisplayPreferences{let value:Partial<DisplayPreferences>={};try{value=JSON.parse((localStorage.getItem('phoenix-display')??localStorage.getItem('kopy-display'))||'{}')??{};}catch{}return {orientation:['landscape','portrait'].includes(value.orientation??'')?value.orientation!:'system',keepAwake:value.keepAwake===true,fullscreen:value.fullscreen===true,largeControls:value.largeControls===true};}
-export async function applyDisplay(settings:DisplayPreferences){localStorage.setItem('phoenix-display',JSON.stringify(settings));document.documentElement.toggleAttribute('data-smartboard',settings.largeControls);window.dispatchEvent(new Event('phoenix-display-changed'));window.dispatchEvent(new Event('kopy-display-changed'));if(Capacitor.getPlatform()==='android')await bridge.configure(settings);}
+export function displayPreferences():DisplayPreferences{let value:Partial<DisplayPreferences>={};try{value=JSON.parse(localStorage.getItem('phoenix-display')||'{}')??{};}catch{}return {orientation:['landscape','portrait'].includes(value.orientation??'')?value.orientation!:'system',keepAwake:value.keepAwake===true,fullscreen:value.fullscreen===true,largeControls:value.largeControls===true};}
+export async function applyDisplay(settings:DisplayPreferences){localStorage.setItem('phoenix-display',JSON.stringify(settings));document.documentElement.toggleAttribute('data-smartboard',settings.largeControls);window.dispatchEvent(new Event('phoenix-display-changed'));if(Capacitor.getPlatform()==='android')await bridge.configure(settings);}
 function dispatchMemoryPressure(event:MemoryPressure){
  if(event.severity!=='moderate'&&event.severity!=='critical')return;
  window.dispatchEvent(new CustomEvent('phoenix-memory-pressure',{detail:event}));
- window.dispatchEvent(new CustomEvent('kopy-memory-pressure',{detail:event}));
 }
 async function initializeNative(){
  const settings=displayPreferences();
@@ -24,15 +23,14 @@ async function initializeNative(){
   // Query the native physical RAM rather than WebView's optional rounded hint.
   // RAM is a budget hint; it is not a measurement of WebView's usable heap.
   const environment=await bridge.environment();
-  if(!localStorage.getItem('phoenix-display')&&!localStorage.getItem('kopy-display'))settings.largeControls=environment.largeScreen;
+  if(!localStorage.getItem('phoenix-display'))settings.largeControls=environment.largeScreen;
   if(typeof environment.totalMemoryMB==='number'&&environment.totalMemoryMB>0){
    setDeviceMemoryHint(environment.lowRamDevice?Math.min(2,environment.totalMemoryMB/1024):environment.totalMemoryMB/1024);
   }else if(environment.lowRamDevice)setDeviceMemoryHint(2);
   await bridge.addListener('memoryPressure',dispatchMemoryPressure);
   await bridge.addListener('appState',event=>{
    window.dispatchEvent(new CustomEvent('phoenix-app-state',{detail:event}));
-   window.dispatchEvent(new CustomEvent('kopy-app-state',{detail:event}));
-   if(!event.active){window.dispatchEvent(new Event('phoenix-pause-media'));window.dispatchEvent(new Event('kopy-pause-media'));}
+   if(!event.active){window.dispatchEvent(new Event('phoenix-pause-media'));}
   });
   if(environment.lowMemory)dispatchMemoryPressure({severity:'critical',level:15});
  }

@@ -21,7 +21,7 @@ export function TreasureBox({
   onClose: () => void;
 }) {
   const [search,setSearch]=useState('');
-  const [category,setCategory]=useState(()=>{try{const saved=localStorage.getItem('phoenix-treasure-category')??localStorage.getItem('kopy-treasure-category');return ['All','Subjects','Tools','Classroom'].includes(saved??'')?saved!:'All';}catch{return 'All';}});
+  const [category,setCategory]=useState(()=>{try{const saved=localStorage.getItem('phoenix-treasure-category');return ['All','Subjects','Tools','Classroom'].includes(saved??'')?saved!:'All';}catch{return 'All';}});
   const chooseCategory=(name:string)=>{setCategory(name);try{localStorage.setItem('phoenix-treasure-category',name);}catch{}};
   const subjects:{id:SubjectTool;label:string;group:string}[]=[{id:'graph',label:'Graphs',group:'Mathematics'},{id:'handwriting',label:'Handwriting',group:'Mathematics'},{id:'solids',label:'3D shapes',group:'Mathematics'},{id:'chemistry',label:'Chemistry',group:'Chemistry'},{id:'periodic',label:'Periodic table',group:'Chemistry'},{id:'physics',label:'Physics',group:'Physics'},{id:'camera',label:'Camera',group:'Classroom'},{id:'curtain',label:'Curtain',group:'Classroom'},{id:'classroom',label:'Picker & dice',group:'Classroom'}];
   const entries=[...FLOATING_TOOLS.map(t=>({id:t.id,label:t.label,category:'Tools',group:t.group==='Math'?'Instruments':t.group==='Time'?'Time':'General tools',active:openTools.has(t.id),run:()=>onToggle(t.id)})),...subjects.map(t=>({...t,category:t.group==='Classroom'?'Classroom':'Subjects',active:false,run:()=>onSubjectTool(t.id)})),{id:"backgrounds",label:"Subject backgrounds",category:"Subjects",group:"Backgrounds",active:false,run:onOpenBackgrounds}];

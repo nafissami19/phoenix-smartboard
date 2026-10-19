@@ -1,9 +1,9 @@
 import {test,expect} from '@playwright/test';
 test('landing is readable, responsive and opens the teaching app',async({page})=>{
  await page.goto('/');
- await expect(page).toHaveTitle(/Note3.*Note5/);
- await expect(page.locator('#landing h1')).toContainText('Your classroom.');
- await expect(page.getByRole('link',{name:'Buy adixdev a coffee',exact:true})).toHaveAttribute('href','https://www.buymeacoffee.com/adixdev');
+ await expect(page).toHaveTitle(/Phoenix Smartboard/);
+ await expect(page.locator('#landing h1')).toContainText('Ignite your classroom');
+ await expect(page.locator('.lp-brand').first()).toContainText('phoenix smartboard');
  expect(await page.locator('script[type="application/ld+json"]').textContent()).toContain('SoftwareApplication');
  for(const width of [1440,768,390]){
   await page.setViewportSize({width,height:900});
@@ -13,12 +13,12 @@ test('landing is readable, responsive and opens the teaching app',async({page})=
  expect(await page.locator('.lp-demo').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
  await page.screenshot({path:'test-results/landing-phone.png',fullPage:true});
  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'test-results/landing-desktop.png'});
- await page.getByRole('link',{name:/Start teaching/}).click();
+ await page.getByRole('link',{name:/Launch Phoenix Smartboard|Open Phoenix Smartboard/}).first().click();
  await expect(page.getByRole('button',{name:'Start teaching',exact:true})).toBeVisible({timeout:30000});
  await expect(page.locator('#landing')).toBeHidden();
 });
 test('production artwork pack is valid and has the original tool images',async({request,page})=>{
- const response=await request.get('/themes/org-note3.kopy-theme');expect(response.ok()).toBe(true);
+ const response=await request.get('/themes/org-note3.ps-theme');expect(response.ok()).toBe(true);
  const pack=await response.json();expect(pack.appearance).toBe('org-note3');
  for(const icon of ['pen','eraser','select','menu','save','board'])expect(pack.icons[icon]).toMatch(/^data:image\/png;base64,/);
  await page.route('**/__local-note3-theme',route=>route.fulfill({json:pack}));

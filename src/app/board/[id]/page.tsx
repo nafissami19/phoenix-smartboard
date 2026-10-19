@@ -81,12 +81,12 @@ export default function BoardPage() {
   const [panel, setPanel] = useState<DockId | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [chemistryDose,setChemistryDose]=useState(25);
-  const [openTools,setOpenTools]=useState<Set<FloatingToolId>>(()=>{try{const stored=JSON.parse(localStorage.getItem('phoenix-open-tools')??localStorage.getItem('kopy-open-tools')??'[]');return new Set(Array.isArray(stored)?stored.filter(id=>id!=='screenshot'&&FLOATING_TOOLS.some(t=>t.id===id)):[]);}catch{return new Set();}});
+  const [openTools,setOpenTools]=useState<Set<FloatingToolId>>(()=>{try{const stored=JSON.parse(localStorage.getItem('phoenix-open-tools')??'[]');return new Set(Array.isArray(stored)?stored.filter(id=>id!=='screenshot'&&FLOATING_TOOLS.some(t=>t.id===id)):[]);}catch{return new Set();}});
   useEffect(()=>{try{localStorage.setItem('phoenix-open-tools',JSON.stringify([...openTools].filter(id=>id!=='screenshot')));}catch{}},[openTools]);
   const [thumbsOpen, setThumbsOpen] = useState(()=>window.innerWidth>=1000);
   const [presenting, setPresenting] = useState(false);
-  const [slidesSide,setSlidesSide]=useState<'left'|'right'>(()=>{try{return (localStorage.getItem('phoenix-slides-side')??localStorage.getItem('kopy-slides-side'))==='left'?'left':'right';}catch{return 'right';}});
-  useEffect(()=>{try{localStorage.setItem('phoenix-slides-side',slidesSide);window.dispatchEvent(new Event('phoenix-popup-layout'));window.dispatchEvent(new Event('kopy-popup-layout'));}catch{}},[slidesSide]);
+  const [slidesSide,setSlidesSide]=useState<'left'|'right'>(()=>{try{return localStorage.getItem('phoenix-slides-side')==='left'?'left':'right';}catch{return 'right';}});
+  useEffect(()=>{try{localStorage.setItem('phoenix-slides-side',slidesSide);window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{}},[slidesSide]);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "dirty">("saved");
   const [operation,setOperation]=useState<string|null>(null);
   const [textValue, setTextValue] = useState("");
@@ -94,8 +94,8 @@ export default function BoardPage() {
   const [showRecorder,setShowRecorder]=useState(false);
   const [showBackups,setShowBackups]=useState(false);
   const [commentsOpen,setCommentsOpen]=useState(false);
-  const [toolbarLayout,setToolbarLayout]=useState<'bottom'|'top'|'left'|'right'>(()=>{try{const value=localStorage.getItem('phoenix-toolbar-layout')??localStorage.getItem('kopy-toolbar-layout');return value==='left'||value==='right'||value==='top'?value:'bottom';}catch{return 'bottom';}});
-  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout',toolbarLayout);window.dispatchEvent(new Event('phoenix-popup-layout'));window.dispatchEvent(new Event('kopy-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
+  const [toolbarLayout,setToolbarLayout]=useState<'bottom'|'top'|'left'|'right'>(()=>{try{const value=localStorage.getItem('phoenix-toolbar-layout');return value==='left'||value==='right'||value==='top'?value:'bottom';}catch{return 'bottom';}});
+  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout',toolbarLayout);window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
   const [assistantOpen,setAssistantOpen]=useState(false);
   const [subjectTool, setSubjectTool] = useState<SubjectTool | null>(null);
 
@@ -367,7 +367,7 @@ export default function BoardPage() {
         setNotebook(data.notebook);
         const pgs = data.pages.length ? data.pages : [];
         setPages(pgs);
-        let last:string|null=null;try{last=localStorage.getItem('phoenix-last-page:'+id)??localStorage.getItem('kopy-last-page:'+id);}catch{}
+        let last:string|null=null;try{last=localStorage.getItem('phoenix-last-page:'+id);}catch{}
         if(pgs.length)loadPageIntoBoard(Math.max(0,pgs.findIndex(p=>p.id===last)),pgs);
         const unfinished=await unfinishedEdits(id),activity=await lastWorkActivity(id);if(alive){setRecoveryEdits(unfinished);setLastActivity(activity);}
       } catch {
@@ -409,8 +409,8 @@ export default function BoardPage() {
     const save = () => { if (document.visibilityState === 'hidden') void flushSave().catch(()=>{}); };
     const exit = (event: BeforeUnloadEvent) => { if (pendingRef.current || recording) { event.preventDefault(); event.returnValue = ''; void flushSave().catch(()=>{}); } };
     const deviceFlush=(event:Event)=>{(event as CustomEvent<{pending:Promise<unknown>[]}>).detail.pending.push(flushSave());};
-    window.addEventListener('phoenix-flush-board',deviceFlush);window.addEventListener('kopy-flush-board',deviceFlush);document.addEventListener('visibilitychange', save); window.addEventListener('beforeunload', exit);
-    return () => { window.removeEventListener('phoenix-flush-board',deviceFlush);window.removeEventListener('kopy-flush-board',deviceFlush);document.removeEventListener('visibilitychange', save); window.removeEventListener('beforeunload', exit); void flushSave().catch(()=>{}); };
+    window.addEventListener('phoenix-flush-board',deviceFlush);document.addEventListener('visibilitychange', save); window.addEventListener('beforeunload', exit);
+    return () => { window.removeEventListener('phoenix-flush-board',deviceFlush);document.removeEventListener('visibilitychange', save); window.removeEventListener('beforeunload', exit); void flushSave().catch(()=>{}); };
   }, [flushSave, recording]);
 
   // ------------------------------ page actions -----------------------------
@@ -419,7 +419,6 @@ export default function BoardPage() {
     async (i: number) => {
       if (i < 0 || i >= pages.length || i === index) return;
       window.dispatchEvent(new Event('phoenix-pause-media'));
-      window.dispatchEvent(new Event('kopy-pause-media'));
       await flushSave();
       const response = await localRequest(`/api/pages/${pages[i].id}`);
       if (!response.ok) return;
@@ -874,7 +873,7 @@ export default function BoardPage() {
           />
         )}
 
-        <BoardTooltips/><ControlLayoutEditor/><TeachingControls onCustomize={()=>{window.dispatchEvent(new Event('phoenix-customize-controls'));window.dispatchEvent(new Event('kopy-customize-controls'));}} layout={toolbarLayout} onLayout={setToolbarLayout} recorder={showRecorder} backups={showBackups} comments={commentsOpen} recording={recording} onRecorder={setShowRecorder} onBackups={setShowBackups} onComments={setCommentsOpen}/>
+        <BoardTooltips/><ControlLayoutEditor/><TeachingControls onCustomize={()=>{window.dispatchEvent(new Event('phoenix-customize-controls'));}} layout={toolbarLayout} onLayout={setToolbarLayout} recorder={showRecorder} backups={showBackups} comments={commentsOpen} recording={recording} onRecorder={setShowRecorder} onBackups={setShowBackups} onComments={setCommentsOpen}/>
         <div hidden={!showBackups}><RecoveryPanel lessonId={id} flush={flushSave}/></div>
         {commentsOpen&&<LiveComments onClose={()=>setCommentsOpen(false)}/>}
         {profile.ai?.enabled&&<button className="local-assistant-launch" onClick={()=>setAssistantOpen(value=>!value)} aria-label="Local assistant">AI assistant</button>}

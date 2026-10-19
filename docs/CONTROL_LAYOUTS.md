@@ -15,7 +15,7 @@ Calculators, timers, comments and other tool panels open docked. Their header ha
 
 Layouts use proportional positions so they stay reachable when a tablet rotates. Large controls are fitted to the available screen. Keep separate named presets for phone, tablet and smartboard arrangements when useful.
 
-Export downloads `kopy-control-layouts.json`, containing the current layout and up to 20 presets. Import restores it on another device. Layouts are stored in this browser profile, separately from lesson content; export a copy before clearing site data.
+Export downloads `phoenix-control-layouts.json`, containing the current layout and up to 20 presets. Import restores it on another device. Layouts are stored in this browser profile, separately from lesson content; export a copy before clearing site data.
 
 The layout editor itself can be moved by its header or minimized to reach controls behind it. The layout launcher stays on the screen edge so hidden controls can always be restored.
 

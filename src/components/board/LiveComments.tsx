@@ -1,11 +1,11 @@
 import {CustomSelect} from '@/components/CustomSelect';
 import { useEffect, useState } from 'react';
 import { FloatingWindow } from './FloatingWindow';
-import { LIVE_COMMENTS_STORAGE_KEY, LEGACY_LIVE_COMMENTS_STORAGE_KEY, readSavedCommentConnection, resolveLiveCommentSource, type LiveCommentKind, type LiveCommentSource } from '@/lib/live-comments';
+import { LIVE_COMMENTS_STORAGE_KEY, readSavedCommentConnection, resolveLiveCommentSource, type LiveCommentKind, type LiveCommentSource } from '@/lib/live-comments';
 import './LiveComments.css';
 
 function savedConnection() {
-  try { return readSavedCommentConnection(localStorage.getItem(LIVE_COMMENTS_STORAGE_KEY) ?? localStorage.getItem(LEGACY_LIVE_COMMENTS_STORAGE_KEY)); }
+  try { return readSavedCommentConnection(localStorage.getItem(LIVE_COMMENTS_STORAGE_KEY)); }
   catch { return null; }
 }
 function isMobileYouTube() {
@@ -45,7 +45,6 @@ export function LiveComments({ onClose }: { onClose: () => void }) {
   function forget() {
     try {
       localStorage.removeItem(LIVE_COMMENTS_STORAGE_KEY);
-      localStorage.removeItem(LEGACY_LIVE_COMMENTS_STORAGE_KEY);
       setNotice('Saved connection removed.');
       setError('');
     }

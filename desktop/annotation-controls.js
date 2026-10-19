@@ -1,4 +1,4 @@
-const api=window.phoenixDisplay||window.kopyDisplay,status=document.getElementById('status');let timer;
+const api=window.phoenixDisplay,status=document.getElementById('status');let timer;
 const wake=()=>{document.body.classList.remove('idle');clearTimeout(timer);timer=setTimeout(()=>document.body.classList.add('idle'),4000);};document.addEventListener('pointermove',wake);wake();
 for(const button of document.querySelectorAll('[data-action]'))button.addEventListener('click',async()=>{wake();try{const result=await api.command(button.dataset.action,button.dataset.value);if(result?.saved)status.textContent='Screenshot saved to device folder';}catch(error){status.textContent=error.message;}});
 document.getElementById('color').addEventListener('input',event=>api.command('color',event.target.value));document.getElementById('width').addEventListener('input',event=>api.command('width',Number(event.target.value)));

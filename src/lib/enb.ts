@@ -47,8 +47,8 @@ export async function prepareEnb(file:Blob,title='Imported Note3 lesson'){
  if(count<1||count>500||!Number.isInteger(count))throw new Error('ENB documents must contain 1–500 pages.');
  const sources:string[]=[];for(let i=0;i<count;i++){const f=zip.file(`Slides/Slide_${i}.xml`);if(!f)throw new Error(`Missing ENB page ${i+1}.`);sources.push(await readText(zip,`Slides/Slide_${i}.xml`));}
  // A native Note3 edit invalidates the embedded Phoenix copy. Never restore stale notes.
- const embedded=zip.file('Phoenix/lesson.json')||zip.file('Kopy/lesson.json'),checks=zip.file('Phoenix/checks.json')||zip.file('Kopy/checks.json');
- if(embedded&&checks){try{const checkPath=zip.file('Phoenix/checks.json')?'Phoenix/checks.json':'Kopy/checks.json';const lessonPath=zip.file('Phoenix/lesson.json')?'Phoenix/lesson.json':'Kopy/lesson.json';const saved=JSON.parse(await readText(zip,checkPath,100000));if(saved.board===await digest(boardSource)&&Array.isArray(saved.slides)&&saved.slides.length===count&&(await Promise.all(sources.map(digest))).every((hash,i)=>hash===saved.slides[i]))return{blob:new Blob([await readText(zip,lessonPath,100*1024*1024)],{type:'application/json'}),flattenedPages:[] as number[],pageCount:count};}catch{/* Fall through to the current native slides. */}}
+ const embedded=zip.file('Phoenix/lesson.json'),checks=zip.file('Phoenix/checks.json');
+ if(embedded&&checks){try{const checkPath='Phoenix/checks.json';const lessonPath='Phoenix/lesson.json';const saved=JSON.parse(await readText(zip,checkPath,100000));if(saved.board===await digest(boardSource)&&Array.isArray(saved.slides)&&saved.slides.length===count&&(await Promise.all(sources.map(digest))).every((hash,i)=>hash===saved.slides[i]))return{blob:new Blob([await readText(zip,lessonPath,100*1024*1024)],{type:'application/json'}),flattenedPages:[] as number[],pageCount:count};}catch{/* Fall through to the current native slides. */}}
  const pages:Page[]=[],assets:{id:string;name:string;mimeType:string;dataBase64:string}[]=[],flattenedPages:number[]=[];
  for(let i=0;i<count;i++){
   const root=xml(sources[i]),width=number(field(root,'Width')),height=number(field(root,'Height'));if(width<1||height<1)throw new Error('Invalid ENB page dimensions.');
@@ -87,6 +87,5 @@ export async function exportEnb(notebookId:string,pages:readonly Page[],onProgre
  zip.file('Config.xml','<Package><Packages><Package Key="SubjectScene"><Data><CurrentScene>Standard</CurrentScene></Data></Package><Package Key="SlideManager_Group"><Packages>'+ids.map(slide=>`<Package Type="SlideItem"><Data><GroupKey>Anonymous</GroupKey><GroupValue/><Content/><Note/><SlideId>${escape(slide)}</SlideId></Data></Package>`).join('')+'</Packages></Package></Packages></Package>');
  const editableContent=await editable.text(),checksContent=JSON.stringify({board:await digest(board),slides:await Promise.all(sources.map(digest))});
  zip.file('Phoenix/lesson.json',editableContent);zip.file('Phoenix/checks.json',checksContent);
- zip.file('Kopy/lesson.json',editableContent);zip.file('Kopy/checks.json',checksContent);
  return zip.generateAsync({type:'blob',compression:'STORE',mimeType:'application/vnd.note3.enb'});
 }

@@ -26,7 +26,7 @@ test('selected snapshot limits reject binary expansion before reading attachment
 test('snapshot preflight includes page metadata and successful encoding leaves originals editable',async()=>{
  const blob=new Blob(['original attachment']);let reads=0;
  const originalRead=blob.arrayBuffer.bind(blob);blob.arrayBuffer=()=>{reads++;return originalRead();};
- const records:SnapshotRecords={profile:{teacherName:'Teacher'},notebooks:[{id:'lesson'}],pages:[{id:'page',text:'x'.repeat(2*1024*1024)}],assets:[{id:'attachment',blob}],preferences:{'kopy-test':'original'}};
+ const records:SnapshotRecords={profile:{teacherName:'Teacher'},notebooks:[{id:'lesson'}],pages:[{id:'page',text:'x'.repeat(2*1024*1024)}],assets:[{id:'attachment',blob}],preferences:{'phoenix-test':'original'}};
  await assert.rejects(()=>encodeDeviceSnapshot(records,1024*1024),/exceeds 1 MB/);
  assert.equal(reads,0,'Oversized page metadata must reject before attachments are decoded');
  assert.equal((records.pages[0] as {text:string}).text.length,2*1024*1024);
@@ -34,6 +34,6 @@ test('snapshot preflight includes page metadata and successful encoding leaves o
  const encoded=JSON.parse(await encodeDeviceSnapshot(records,1024*1024));
  assert.equal(atob(encoded.assets[0].dataBase64),'original attachment');
  assert.equal(records.assets[0].blob,blob);assert.equal(await blob.text(),'original attachment');
- assert.deepEqual(records.pages,[{id:'page',text:'editable'}]);assert.equal(records.preferences['kopy-test'],'original');
+ assert.deepEqual(records.pages,[{id:'page',text:'editable'}]);assert.equal(records.preferences['phoenix-test'],'original');
  assert.equal('dataBase64' in records.assets[0],false);
 });

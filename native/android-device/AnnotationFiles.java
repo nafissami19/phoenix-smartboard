@@ -16,7 +16,6 @@ final class AnnotationFiles {
  private Uri folder() throws Exception {
   android.content.SharedPreferences p=context.getSharedPreferences("phoenix-device-folder",0);
   String selected=p.getString("tree",null);
-  if(selected==null)selected=context.getSharedPreferences("kopy-device-folder",0).getString("tree",null);
   if(selected==null)throw new IOException("Choose a device folder in Phoenix Smartboard settings to keep annotations after uninstall.");
   Uri tree=Uri.parse(selected),parent=DocumentsContract.buildDocumentUriUsingTree(tree,DocumentsContract.getTreeDocumentId(tree));
   Uri existing=find(parent,"Annotations");return existing!=null?existing:DocumentsContract.createDocument(context.getContentResolver(),parent,DocumentsContract.Document.MIME_TYPE_DIR,"Annotations");

@@ -1,25 +1,25 @@
-﻿# org-note3 and ENB compatibility
+# org-note3 and ENB compatibility
 
 Choose **Menu > Themes > org-note3** for the silver docks, raised pen button,
 charcoal panel headers, and Note-style toolbar order. Custom positions, touch
 controls and small-screen overflow still work. **Note green** is a separate page
 preset: applying a theme does not recolor existing notes.
 
-The built-in CSS and fallback icons are Kopy artwork. The production theme pack
-in public/themes/org-note3.kopy-theme supplies the original raster icons. It is
+The built-in CSS and fallback icons are Phoenix Smartboard artwork. The production theme pack
+in public/themes/org-note3.ps-theme supplies the original raster icons. It is
 loaded when selected, saved with your profile and precached for offline use.
 See THIRD_PARTY.md for its separate noncommercial terms. A local installation
 can also regenerate a portable theme:
 
 ```powershell
 New-Item -ItemType Directory -Force .local-themes
-powershell -NoProfile -File scripts/create-local-note3-theme.ps1 -Output .local-themes/org-note3.kopy-theme
+powershell -NoProfile -File scripts/create-local-note3-theme.ps1 -Output .local-themes/org-note3.ps-theme
 npm run dev
 ```
 
 The script reads selected PNG resources from a local ShiRui Note installation;
 it does not download or modify the installation. Use `-Installation` for a
-non-default directory. In the development preview, choose **org-note3** (the card uses your local artwork). On another device, use **Import theme** with that `.kopy-theme` file.
+non-default directory. In the development preview, choose **org-note3** (the card uses your local artwork). On another device, use **Import theme** with that `.ps-theme` file.
 The appearance, embedded icons, board presets and attribution survive export.
 
 Original artwork retains its original ownership and terms. It is not relicensed
@@ -47,9 +47,9 @@ as a native Picture package using Note3's bitmap and transform fields. The file 
 a real ENB ZIP container, not a renamed PDF. Pages are pictures in Note3. Test the
 file in your Note3 version before relying on it in class.
 
-An embedded `.kopy` payload preserves Kopy's editable objects on reimport. Hashes
+An embedded `.ps` payload preserves Phoenix Smartboard's editable objects on reimport. Hashes
 of the native board and slide XML invalidate that copy if Note3 changes those
-pages, so edited native pages take precedence. Keep `.kopy` as the primary backup;
+pages, so edited native pages take precedence. Keep `.ps` as the primary backup;
 unsupported ENB features do not have lossless cross-application round trips.
 
 Imports validate ZIP paths, sizes, expanded streams, page counts, XML and PNG

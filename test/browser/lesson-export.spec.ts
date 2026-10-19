@@ -57,7 +57,7 @@ test('PDF panel waits for a ready document and lets the user download current or
   await expect(page.getByRole('button',{name:'Start teaching',exact:true})).toBeVisible({timeout:60000});
   await page.evaluate(async () => {
     const path = '/src/lib/local-store.ts'; const {database} = await import(/* @vite-ignore */ path); const db = await database(); const now = new Date();
-    await db.put('profile', {id: 1, appName: 'Kopy Notes', teacherName: 'Teacher', institution: '', accent: '#526677', boardBg: '#ffffff', boardPattern: 'none', defaultPenColor: '#10151b', onboarded: 1, createdAt: now, updatedAt: now});
+    await db.put('profile', {id: 1, appName: 'Phoenix Smartboard', teacherName: 'Teacher', institution: '', accent: '#526677', boardBg: '#ffffff', boardPattern: 'none', defaultPenColor: '#10151b', onboarded: 1, createdAt: now, updatedAt: now});
     await db.put('notebooks', {id: 'pdf-ui', title: 'PDF lesson', subject: '', coverColor: '#526677', pageCount: 2, createdAt: now, updatedAt: now});
     for (let position = 0; position < 2; position++) await db.put('pages', {id: `pdf-ui-${position}`, notebookId: 'pdf-ui', position, background: '#ffffff', pattern: 'none', objects: [], media: [], createdAt: now, updatedAt: now});
     db.close();

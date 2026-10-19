@@ -12,8 +12,8 @@ export function SmartKeyboard(){
  const target=useRef<Field|null>(null),keyboard=useRef<Keyboard|null>(null),originalMode=useRef<string|null>(null),host=useRef<HTMLDivElement>(null);
  const [active,setActive]=useState<Field|null>(null),[destination,setDestination]=useState<HTMLElement>(document.body),[layout,setLayout]=useState('default');
  const layoutRef=useRef(layout);layoutRef.current=layout;
- const [mode,setMode]=useState<'floating'|'bottom'>(()=>{try{return (localStorage.getItem('phoenix-keyboard-mode')??localStorage.getItem('kopy-keyboard-mode'))==='floating'?'floating':'bottom';}catch{return 'bottom';}});
- const [position,setPosition]=useState(()=>{try{const p=JSON.parse(localStorage.getItem('phoenix-keyboard-position')??localStorage.getItem('kopy-keyboard-position')??'null');if(p&&Number.isFinite(p.x)&&Number.isFinite(p.y))return p;}catch{}return{x:32,y:120};});
+ const [mode,setMode]=useState<'floating'|'bottom'>(()=>{try{return (localStorage.getItem('phoenix-keyboard-mode'))==='floating'?'floating':'bottom';}catch{return 'bottom';}});
+ const [position,setPosition]=useState(()=>{try{const p=JSON.parse(localStorage.getItem('phoenix-keyboard-position')??'null');if(p&&Number.isFinite(p.x)&&Number.isFinite(p.y))return p;}catch{}return{x:32,y:120};});
  const drag=useRef<{id:number;dx:number;dy:number}|null>(null),positionRef=useRef(position);positionRef.current=position;
  const restore=()=>{const field=target.current;if(field){if(originalMode.current===null)field.removeAttribute('inputmode');else field.setAttribute('inputmode',originalMode.current);}target.current=null;};
  const close=(blur=false)=>{const field=target.current;restore();setActive(null);if(blur)field?.blur();};
@@ -22,8 +22,8 @@ export function SmartKeyboard(){
   const focus=(event:Event)=>{const field=event.target as Element;if(!eligible(field))return;if(target.current!==field){restore();target.current=field;originalMode.current=field.getAttribute('inputmode');field.setAttribute('inputmode','none');}setDestination(field.closest<HTMLElement>('dialog')??document.body);setActive(field);setLayout('default');keyboard.current?.setInput(field.value);};
   const outside=(event:Event)=>{const element=event.target as Element;if(element.closest('.kn-smart-keyboard'))return;if(eligible(element))focus({target:element} as unknown as Event);else close();};
   const reopen=()=>{if(eligible(document.activeElement))focus({target:document.activeElement} as unknown as Event);};
-  document.addEventListener('focusin',focus);document.addEventListener('click',outside);window.addEventListener('phoenix-show-keyboard',reopen);window.addEventListener('kopy-show-keyboard',reopen);
-  return()=>{document.removeEventListener('focusin',focus);document.removeEventListener('click',outside);window.removeEventListener('phoenix-show-keyboard',reopen);window.removeEventListener('kopy-show-keyboard',reopen);restore();};
+  document.addEventListener('focusin',focus);document.addEventListener('click',outside);window.addEventListener('phoenix-show-keyboard',reopen);
+  return()=>{document.removeEventListener('focusin',focus);document.removeEventListener('click',outside);window.removeEventListener('phoenix-show-keyboard',reopen);restore();};
  },[]);
  useEffect(()=>{
   if(!active)return;let cancelled=false;
@@ -42,7 +42,7 @@ export function SmartKeyboard(){
    if(layoutRef.current==='shift')setLayout('default');
    queueMicrotask(()=>keyboard.current?.setInput(field.value));
   };
-  void import('simple-keyboard/build/index.modern.esm.js').then(({default:Constructor})=>{if(cancelled||!host.current)return;keyboard.current=new Constructor(host.current,{layout:layouts,display:{'{bksp}':'\u232b','{enter}':'\u21b5','{shift}':'\u21e7','{space}':'Space','{symbols}':'123','{abc}':'ABC','{left}':'\u2190','{right}':'\u2192'},theme:'hg-theme-default phoenix-keyboard-keys kopy-keyboard-keys',useButtonTag:true,preventMouseDownDefault:true,preventMouseUpDefault:true,disableButtonHold:false,onKeyPress:press});keyboard.current.setInput(active.value);});
+  void import('simple-keyboard/build/index.modern.esm.js').then(({default:Constructor})=>{if(cancelled||!host.current)return;keyboard.current=new Constructor(host.current,{layout:layouts,display:{'{bksp}':'\u232b','{enter}':'\u21b5','{shift}':'\u21e7','{space}':'Space','{symbols}':'123','{abc}':'ABC','{left}':'\u2190','{right}':'\u2192'},theme:'hg-theme-default phoenix-keyboard-keys',useButtonTag:true,preventMouseDownDefault:true,preventMouseUpDefault:true,disableButtonHold:false,onKeyPress:press});keyboard.current.setInput(active.value);});
   return()=>{cancelled=true;keyboard.current?.destroy();keyboard.current=null;};
  },[active,destination]);
  useEffect(()=>{keyboard.current?.setOptions({layoutName:layout});},[layout]);
@@ -68,6 +68,6 @@ export function SmartKeyboard(){
  return active?createPortal(<section data-toolbar-surface className={`kn-smart-keyboard is-${mode}`} role="region" aria-label="On-screen keyboard" onPointerDownCapture={event=>event.preventDefault()} style={mode==='floating'?{left:position.x,top:position.y}:undefined}>
   <header onPointerDown={event=>{if(mode!=='floating'||(event.target as Element).closest('button'))return;drag.current={id:event.pointerId,dx:event.clientX-position.x,dy:event.clientY-position.y};event.currentTarget.setPointerCapture(event.pointerId);}} onPointerMove={move} onPointerUp={()=>{drag.current=null;try{localStorage.setItem('phoenix-keyboard-position',JSON.stringify(positionRef.current));}catch{}}} onPointerCancel={()=>{drag.current=null;}}>
    <Icon name="keyboard"/><span>Keyboard</span><button aria-label={mode==='bottom'?'Float keyboard':'Dock keyboard'} onClick={()=>setMode(current=>current==='bottom'?'floating':'bottom')}><Icon name={mode==='bottom'?'layers':'board'}/></button><button aria-label="Finish typing" onClick={()=>close(true)}><Icon name="check"/></button><button aria-label="Hide keyboard" onClick={()=>close()}><Icon name="close"/></button>
-  </header><div ref={host} className="phoenix-keyboard-keys kopy-keyboard-keys"/>
+  </header><div ref={host} className="phoenix-keyboard-keys"/>
  </section>,destination):null;
 }

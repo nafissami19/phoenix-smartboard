@@ -1,6 +1,6 @@
 import {chromium} from '@playwright/test';
 import fs from 'node:fs/promises';
-const base=process.env.PHOENIX_PREVIEW_URL||process.env.KOPY_PREVIEW_URL||'http://127.0.0.1:5195';
+const base=process.env.PHOENIX_PREVIEW_URL||'http://127.0.0.1:5195';
 // Synthetic teaching examples in an isolated browser context; no user files.
 if(!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base))throw new Error('Screenshot generation is restricted to the local development server.');
 const browser=await chromium.launch({channel:process.env.PLAYWRIGHT_CHANNEL||(process.platform==='win32'?'msedge':undefined)});

@@ -39,32 +39,6 @@ export const database = async () => {
     }
   });
 
-  if (!migrationAttempted && typeof indexedDB !== 'undefined') {
-    migrationAttempted = true;
-    try {
-      const existing = await db.get('profile', 1);
-      if (!existing && indexedDB.databases) {
-        const dbs = await indexedDB.databases();
-        if (dbs.some(d => d.name === 'kopy-notes')) {
-          const oldDb = await openDB<Store>('kopy-notes', 1);
-          const oldProfile = await oldDb.get('profile', 1);
-          if (oldProfile) {
-            await db.put('profile', { ...oldProfile, appName: BRANDING.APP_NAME });
-            const oldNotebooks = await oldDb.getAll('notebooks');
-            for (const nb of oldNotebooks) await db.put('notebooks', nb);
-            const oldPages = await oldDb.getAll('pages');
-            for (const pg of oldPages) await db.put('pages', pg);
-            const oldAssets = await oldDb.getAll('assets');
-            for (const ast of oldAssets) await db.put('assets', ast);
-          }
-          oldDb.close();
-        }
-      }
-    } catch {
-      // Legacy migration is non-fatal
-    }
-  }
-
   return db;
 };
 

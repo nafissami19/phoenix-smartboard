@@ -69,8 +69,8 @@ export function ScreenCurtain({onClose}:{onClose:()=>void}) {
   useEffect(()=>{
     const update=()=>setSpace(curtainSpace());const observer=new ResizeObserver(update);
     const canvas=document.querySelector('.kn-canvas-surface');if(canvas)observer.observe(canvas);
-    window.addEventListener('resize',update);window.addEventListener('phoenix-layout-updated',update);window.addEventListener('kopy-layout-updated',update);update();
-    return()=>{observer.disconnect();window.removeEventListener('resize',update);window.removeEventListener('phoenix-layout-updated',update);window.removeEventListener('kopy-layout-updated',update);};
+    window.addEventListener('resize',update);window.addEventListener('phoenix-layout-updated',update);update();
+    return()=>{observer.disconnect();window.removeEventListener('resize',update);window.removeEventListener('phoenix-layout-updated',update);};
   },[]);
   useEffect(()=>{const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!event.defaultPrevented){event.preventDefault();onClose();}};window.addEventListener('keydown',escape);return()=>window.removeEventListener('keydown',escape);},[onClose]);
   function start(event:PointerEvent<HTMLButtonElement>){event.preventDefault();event.stopPropagation();event.currentTarget.setPointerCapture(event.pointerId);drag.current={id:event.pointerId,position:horizontal?event.clientX:event.clientY,coverage};}

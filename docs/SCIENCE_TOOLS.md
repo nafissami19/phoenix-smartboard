@@ -24,7 +24,7 @@ Open **Treasure box → Curtain**. The direction button cycles top/right/bottom/
 1. **Forces and motion:** draggable force vectors with resultant/components, a friction-aware inclined plane, and a pendulum with explicit model assumptions.
 2. **Circuit construction:** wire snapping, movable components and meters, and clear open/short-circuit diagnostics. Extend beyond the current two-resistor experiment only with network-solver tests.
 3. **Atomic structure and molecules:** validated shell/electron data, adjustable molecular models and bond geometry. Avoid presenting decorative or invented structures as chemistry.
-4. **Persistent experiments:** save parameters as editable lesson objects in `.kopy`, reopen a snapshot's controls, and restore undo/redo across parameter changes.
+4. **Persistent experiments:** save parameters as editable lesson objects in `.ps`, reopen a snapshot's controls, and restore undo/redo across parameter changes.
 5. **Reusable teaching resources:** teacher-created experiment presets, searchable subject collections, and a documented contribution format with licensing and attribution.
 6. **Presentation tools:** a movable rectangular answer cover, configurable curtain imagery and document-camera rotation/freeze/device selection.
 
@@ -49,6 +49,6 @@ Open Treasure box > Subjects > Chemistry. The equipment palette places editable 
 
 Fill a vessel from its controls, or transfer liquid from another vessel: drag the blue pour handle onto the receiver using mouse or touch. The amount is selected in the equipment controls. You can also choose a receiving vessel and press Pour. A funnel passes liquid to the nearest aligned vessel below it; a missing receiver leaves the source unchanged. Empty sources cannot pour.
 
-Vessel capacity determines overflow, with proportional solute removal. Transfers update both objects in one undo operation. Cancelled gestures leave liquid unchanged. Liquid surfaces remain horizontal as vessels rotate. Equipment metadata, liquid amounts, indicator choice, positions and rotation persist with the page and portable .kopy files; equipment is not a flattened screenshot. PDF/image exports render its current appearance.
+Vessel capacity determines overflow, with proportional solute removal. Transfers update both objects in one undo operation. Cancelled gestures leave liquid unchanged. Liquid surfaces remain horizontal as vessels rotate. Equipment metadata, liquid amounts, indicator choice, positions and rotation persist with the page and portable .ps files; equipment is not a flattened screenshot. PDF/image exports render its current appearance.
 
 The chemistry model remains a fully mixed strong HCl/NaOH model at 25 C with illustrative indicators. Heating, boiling, weak acids, precipitation and arbitrary chemical reactions are not modelled.

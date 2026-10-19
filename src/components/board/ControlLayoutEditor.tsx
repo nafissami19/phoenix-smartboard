@@ -2,7 +2,7 @@ import {CustomSelect} from '@/components/CustomSelect';
 import {useCallback,useEffect,useLayoutEffect,useRef,useState,type PointerEvent} from 'react';
 import {createPortal} from 'react-dom';
 import {Icon} from '@/components/Icon';
-import {CONTROL_LAYOUT_KEY,LEGACY_CONTROL_LAYOUT_KEY,emptyControlLayout,parseControlLayout,controlCoordinates,controlPositionAt,type ControlPositions,type ControlLayoutStore} from '@/lib/control-layout';
+import {CONTROL_LAYOUT_KEY,emptyControlLayout,parseControlLayout,controlCoordinates,controlPositionAt,type ControlPositions,type ControlLayoutStore} from '@/lib/control-layout';
 import './ControlLayoutEditor.css';
 
 type Control={id:string;label:string;element:HTMLElement;rect:{x:number;y:number;width:number;height:number}};
@@ -41,7 +41,7 @@ function discover():Control[]{
 }
 
 export function ControlLayoutEditor(){
-  const [store,setStore]=useState<ControlLayoutStore>(()=>{try{return parseControlLayout(JSON.parse(localStorage.getItem(CONTROL_LAYOUT_KEY)||localStorage.getItem(LEGACY_CONTROL_LAYOUT_KEY)||'null'));}catch{return emptyControlLayout();}});
+  const [store,setStore]=useState<ControlLayoutStore>(()=>{try{return parseControlLayout(JSON.parse(localStorage.getItem(CONTROL_LAYOUT_KEY)||'null'));}catch{return emptyControlLayout();}});
   const [open,setOpen]=useState(false),[draft,setDraft]=useState<ControlPositions>({}),[controls,setControls]=useState<Control[]>([]),[selected,setSelected]=useState('drawing-toolbar');
   const [name,setName]=useState(''),[presetId,setPresetId]=useState(''),[message,setMessage]=useState('');
   const [collapsed,setCollapsed]=useState(false),[panelPosition,setPanelPosition]=useState<{x:number;y:number}|null>(null);
@@ -89,13 +89,13 @@ export function ControlLayoutEditor(){
   useEffect(()=>{
     const board=document.querySelector('.kn-board');if(!board)return;
     const observer=new MutationObserver(schedule);observer.observe(board,{childList:true,subtree:true});
-    window.addEventListener('resize',schedule);window.addEventListener('phoenix-panel-geometry',schedule);window.addEventListener('kopy-panel-geometry',schedule);window.visualViewport?.addEventListener('resize',schedule);schedule();
+    window.addEventListener('resize',schedule);window.addEventListener('phoenix-panel-geometry',schedule);window.visualViewport?.addEventListener('resize',schedule);schedule();
     const resize=new ResizeObserver(schedule);resize.observe(board);
-    return()=>{observer.disconnect();resize.disconnect();window.removeEventListener('resize',schedule);window.removeEventListener('phoenix-panel-geometry',schedule);window.removeEventListener('kopy-panel-geometry',schedule);window.visualViewport?.removeEventListener('resize',schedule);cancelAnimationFrame(frame.current);for(const e of applied.current){e.style.removeProperty('translate');e.style.removeProperty('scale');e.removeAttribute('data-layout-custom');e.removeAttribute('data-layout-hidden');}};
+    return()=>{observer.disconnect();resize.disconnect();window.removeEventListener('resize',schedule);window.removeEventListener('phoenix-panel-geometry',schedule);window.visualViewport?.removeEventListener('resize',schedule);cancelAnimationFrame(frame.current);for(const e of applied.current){e.style.removeProperty('translate');e.style.removeProperty('scale');e.removeAttribute('data-layout-custom');e.removeAttribute('data-layout-hidden');}};
   },[schedule]);
   useLayoutEffect(measure,[store,draft,open,measure]);
   function persist(next:ControlLayoutStore){
-    try{localStorage.setItem(CONTROL_LAYOUT_KEY,JSON.stringify(next));setStore(next);window.dispatchEvent(new CustomEvent('phoenix-layout-updated',{detail:next.current}));window.dispatchEvent(new CustomEvent('kopy-layout-updated',{detail:next.current}));return true;}
+    try{localStorage.setItem(CONTROL_LAYOUT_KEY,JSON.stringify(next));setStore(next);window.dispatchEvent(new CustomEvent('phoenix-layout-updated',{detail:next.current}));return true;}
     catch{setMessage('Storage is full or unavailable. Export your layout to keep a copy.');return false;}
   }
   useEffect(()=>{
@@ -109,10 +109,10 @@ export function ControlLayoutEditor(){
       try{localStorage.setItem(CONTROL_LAYOUT_KEY,JSON.stringify(next));}catch{}
       setStore(next);
     };
-    window.addEventListener('phoenix-panel-position',moved);window.addEventListener('kopy-panel-position',moved);return()=>{window.removeEventListener('phoenix-panel-position',moved);window.removeEventListener('kopy-panel-position',moved);};
+    window.addEventListener('phoenix-panel-position',moved);return()=>{window.removeEventListener('phoenix-panel-position',moved);};
   },[]);
   function begin(){setDraft({...store.current});setName('');setPresetId('');setMessage('');setCollapsed(false);setPanelPosition(null);setOpen(true);}
-  useEffect(()=>{const start=()=>begin();window.addEventListener('phoenix-customize-controls',start);window.addEventListener('kopy-customize-controls',start);return()=>{window.removeEventListener('phoenix-customize-controls',start);window.removeEventListener('kopy-customize-controls',start);};},[store]);
+  useEffect(()=>{const start=()=>begin();window.addEventListener('phoenix-customize-controls',start);return()=>{window.removeEventListener('phoenix-customize-controls',start);};},[store]);
   function cancel(){drag.current=null;setOpen(false);setMessage('');}
   useEffect(()=>{if(!open)return;const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();cancel();}};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key);},[open]);
   function update(id:string,patch:Partial<ControlPositions[string]>){

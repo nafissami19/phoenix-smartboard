@@ -2,7 +2,6 @@ export type LiveCommentKind = 'youtube' | 'url';
 export interface LiveCommentSource { kind: LiveCommentKind; url: string; externalUrl: string; label: string; }
 export interface SavedCommentConnection { kind: LiveCommentKind; input: string; }
 export const LIVE_COMMENTS_STORAGE_KEY = 'phoenix-smartboard.live-comments.connection.v1';
-export const LEGACY_LIVE_COMMENTS_STORAGE_KEY = 'kopy-notes.live-comments.connection.v1';
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const YOUTUBE_HOSTS = new Set(['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com']);
 

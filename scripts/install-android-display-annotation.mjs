@@ -3,7 +3,7 @@ const gradle=await readFile('android/app/build.gradle','utf8');
 const appId=/applicationId\s+["']([^"']+)["']/.exec(gradle)?.[1];if(!appId)throw new Error('Android applicationId missing.');
 const folder=`android/app/src/main/java/${appId.replaceAll('.','/')}`;await mkdir(folder,{recursive:true});
 for(const name of ['DisplayAnnotationPlugin','DisplayAnnotationService','AnnotationFiles','AnnotationCaptureActivity']){
- const source=(await readFile(`native/android-device/${name}.java`,'utf8')).replace(/package (?:org\.kopynotes\.app|com\.phoenix\.smartboard);/,`package ${appId};`);await writeFile(`${folder}/${name}.java`,source);
+ const source=(await readFile(`native/android-device/${name}.java`,'utf8')).replace(/package com\.phoenix\.smartboard;/,`package ${appId};`);await writeFile(`${folder}/${name}.java`,source);
 }
 const mainPath=`${folder}/MainActivity.java`;let main=await readFile(mainPath,'utf8');
 if(!main.includes('registerPlugin(DisplayAnnotationPlugin.class)')){

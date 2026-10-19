@@ -30,7 +30,7 @@ The viewport accepts arbitrary aspect ratios. This does not mean every file form
 | org-note3 appearance | Silver docks, pen-first ordering, portable appearance metadata; instant theme changes in Settings |
 | Installed artwork | Optional local theme, with separate attribution; excluded from Git and production builds |
 | ENB import | Basic editable ink; unsupported pages use embedded PNG previews with a visible notice |
-| ENB export | Experimental native Picture pages; editable Kopy payload retained for unchanged round trips |
+| ENB export | Experimental native Picture pages; editable lesson payload retained for unchanged round trips |
 
 See [format limits and setup](NOTE3_COMPATIBILITY.md).
 
@@ -38,7 +38,7 @@ See [format limits and setup](NOTE3_COMPATIBILITY.md).
 
 - Stylus pressure and coalesced input, eraser tips, configurable side buttons, pen priority over touch, and a short palm rejection interval after lifting the pen.
 - Independent menu and slide-control edge settings; drawing tools can dock at the top, bottom, left or right. Existing custom layouts remain available.
-- Shapes: swipeable 2D/3D groups; cube, cuboid, pyramid, triangular prism, cylinder, cone and sphere. Native objects support yaw/pitch/roll, wireframe, resize, mirror, undo and editable .kopy persistence.
+- Shapes: swipeable 2D/3D groups; cube, cuboid, pyramid, triangular prism, cylinder, cone and sphere. Native objects support yaw/pitch/roll, wireframe, resize, mirror, undo and editable .ps persistence.
 - Browser checks simulate stylus/touch events. Physical stylus button support depends on the device and browser exposing standard Pointer Events.
 
 ## Offline native devices

@@ -7,7 +7,7 @@ test('org-note3 theme survives reload and stays usable on a phone',async({page})
  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Pen',exact:true}).click();await page.getByRole('button',{name:'Pen',exact:true}).click();await expect(page.getByRole('button',{name:'Laser pointer',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
-test('ENB imports editable ink, falls back for unsupported objects and roundtrips Kopy edits',async({page})=>{
+test('ENB imports editable ink, falls back for unsupported objects and roundtrips Phoenix edits',async({page})=>{
  await page.goto('/#/app');const result=await page.evaluate(async()=>{
  const {default:JSZip}=await import('/node_modules/.vite/deps/jszip.js' as string);const {prepareEnb,importEnb,exportEnb}=await import('/src/lib/enb.ts' as string);const {localRequest}=await import('/src/lib/local-store.ts' as string);
  const zip=new JSZip();zip.file('Board.xml','<Package Type="Board"><Data><SlideCount>1</SlideCount><Slides>test;</Slides></Data></Package>');
@@ -32,7 +32,7 @@ test('selecting a theme in Settings applies immediately without the Save button'
 });
 
 test('Midnight to org-note3 keeps actual artwork after leaving Settings and reopening the lesson',async({page})=>{
- await page.goto('/#/app');await page.evaluate(async()=>{const {localRequest}=await import('/src/lib/local-store.ts' as string);const {BUILTIN_THEMES}=await import('/src/lib/theme-pack.ts' as string);await localRequest('/api/profile',{method:'PUT',body:JSON.stringify({onboarded:1,theme:BUILTIN_THEMES.find((t:{id:string})=>t.id==='kopy-night')})});const {notebook}=await(await localRequest('/api/notebooks',{method:'POST',body:JSON.stringify({title:'Midnight regression'})})).json();location.hash=`/board/${notebook.id}`;});await page.reload();
+ await page.goto('/#/app');await page.evaluate(async()=>{const {localRequest}=await import('/src/lib/local-store.ts' as string);const {BUILTIN_THEMES}=await import('/src/lib/theme-pack.ts' as string);await localRequest('/api/profile',{method:'PUT',body:JSON.stringify({onboarded:1,theme:BUILTIN_THEMES.find((t:{id:string})=>t.id==='phoenix-obsidian')})});const {notebook}=await(await localRequest('/api/notebooks',{method:'POST',body:JSON.stringify({title:'Midnight regression'})})).json();location.hash=`/board/${notebook.id}`;});await page.reload();
  const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
  await page.route('**/__local-note3-theme',async route=>{const pack=await page.evaluate(async()=>{const {BUILTIN_THEMES}=await import('/src/lib/theme-pack.ts' as string);return BUILTIN_THEMES.find((t:{id:string})=>t.id==='org-note3');});await route.fulfill({json:{...pack,icons:{pen:image,menu:image,plus:image}}});});
  await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByText('Theme packs',{exact:true}).click();

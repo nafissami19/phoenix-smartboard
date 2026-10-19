@@ -10,11 +10,11 @@ Exact dependency versions are recorded in package-lock.json. Inspect each resolv
 
 ## Optional local Note3 theme
 
-`scripts/create-local-note3-theme.ps1` reads selected installed PNG resources into a private `.ps-theme` (or legacy `.kopy-theme`) pack. These images retain the original owner's terms and are not covered by the MIT license. The generated `.local-themes` folder is ignored by Git and is not a production asset directory. The development-only preview route is unavailable in release builds. See [local theme setup](docs/NOTE3_COMPATIBILITY.md).
+`scripts/create-local-note3-theme.ps1` reads selected installed PNG resources into a private `.ps-theme` pack. These images retain the original owner's terms and are not covered by the MIT license. The generated `.local-themes` folder is ignored by Git and is not a production asset directory. The development-only preview route is unavailable in release builds. See [local theme setup](docs/NOTE3_COMPATIBILITY.md).
 
 ### org-note3 theme artwork
 
-The image assets in public/themes/phoenix-classic.ps-theme and legacy public/themes/org-note3.kopy-theme originate from ShiRui Note3 and are not covered by the Phoenix Smartboard MIT license. They are included on the project owner's stated authorization for noncommercial use. No independent license verification is claimed. Commercial users must obtain the appropriate permission from the rights holder. Phoenix Smartboard is an independent project.
+The image assets in public/themes/phoenix-classic.ps-theme and public/themes/org-note3.ps-theme originate from ShiRui Note3 and are not covered by the Phoenix Smartboard MIT license. They are included on the project owner's stated authorization for noncommercial use. No independent license verification is claimed. Commercial users must obtain the appropriate permission from the rights holder. Phoenix Smartboard is an independent project.
 
 ### Note3 background gallery
 

@@ -4,22 +4,7 @@ type Snapshot={id:string;lessonId:string;savedAt:number;blob:Blob};
 type WritableFile={write:(data:Blob)=>Promise<void>;close:()=>Promise<void>;abort:()=>Promise<void>};
 export type BackupDirectory={name:string;queryPermission:(options:{mode:'readwrite'})=>Promise<string>;requestPermission:(options:{mode:'readwrite'})=>Promise<string>;getFileHandle:(name:string,options:{create:boolean})=>Promise<{createWritable:()=>Promise<WritableFile>}>};
 const recoveryDB=async()=>{
-  const db = await openDB('phoenix-smartboard-recovery',1,{upgrade(db){db.createObjectStore('snapshots',{keyPath:'id'});db.createObjectStore('settings');}});
-  try {
-    const existing = await db.get('settings', 'targets');
-    if (!existing && typeof indexedDB !== 'undefined' && indexedDB.databases) {
-      const dbs = await indexedDB.databases();
-      if (dbs.some(d => d.name === 'kopy-notes-recovery')) {
-        const oldDb = await openDB('kopy-notes-recovery', 1);
-        const oldSnapshots = await oldDb.getAll('snapshots');
-        for (const s of oldSnapshots) await db.put('snapshots', s);
-        const oldTargets = await oldDb.get('settings', 'targets');
-        if (oldTargets) await db.put('settings', oldTargets, 'targets');
-        oldDb.close();
-      }
-    }
-  } catch {}
-  return db;
+  return openDB('phoenix-smartboard-recovery',1,{upgrade(db){db.createObjectStore('snapshots',{keyPath:'id'});db.createObjectStore('settings');}});
 };
 export async function snapshots(lessonId?:string):Promise<Snapshot[]>{const db=await recoveryDB();try{return (await db.getAll('snapshots')).filter((s:Snapshot)=>(!lessonId||s.lessonId===lessonId)).sort((a:Snapshot,b:Snapshot)=>b.savedAt-a.savedAt);}finally{db.close();}}
 export type BackupTarget={label:string;directory:BackupDirectory};

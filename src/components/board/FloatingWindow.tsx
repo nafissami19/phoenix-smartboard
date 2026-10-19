@@ -27,10 +27,10 @@ export function FloatingWindow({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId=`panel-${title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)}`;
-  const [pinned,setPinned]=useState(()=>{try{return (localStorage.getItem(`phoenix-pin-${panelId}`)??localStorage.getItem(`kopy-pin-${panelId}`))==='true';}catch{return false;}});
+  const [pinned,setPinned]=useState(()=>{try{return (localStorage.getItem(`phoenix-pin-${panelId}`))==='true';}catch{return false;}});
   useEffect(()=>{try{localStorage.setItem(`phoenix-pin-${panelId}`,String(pinned));}catch{}},[pinned,panelId]);
   const restored=useRef(false);
-  const [floating,setFloating]=useState(()=>{try{const p=JSON.parse(localStorage.getItem(CONTROL_LAYOUT_KEY)||localStorage.getItem('kopy-control-layout-v1')||'null')?.current?.[panelId];return p? p.floating!==false:false;}catch{return false;}});
+  const [floating,setFloating]=useState(()=>{try{const p=JSON.parse(localStorage.getItem(CONTROL_LAYOUT_KEY)||'null')?.current?.[panelId];return p? p.floating!==false:false;}catch{return false;}});
   const [viewport, setViewport] = useState({width:window.innerWidth,height:window.innerHeight});
   const actualWidth = Math.min(width, viewport.width - 16);
   const [pos, setPos] = useState({ x: floating?Math.max(8,Math.min(initialX,window.innerWidth-actualWidth-8)):(initialX+actualWidth/2<window.innerWidth/2?0:window.innerWidth-actualWidth), y: Math.max(8, initialY) });
@@ -65,10 +65,9 @@ export function FloatingWindow({
   useLayoutEffect(() => {
     if (!drag.current) {
       window.dispatchEvent(new Event('phoenix-panel-geometry'));
-      window.dispatchEvent(new Event('kopy-panel-geometry'));
     }
   }, [pos.x, pos.y, actualWidth, viewport.height, floating]);
-  useEffect(()=>{const changed=(event:Event)=>{const positions=(event as CustomEvent).detail;setFloating(positions?.[panelId]?.floating!==false&&!!positions?.[panelId]);};window.addEventListener('phoenix-layout-updated',changed);window.addEventListener('kopy-layout-updated',changed);return()=>{window.removeEventListener('phoenix-layout-updated',changed);window.removeEventListener('kopy-layout-updated',changed);};},[panelId]);
+  useEffect(()=>{const changed=(event:Event)=>{const positions=(event as CustomEvent).detail;setFloating(positions?.[panelId]?.floating!==false&&!!positions?.[panelId]);};window.addEventListener('phoenix-layout-updated',changed);return()=>{window.removeEventListener('phoenix-layout-updated',changed);};},[panelId]);
 
   function onHeaderPointerDown(e: React.PointerEvent) {
     if (pinned||(e.target as HTMLElement).closest('button')) return;
@@ -83,7 +82,6 @@ export function FloatingWindow({
     if(drag.current&&!cancelled&&panelRef.current){
       const rect=panelRef.current.getBoundingClientRect();
       window.dispatchEvent(new CustomEvent('phoenix-panel-position',{detail:{title,x:rect.x,y:rect.y,width:rect.width,height:rect.height,floating}}));
-      window.dispatchEvent(new CustomEvent('kopy-panel-position',{detail:{title,x:rect.x,y:rect.y,width:rect.width,height:rect.height,floating}}));
     }
     drag.current = null;
   }
@@ -114,7 +112,7 @@ export function FloatingWindow({
         <button
           type="button" aria-label={floating?`Dock ${title}`:`Float ${title}`} title={floating?'Dock to edge':'Make floating'}
           className="kn-focus grid h-11 w-11 shrink-0 place-items-center rounded-md text-muted hover:bg-elevated"
-          onClick={()=>{const next=!floating;setFloating(next);const rect=panelRef.current!.getBoundingClientRect();const x=next?Math.max(8,Math.min(rect.x+24,innerWidth-rect.width-8)):(rect.x+rect.width/2<innerWidth/2?0:innerWidth-rect.width);setPos(p=>({...p,x}));window.dispatchEvent(new CustomEvent('phoenix-panel-position',{detail:{title,x,y:rect.y,width:rect.width,height:rect.height,floating:next}}));window.dispatchEvent(new CustomEvent('kopy-panel-position',{detail:{title,x,y:rect.y,width:rect.width,height:rect.height,floating:next}}));}}
+          onClick={()=>{const next=!floating;setFloating(next);const rect=panelRef.current!.getBoundingClientRect();const x=next?Math.max(8,Math.min(rect.x+24,innerWidth-rect.width-8)):(rect.x+rect.width/2<innerWidth/2?0:innerWidth-rect.width);setPos(p=>({...p,x}));window.dispatchEvent(new CustomEvent('phoenix-panel-position',{detail:{title,x,y:rect.y,width:rect.width,height:rect.height,floating:next}}));}}
         ><Icon name={floating?'layers':'select'} className="h-4 w-4"/></button>
         <button
           onClick={onClose}

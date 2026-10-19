@@ -6,7 +6,7 @@ import {database,localRequest} from '../src/lib/local-store';
 import {exportLesson,importLesson} from '../src/lib/lesson-bundle';
 import {saveRecovery,snapshots} from '../src/lib/recovery';
 import JSZip from 'jszip';
-beforeEach(async()=>{await deleteDB('kopy-notes');});
+beforeEach(async()=>{await deleteDB('phoenix-smartboard-db');});
 const write=(path:string,data:unknown,method='POST')=>localRequest(path,{method,body:JSON.stringify(data)});
 async function create(){const response=await write('/api/notebooks',{title:'Algebra',subject:'Mathematics'});assert.equal(response.status,201);return (await response.json()).notebook.id as string;}
 test('new lessons persist without a server and use the saved board preferences',async()=>{
@@ -36,7 +36,7 @@ test('lesson deletion removes its pages and binaries without touching another le
 });
 
 test('three recovery generations restore a lesson after its main database is cleared',async()=>{
-  await deleteDB('kopy-notes-recovery');
+  await deleteDB('phoenix-smartboard-recovery');
   const id=await create();
   const {pages}=await (await localRequest(`/api/notebooks/${id}`)).json();
   for(let version=1;version<=4;version++){
@@ -45,7 +45,7 @@ test('three recovery generations restore a lesson after its main database is cle
     const result=await saveRecovery(id);assert.equal(result.external,false);
   }
   const copies=await snapshots(id);assert.equal(copies.length,3);
-  await deleteDB('kopy-notes');
+  await deleteDB('phoenix-smartboard-db');
   const restored=await importLesson(copies[0].blob);
   const result=await (await localRequest(`/api/notebooks/${restored}`)).json();
   assert.equal(result.pages[0].objects[0].text,'Version 4');
@@ -65,20 +65,20 @@ test('native .ps lesson retains editable text, pen pressure, shapes and original
   assert.deepEqual(restored.pages[0].objects[1].points,objects[1].points);
 });
 
-test('legacy uncompressed .kopy v2 files remain readable',async()=>{
+test('uncompressed lesson files remain readable',async()=>{
   const id=await create(),{pages}=await (await localRequest(`/api/notebooks/${id}`)).json();
-  const objects=[{id:'text',kind:'text',text:'Legacy note',x:10,y:10,color:'#111',fontSize:24,fontFamily:'Arial',bold:false}];
+  const objects=[{id:'text',kind:'text',text:'Imported note',x:10,y:10,color:'#111',fontSize:24,fontFamily:'Arial',bold:false}];
   await write(`/api/pages/${pages[0].id}`,{objects},'PUT');
   const file=await exportLesson(id),data=JSON.parse(await file.text());
-  data.format='kopy-notes';
+  data.format='phoenix-smartboard';
   data.version=2;
-  const legacyBlob=new Blob([JSON.stringify(data)],{type:'application/vnd.kopy-notes+json'});
-  const restored=await importLesson(legacyBlob);
+  const lessonBlob=new Blob([JSON.stringify(data)],{type:'application/vnd.phoenix-smartboard+json'});
+  const restored=await importLesson(lessonBlob);
   const copy=await (await localRequest(`/api/notebooks/${restored}`)).json();
-  assert.equal(copy.pages[0].objects[0].text,'Legacy note');
+  assert.equal(copy.pages[0].objects[0].text,'Imported note');
 });
 
-test('legacy compressed .kopy files remain readable',async()=>{
+test('compressed archive lessons remain readable',async()=>{
  const id=await create(),data=JSON.parse(await (await exportLesson(id)).text());data.version=1;const zip=new JSZip();zip.file('lesson.json',JSON.stringify(data));const bytes=await zip.generateAsync({type:'uint8array'});const restored=await importLesson(new Blob([new Uint8Array(bytes)]));assert.equal((await (await localRequest(`/api/notebooks/${restored}`)).json()).notebook.title,'Algebra');
 });
 

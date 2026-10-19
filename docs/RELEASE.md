@@ -1,6 +1,6 @@
 # Open-source release process
 
-Kopy Notes belongs in a separate public GitHub repository. Keep IPEC files, API keys, keystores and private data out of it. Enable GitHub Actions and private vulnerability reporting, review LICENSE and THIRD_PARTY.md, and identify the maintainer in the repository description.
+Phoenix Smartboard belongs in a public GitHub repository. Keep IPEC files, API keys, keystores and private data out of it. Enable GitHub Actions and private vulnerability reporting, review LICENSE and THIRD_PARTY.md, and identify the maintainer in the repository description.
 
 ## Development prereleases
 
@@ -21,7 +21,7 @@ Stable tags such as `v0.2.0` require the dedicated Android release key. Generate
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-Copy the full keystore's Base64 in PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\private\kopy-notes-release.jks')) | Set-Clipboard`. Never share passwords or rotate the key between updates.
+Copy the full keystore's Base64 in PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\private\phoenix-smartboard-release.jks')) | Set-Clipboard`. Never share passwords or rotate the key between updates.
 
 Update version metadata and changelog, commit, and push a matching stable tag. Missing signing secrets stop the release; stable tags never substitute a debug key. The workflow creates a **draft prerelease** containing the signed Android APK, unsigned Windows installer, web ZIP and checksums. Review artifacts and device results before publishing it and deciding whether to change its prerelease status. Signing establishes update identity but does not guarantee Play Protect or SmartScreen acceptance.
 

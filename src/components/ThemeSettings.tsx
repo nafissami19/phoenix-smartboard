@@ -18,7 +18,6 @@ export function ThemeSettings({value,onChange}:{value:Partial<AppProfile>;onChan
   useEffect(()=>()=>{if(download)URL.revokeObjectURL(download);},[download]);
   async function applyTheme(pack:ThemePack){
     window.dispatchEvent(new Event('phoenix-theme-selected'));
-    window.dispatchEvent(new Event('kopy-theme-selected'));
     const revision=++selectionRevision.current;
     setError('');
     onChange({theme:pack,accent:pack.colors.accent});
@@ -42,7 +41,7 @@ export function ThemeSettings({value,onChange}:{value:Partial<AppProfile>;onChan
     <label className="kn-theme-toggle"><input type="checkbox" checked={theme.autoContrast} onChange={e=>update({autoContrast:e.target.checked})}/>Contrast controls with the page background</label>
     <p className="text-xs text-muted">Theme pack: up to 6 MB. Icon uploads: up to 64 MB, automatically resized to 128 x 128 and compressed under 550 KB.</p>
     <div className="kn-theme-actions"><button type="button" onClick={()=>input.current?.click()}>Import theme</button><button type="button" onClick={()=>{try{const pack=parseThemePack({...theme,boards:[...theme.boards,...(value.boardPresets??[]).filter(p=>!theme.boards.some(b=>b.id===p.id))].slice(0,24).map(p=>({...p,image:p.image??presetTexture(p.id)}))});setDownload(URL.createObjectURL(new Blob([JSON.stringify(pack,null,2)],{type:'application/vnd.phoenix-smartboard.theme+json'})));setError('');}catch(e){setError((e as Error).message);}}}>Prepare export</button>{download&&<a download={`${theme.id}.ps-theme`} href={download}>Download theme pack</a>}</div>
-    <input ref={input} type="file" accept=".ps-theme,.kopy-theme,.json,application/json" hidden onChange={e=>{void importPack(e.target.files?.[0]);e.target.value='';}}/>
+    <input ref={input} type="file" accept=".ps-theme,.json,application/json" hidden onChange={e=>{void importPack(e.target.files?.[0]);e.target.value='';}}/>
     {error&&<p role="alert">{error}</p>}
     <details><summary>Customize theme</summary><div className="kn-theme-colors">{Object.entries(theme.colors).map(([key,color])=><label key={key}>{key}<input type="color" aria-label={`Theme ${key} color`} value={color} onChange={e=>update({colors:{...theme.colors,[key]:e.target.value}})}/></label>)}</div>
       <details><summary>Tool artwork</summary><div className="kn-theme-artwork">{THEME_ICON_IDS.map(id=><label key={id}>{id}{theme.icons[id]&&<img src={theme.icons[id]} alt=""/>}<input type="file" aria-label={`Theme ${id} icon`} accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={async e=>{const file=e.target.files?.[0];if(!file)return;setBusy(true);try{update({icons:{...theme.icons,[id]:await themeImage(file,128,128)}});setError('');}catch(error){setError((error as Error).message);}finally{setBusy(false);}}}/>{theme.icons[id]&&<button type="button" onClick={()=>{const icons={...theme.icons};delete icons[id];update({icons});}}>Reset</button>}</label>)}</div></details>

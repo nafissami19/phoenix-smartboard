@@ -15,7 +15,7 @@ import {
 } from "react";
 import type { AppProfile } from "@/db/schema";
 import { BRANDING } from '@/config/branding';
-declare global {interface Window {phoenixStartup?:{ready:()=>void;retry:()=>void}; kopyStartup?:{ready:()=>void;retry:()=>void}}}
+declare global {interface Window {phoenixStartup?:{ready:()=>void;retry:()=>void};}}
 
 const DEFAULT_PROFILE: AppProfile = {
   id: 1,
@@ -56,8 +56,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch(()=>{});
     const stopPreview=()=>{mounted=false;setPreviewTheme(null);};
     window.addEventListener('phoenix-theme-selected',stopPreview);
-    window.addEventListener('kopy-theme-selected',stopPreview);
-    return()=>{mounted=false;window.removeEventListener('phoenix-theme-selected',stopPreview);window.removeEventListener('kopy-theme-selected',stopPreview);};
+    return()=>{mounted=false;window.removeEventListener('phoenix-theme-selected',stopPreview);};
   },[]);
   const [loading, setLoading] = useState(true);
 
@@ -87,7 +86,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void reload();
   }, [reload]);
-  useEffect(()=>{if(!loading){ window.phoenixStartup?.ready(); window.kopyStartup?.ready(); }},[loading]);
+  useEffect(()=>{if(!loading){ window.phoenixStartup?.ready(); }},[loading]);
 
   // The user-defined name is shown as the document title everywhere.
   useEffect(() => {
@@ -119,7 +118,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     for(const [key,color] of Object.entries({panel:t.colors.panel,'panel-2':t.colors.surface,'base':t.colors.surface,'base-2':t.colors.surface,elevated:t.colors.surface,line:t.colors.line,ink:t.colors.ink,muted:t.colors.muted,faint:t.colors.muted}))root.style.setProperty(`--color-${key}`,color);
     root.style.setProperty('--tool-popup-gap',`${interfaceSettings(profile.ui).popupGap}px`);
     window.dispatchEvent(new Event('phoenix-popup-layout'));
-    window.dispatchEvent(new Event('kopy-popup-layout'));
   },[profile.theme,profile.ui]);
 
   const updateProfile = useCallback((patch: Partial<AppProfile>) => {

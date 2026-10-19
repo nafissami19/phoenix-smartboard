@@ -84,7 +84,7 @@ export function releaseMediaCaches(){
   for(const [id,promise] of pdfCache)retirePdf(id,promise);pdfCache.clear();
 }
 subscribePerformance(()=>{PDF_RENDER_WIDTH=getPerformanceProfile().pdfRenderWidth;releaseMediaCaches();});
-if(typeof window!=='undefined'){window.addEventListener('phoenix-memory-pressure',releaseMediaCaches);window.addEventListener('kopy-memory-pressure',releaseMediaCaches);}
+if(typeof window!=='undefined'){window.addEventListener('phoenix-memory-pressure',releaseMediaCaches);}
 
 
 export function assetUrl(assetId: string): Promise<string> { return localAssetURL(assetId); }

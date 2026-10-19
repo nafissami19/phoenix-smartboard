@@ -3,7 +3,6 @@ export type ControlPositions=Record<string,ControlPosition>;
 export type ControlPreset={id:string;name:string;positions:ControlPositions};
 export type ControlLayoutStore={version:1;current:ControlPositions;presets:ControlPreset[]};
 export const CONTROL_LAYOUT_KEY='phoenix-control-layout-v1';
-export const LEGACY_CONTROL_LAYOUT_KEY='kopy-control-layout-v1';
 export const emptyControlLayout=():ControlLayoutStore=>({version:1,current:{},presets:[]});
 
 export function parseControlLayout(value:unknown):ControlLayoutStore{

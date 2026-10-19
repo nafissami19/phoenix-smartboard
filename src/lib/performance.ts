@@ -8,14 +8,14 @@ const profiles:Record<PerformanceTier,PerformanceProfile>={
 };
 let memoryHint:number|undefined,pressure=false;const listeners=new Set<()=>void>();
 export function profileForMemory(gb?:number,mode:PerformanceMode='auto',constrained=false):PerformanceProfile{const tier=constrained||mode==='2gb'?'low':mode==='8gb'?'high':mode==='4gb'?'balanced':gb!==undefined&&gb<=2.5?'low':gb!==undefined&&gb>=6?'high':'balanced';return profiles[tier];}
-export function readPerformancePreferences():{mode:PerformanceMode}{let value:string|null=null;try{value=(globalThis.localStorage?.getItem('phoenix-performance-mode')??globalThis.localStorage?.getItem('kopy-performance-mode'))??null;}catch{}return {mode:value==='2gb'||value==='4gb'||value==='8gb'?value:'auto'};}
+export function readPerformancePreferences():{mode:PerformanceMode}{let value:string|null=null;try{value=globalThis.localStorage?.getItem('phoenix-performance-mode')??null;}catch{}return {mode:value==='2gb'||value==='4gb'||value==='8gb'?value:'auto'};}
 export function getPerformanceProfile(){const browserMemory=typeof navigator==='undefined'?undefined:(navigator as Navigator&{deviceMemory?:number}).deviceMemory;return profileForMemory(memoryHint??browserMemory,readPerformancePreferences().mode,pressure);}
 export function effectivePerformanceTier(){return getPerformanceProfile().tier;}
-function notify(){for(const listener of listeners)listener();if(typeof window!=='undefined'){document.documentElement.dataset.performance=getPerformanceProfile().tier;window.dispatchEvent(new Event('phoenix-performance-changed'));window.dispatchEvent(new Event('kopy-performance-changed'));}}
+function notify(){for(const listener of listeners)listener();if(typeof window!=='undefined'){document.documentElement.dataset.performance=getPerformanceProfile().tier;window.dispatchEvent(new Event('phoenix-performance-changed'));}}
 export function setPerformanceMode(mode:PerformanceMode){if(!['auto','2gb','4gb','8gb'].includes(mode))return;try{localStorage.setItem('phoenix-performance-mode',mode);}catch{}pressure=false;notify();}
 export function setDeviceMemoryHint(gb:number){if(!Number.isFinite(gb)||gb<=0)return;memoryHint=gb;notify();}
 export function subscribePerformance(listener:()=>void){listeners.add(listener);return()=>{listeners.delete(listener);};}
-if(typeof window!=='undefined'){window.addEventListener('phoenix-memory-pressure',()=>{pressure=true;notify();});window.addEventListener('kopy-memory-pressure',()=>{pressure=true;notify();});document.documentElement.dataset.performance=getPerformanceProfile().tier;}
+if(typeof window!=='undefined'){window.addEventListener('phoenix-memory-pressure',()=>{pressure=true;notify();});document.documentElement.dataset.performance=getPerformanceProfile().tier;}
 
 let pointerActive=false,lastInteraction=0;
 export function isUserInteracting(withinMs=1500){return pointerActive||Date.now()-lastInteraction<withinMs;}

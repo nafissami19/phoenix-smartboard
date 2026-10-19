@@ -3,7 +3,7 @@
 ## 1.0.0 (2026-10-19) - Phoenix Smartboard Release
 
 - Rebranded and modernized full whiteboard ecosystem as **Phoenix Smartboard** (`com.phoenix.smartboard`).
-- Introduced modern `.ps` (`application/vnd.phoenix-smartboard+json`) portable lesson format with seamless backward compatibility for reading legacy `.kopy` and `.enb` lesson archives.
+- Introduced modern `.ps` (`application/vnd.phoenix-smartboard+json`) portable lesson format with support for reading `.ps` and `.enb` lesson archives.
 - Complete K-12 STEM suite active:
   - **Virtual Geometry Instruments**: Translucent Ruler, 180° Protractor, 45° and 60° Set Squares, Compass with adjustable radius.
   - **Interactive Periodic Table**: All 118 elements with atomic properties, electron configurations, and group categorization.
@@ -29,7 +29,7 @@
 - Fixed PPTX artwork lost from image-filled custom shapes and scaled groups; preserve solid slide backgrounds and colored text-box fills, Office boolean bold/italic styles and Arimo-compatible font fallback.
 
 - Added theme/background stores with creator and added-by credits that survive theme exports.
-- Added portable board audio/video, YouTube links, safe web links and editable CSV/Excel worksheets, with worksheet formula support. PDF exports show a static object preview; `.kopy` preserves interactive objects.
+- Added portable board audio/video, YouTube links, safe web links and editable CSV/Excel worksheets, with worksheet formula support. PDF exports show a static object preview; `.ps` preserves interactive objects.
 - Detect embedded PPTX audio/video, linked YouTube and embedded `.xlsx`/CSV worksheets as interactive board objects. Legacy OLE formats retain previews with warnings; flattened imports keep static previews.
 - Fixed PPTX text positioning with measured wrapping, run font/color styles, insets, alignment, paragraph spacing, vertical anchoring and layout/master inheritance.
 - Added Android smartboard display preferences, larger interactive-object controls and stable board centering during resizing. Native APK compilation/device verification remains pending.
@@ -75,7 +75,7 @@
 - Reworked wax crayon/oil pastel coverage and direction-following paint bristles with MIT Fluid Paint lighting equations.
 
 - Improved textured and pressure-sensitive pen rendering, added chalk/oil pastel/oil paint, and preserved opacity and brush parameters with saved strokes.
-- Added a custom pen editor with a live test pad, local presets and validated .kopy-pen import/export.
+- Added a custom pen editor with a live test pad, local presets and validated .ps-pen import/export.
 
 - Prevented landing-page flashes on app startup, with an immediate local loading screen and retry on failed loading.
 - Limited automatic GitHub builds and security checks to version releases; routine pushes no longer trigger full workflows.
@@ -89,14 +89,12 @@
 ## 0.2.0-dev.8 (2026-10-10)
 
 - Fixed remaining menu and touch browser tests by loading saved fixture preferences before checking tool popups.
-- Includes the official blue Buy Me a Coffee embed configured for adixdev.
 - Replaces the unpublished dev.7 build, whose web test gate prevented release publication.
 
 ## 0.2.0-dev.7 (2026-10-10)
 
 - Prepared release downloads with platform build gates and SHA-256 checksums; configured Git LFS for future large source assets. All existing runtime assets remain ordinary Git files.
 
-- Added a Buy Me a Coffee support tab, embedded button and GitHub sponsor link for adixdev.
 - Stabilized browser setup by waiting for database initialization and reloading seeded preferences before interactions.
 
 
@@ -122,7 +120,7 @@
 - Theme saves are serialized so an earlier response cannot reset a newer selection; Settings applies themes immediately, and the built-in theme includes distinct artwork even without a local icon pack.
 - Optional `org-note3` theme with portable appearance metadata, silver controls and Note-style toolbar ordering.
 - Local installed artwork can be loaded as a separately attributed theme without entering production bundles.
-- ENB import supports editable basic ink and explicit page-preview fallbacks; experimental native picture-page export preserves an editable Kopy payload for unchanged round trips.
+- ENB import supports editable basic ink and explicit page-preview fallbacks; experimental native picture-page export preserves an editable lesson payload for unchanged round trips.
 - See [compatibility details and local artwork setup](docs/NOTE3_COMPATIBILITY.md).
 
 
@@ -134,9 +132,7 @@
 ## 0.2.0-dev.6 | 2026-10-07
 
 - Restored the compact file menu. Import, export, settings and help open as attached side screens; Back returns to the menu, with a contained mobile layout.
-- Android builds apply Kopy Notes adaptive, round and themed launcher icons and a branded native startup screen.
-
-- Product Hunt and r/kopynotes community links in settings and setup; Product Hunt badge and Reddit community link in the GitHub README.
+- Android builds apply Phoenix Smartboard adaptive, round and themed launcher icons and a branded native startup screen.
 
 - Keyboard persistence checks wait for the actual saved title before reloading, avoiding a race with the asynchronous database commit.
 - Floating tools reapply saved layout after viewport clamps settle, keeping panels inside the screen through repeated landscape and portrait resizing.
@@ -213,7 +209,7 @@ Validation: 28 data tests, 2 release metadata tests and 25 Edge browser checks p
 
 ## 0.2.0 — 2026-10-02 — slides and direct board tools
 
-- Slide sidebar with lazy previews, mouse handle dragging, 450 ms touch hold, keyboard ordering, duplicate and visible Previous/Next navigation. Orders are saved atomically and retained in `.kopy` imports/exports.
+- Slide sidebar with lazy previews, mouse handle dragging, 450 ms touch hold, keyboard ordering, duplicate and visible Previous/Next navigation. Orders are saved atomically and retained in `.ps` imports/exports.
 - Transparent instruments with attached move/rotate/stretch handles; protractor ray adjustment and compass sweeps draw editable arcs or circles.
 - Thirteen shapes with independent line/fill colors, widths, solid/dashed/dotted lines, and a style editor for existing selected shapes.
 - Repaired laser/clock glyphs, explicit SVG dimensions and distinct subject-tool artwork; all icons remain independently drawn.
@@ -233,13 +229,13 @@ Validation on 2026-10-02: production build and TypeScript check passed, eight da
 - Fast completed-edit autosave, three rotating local recovery copies, pre-delete snapshots, optional three-file external folder rotation, and restore-as-copy. See [backup setup and limits](docs/BACKUPS.md).
 - Multiple selection, uniform corner resize, independent brush sizes and configurable gestures. Selection clears when writing resumes.
 - Fixed the Import dock action; PDF lesson-page creation and visible isolated DOCX layout rendering.
-- Uncompressed editable `.kopy` v2, legacy v1 compatibility, multiple provider-synced folder destinations and editable existing text.
+- Uncompressed editable `.ps` format, multiple provider-synced folder destinations and editable existing text.
 - Stylus/palm hardware behavior, native packaging, long recording reliability and full Note3 feature parity still require work.
 
 ## 0.1.0 — 2026-10-02 — web foundation, native releases pending
 
 - Note3 reference layout: green board, bottom drawing/page/menu controls, Treasure box and draggable windows. The experimental ZIP is not the UI specification.
-- Offline lessons, atomic page edits, portable `.kopy` backups including imported files, and editable name/icon/opening text.
+- Offline lessons, atomic page edits, portable `.ps` backups including imported files, and editable name/icon/opening text.
 - Drawing, selection, shapes, undo/redo, pan/zoom; PDF/image/DOCX imports; current-page PNG/PDF export; timers and visual geometry guides.
 - Function graphs, 3D/chemistry/physics diagrams, camera snapshots, curtain and board recording with microphone option.
 - Recording rejects empty video and displays a capability error. Headless Edge produced zero frames even in an isolated browser test; successful encoded-video and native hardware verification remain pending.

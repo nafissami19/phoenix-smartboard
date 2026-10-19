@@ -1,4 +1,4 @@
-﻿import {test,expect} from '@playwright/test';
+import {test,expect} from '@playwright/test';
 
 test('low-memory media caches reuse loads, resize large photos and retain original files',async({page})=>{
  await page.addInitScript(()=>Object.defineProperty(navigator,'deviceMemory',{get:()=>2,configurable:true}));
@@ -43,15 +43,15 @@ test('device backups encode in a browser module worker and recover editable loca
    const db=await database();const pages=await db.getAllFromIndex('pages','notebookId',notebook.id);const first=pages[0];
    await db.put('pages',{...first,objects:[{id:'editable-text',kind:'text',x:20,y:50,text:'Still editable',fontFamily:'Arial',fontSize:24,bold:false,color:'#123456'}]});
    await db.put('assets',{id:'worker-attachment',notebookId:notebook.id,name:'sample.txt',mimeType:'text/plain',blob:new Blob(['Saved by real module worker'])});db.close();
-   localStorage.setItem('kopy-worker-preference','kept');
+   localStorage.setItem('phoenix-worker-preference','kept');
    const snapshot=await createDeviceSnapshot();const value=JSON.parse(snapshot);
    const clear=await database();const tx=clear.transaction(['profile','notebooks','pages','assets'],'readwrite');for(const key of ['profile','notebooks','pages','assets'] as const)await tx.objectStore(key).clear();await tx.done;clear.close();
-   localStorage.removeItem('kopy-worker-preference');await restoreDeviceSnapshot(snapshot);
+   localStorage.removeItem('phoenix-worker-preference');await restoreDeviceSnapshot(snapshot);
    const restored=await database();const recoveredLesson=await restored.get('notebooks',notebook.id),recoveredPage=await restored.get('pages',first.id),recoveredFile=await restored.get('assets','worker-attachment');restored.close();
-   return {format:value.format,version:value.version,encodedFile:atob(value.assets.find((asset:any)=>asset.id==='worker-attachment').dataBase64),title:recoveredLesson.title,objects:recoveredPage.objects,file:await recoveredFile.blob.text(),preference:localStorage.getItem('kopy-worker-preference')};
+   return {format:value.format,version:value.version,encodedFile:atob(value.assets.find((asset:any)=>asset.id==='worker-attachment').dataBase64),title:recoveredLesson.title,objects:recoveredPage.objects,file:await recoveredFile.blob.text(),preference:localStorage.getItem('phoenix-worker-preference')};
   })
  ]);
- expect(worker.url()).toContain('device-snapshot-worker');expect(result.format).toBe('kopy-device-library');expect(result.version).toBe(1);
+ expect(worker.url()).toContain('device-snapshot-worker');expect(result.format).toBe('phoenix-device-library');expect(result.version).toBe(1);
  expect(result.title).toBe('Worker backup lesson');expect(result.objects).toEqual([expect.objectContaining({id:'editable-text',kind:'text',text:'Still editable',x:20,y:50})]);
  expect(result.encodedFile).toBe('Saved by real module worker');expect(result.file).toBe(result.encodedFile);expect(result.preference).toBe('kept');
 });

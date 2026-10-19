@@ -13,8 +13,6 @@ export const BRANDING = {
   FILE_EXTENSION: '.ps',
   FILE_EXTENSION_NO_DOT: 'ps',
   MIME_TYPE: 'application/vnd.phoenix-smartboard+json',
-  LEGACY_EXTENSION: '.kopy',
-  LEGACY_MIME_TYPE: 'application/vnd.kopy-notes+json',
 
   // Storage Identifiers
   DB_NAME: 'phoenix-smartboard-db',

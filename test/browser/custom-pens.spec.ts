@@ -15,7 +15,7 @@ test('Settings Pen Store manages presets while the pen menu only selects enabled
  await settings.getByLabel('Custom pen opacity',{exact:true}).fill('0.5');
  const pad=settings.getByLabel('Test custom pen',{exact:true});await pad.scrollIntoViewIfNeeded();const rect=await pad.boundingBox();await page.mouse.move(rect!.x+20,rect!.y+85);await page.mouse.down();await page.mouse.move(rect!.x+180,rect!.y+100,{steps:15});await page.mouse.up();
  await settings.getByRole('button',{name:'Save pen',exact:true}).click();
- const download=page.waitForEvent('download');await settings.getByRole('button',{name:'Export pen My chalk',exact:true}).click();expect((await download).suggestedFilename()).toBe('My_chalk.kopy-pen');
+ const download=page.waitForEvent('download');await settings.getByRole('button',{name:'Export pen My chalk',exact:true}).click();expect((await download).suggestedFilename()).toBe('My_chalk.ps-pen');
  await settings.getByRole('button',{name:'Save',exact:true}).click();
  await page.getByRole('button',{name:'Pen',exact:true}).click();await expect(page.getByRole('button',{name:'Chalk',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Pencil',exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Use pen My chalk',exact:true}).click();await expect(page.getByRole('button',{name:'Use pen My chalk',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -23,7 +23,7 @@ test('Settings Pen Store manages presets while the pen menu only selects enabled
  await expect.poll(()=>page.evaluate(async()=>{const {localRequest}=await import('/src/lib/local-store.ts' as string);const {notebooks}=await(await localRequest('/api/notebooks')).json();const {pages}=await(await localRequest(`/api/notebooks/${notebooks[0].id}`)).json();return pages[0].objects[0];}),{timeout:30000}).toMatchObject({brush:'chalk',opacity:.5,brushSettings:{grain:.9}});
  await page.reload();await page.getByRole('button',{name:'Pen',exact:true}).click();await expect(page.getByRole('button',{name:'Use pen My chalk',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Chalk',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Pen',exact:true}).click();await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Settings',exact:true}).click();await settings.getByText('Pen Store',{exact:true}).click();
- await settings.getByLabel('Import custom pen file').setInputFiles({name:'invalid.kopy-pen',mimeType:'application/json',buffer:Buffer.from('{"schema":"other"}')});await expect(settings.getByRole('alert')).toContainText('Unsupported pen file');
+ await settings.getByLabel('Import custom pen file').setInputFiles({name:'invalid.ps-pen',mimeType:'application/json',buffer:Buffer.from('{"schema":"other"}')});await expect(settings.getByRole('alert')).toContainText('Unsupported pen file');
  await settings.getByLabel('Show pen My chalk in menu',{exact:true}).uncheck();await settings.getByRole('button',{name:'Save',exact:true}).click();await page.getByRole('button',{name:'Pen',exact:true}).click();await expect(page.getByRole('button',{name:'Use pen My chalk',exact:true})).toHaveCount(0);
  expect(errors).toEqual([]);
 });

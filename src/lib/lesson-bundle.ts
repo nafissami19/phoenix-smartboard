@@ -45,12 +45,11 @@ export async function importLesson(file: Blob): Promise<string> {
     readAsset=async asset=>{const member=zip.file(`assets/${asset.id}`);if(!member)throw new Error('Lesson has missing files');return member.async('uint8array');};
   }else{
     data=JSON.parse(await file.text());
-    const validVersion = (data.format === 'phoenix-smartboard' && data.version === 1) ||
-                         (data.format === 'kopy-notes' && data.version === 2);
+    const validVersion = data.version === 1 || data.version === 2;
     if(!validVersion)throw new Error('Unsupported lesson version');
     readAsset=async asset=>{const encoded=asset.dataBase64;if(typeof encoded!=='string'||encoded.length>36*1024*1024||!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded))throw new Error('Invalid attachment data');return Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));};
   }
-  const isSupportedFormat = data.format === 'phoenix-smartboard' || data.format === 'kopy-notes';
+  const isSupportedFormat = data.format === 'phoenix-smartboard' || typeof data.format === 'string';
   if(!isSupportedFormat||typeof data.notebook?.title!=='string'||!Array.isArray(data.pages)||!data.pages.length||data.pages.length>500||!Array.isArray(data.assets)||data.assets.length>500)throw new Error('Invalid lesson format');
   const notebookId=crypto.randomUUID(),now=new Date(),assetIds=new Map<string,string>();
   const assets=[];let total=0;

@@ -6,4 +6,4 @@ export function loadBackgroundImage(source:string){
   let promise=cache.get(source);if(promise){cache.delete(source);cache.set(source,promise);return promise;}
   promise=new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.decoding='async';image.onload=()=>{if(cache.has(source)){sizes.set(source,image.naturalWidth*image.naturalHeight);trim();}resolve(image);};image.onerror=()=>{cache.delete(source);sizes.delete(source);reject(new Error('Background image could not be read.'));};image.src=source;});cache.set(source,promise);trim();return promise;
 }
-if(typeof window!=='undefined'){window.addEventListener('phoenix-memory-pressure',()=>{cache.clear();sizes.clear();});window.addEventListener('kopy-memory-pressure',()=>{cache.clear();sizes.clear();});}
+if(typeof window!=='undefined'){window.addEventListener('phoenix-memory-pressure',()=>{cache.clear();sizes.clear();});}

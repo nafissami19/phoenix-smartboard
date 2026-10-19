@@ -78,12 +78,12 @@ export function Toolbar({
   onOpenTreasure: () => void;eraserMode:EraserMode;onEraserMode:(mode:EraserMode)=>void;palmEraser:boolean;onPalmEraser:(enabled:boolean)=>void;onClearAnnotations:()=>void;
 }) {
   const [penMenu,setPenMenu]=useState(loadPenMenu),[customPens,setCustomPens]=useState(loadCustomPens);
-  useEffect(()=>{const update=()=>{setPenMenu(loadPenMenu());setCustomPens(loadCustomPens());};window.addEventListener('phoenix-pen-store-updated',update);window.addEventListener('kopy-pen-store-updated',update);window.addEventListener('storage',update);return()=>{window.removeEventListener('phoenix-pen-store-updated',update);window.removeEventListener('kopy-pen-store-updated',update);window.removeEventListener('storage',update);};},[]);
+  useEffect(()=>{const update=()=>{setPenMenu(loadPenMenu());setCustomPens(loadCustomPens());};window.addEventListener('phoenix-pen-store-updated',update);window.addEventListener('storage',update);return()=>{window.removeEventListener('phoenix-pen-store-updated',update);window.removeEventListener('storage',update);};},[]);
   const {profile}=useApp();
   const {toolPopupOnFirstClick}=interfaceSettings(profile.ui);
   const lastToolClick=useRef<string|null>(null);
   const openSettings=(id:string,active:boolean,open:boolean)=>{const show=toolPopupOnFirstClick||(active&&lastToolClick.current===id);lastToolClick.current=id;return show?!(active&&open):false;};
-  const brushSizes=useRef<Record<string,number>>((()=>{try{return JSON.parse(localStorage.getItem('phoenix-brush-sizes')??localStorage.getItem('kopy-brush-sizes')??'{}');}catch{return {};}})());
+  const brushSizes=useRef<Record<string,number>>((()=>{try{return JSON.parse(localStorage.getItem('phoenix-brush-sizes')??'{}');}catch{return {};}})());
   const chooseBrush=(id:string,nextTool:ActiveTool)=>{
     const old=tool==='pen'?(pen.brush??'normal'):tool;
     brushSizes.current[old]=pen.size;
@@ -96,7 +96,7 @@ export function Toolbar({
   useEffect(()=>{if(tool!=='pen')return;const available=pen.customPenId?customPens.some(p=>p.id===pen.customPenId&&p.enabled!==false):penMenu.includes(pen.brush??'normal');if(!available)setPen({...pen,brush:'normal',brushSettings:brushSettings('normal'),customPenId:undefined,size:4,opacity:1});},[penMenu,customPens,tool,pen.customPenId,pen.brush]);
   const [touchOpen,setTouchOpen]=useState(false);
   const [moreOpen,setMoreOpen]=useState(false);
-  const [pinned,setPinned]=useState<string[]>(()=>{try{const value=JSON.parse(localStorage.getItem('phoenix-toolbar-pins')??localStorage.getItem('kopy-toolbar-pins')??'[]');return Array.isArray(value)?value.filter(id=>['Select','Text','Shapes','Redo','Tools'].includes(id)):[];}catch{return [];}});
+  const [pinned,setPinned]=useState<string[]>(()=>{try{const value=JSON.parse(localStorage.getItem('phoenix-toolbar-pins')??'[]');return Array.isArray(value)?value.filter(id=>['Select','Text','Shapes','Redo','Tools'].includes(id)):[];}catch{return [];}});
   useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-pins',JSON.stringify(pinned));}catch{}},[pinned]);
   const [shapeGroup,setShapeGroup]=useState<"2d"|"3d">("2d");
   const [shapeOpen, setShapeOpen] = useState(false);

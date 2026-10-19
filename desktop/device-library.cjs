@@ -2,11 +2,11 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const MAX=160*1024*1024;
-const validName=/^library-\d+-[a-f0-9]{8}\.(?:psbackup|kopybackup)$/;
+const validName=/^library-\d+-[a-f0-9]{8}\.psbackup$/;
 const digest=data=>crypto.createHash('sha256').update(data).digest('hex');
 function validate(data){
  if(typeof data!=='string'||Buffer.byteLength(data)>MAX)throw new Error('Device library exceeds 160 MB. Export large lessons separately.');
- const value=JSON.parse(data);if((value.format!=='phoenix-device-library'&&value.format!=='kopy-device-library')||value.version!==1||!Array.isArray(value.notebooks)||!Array.isArray(value.pages)||!Array.isArray(value.assets))throw new Error('Invalid device library.');
+ const value=JSON.parse(data);if(value.format!=='phoenix-device-library'||value.version!==1||!Array.isArray(value.notebooks)||!Array.isArray(value.pages)||!Array.isArray(value.assets))throw new Error('Invalid device library.');
  return value;
 }
 class DeviceLibrary{

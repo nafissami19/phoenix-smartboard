@@ -10,7 +10,7 @@ test('saved lesson background, objects and images paint before any interaction',
   const image=document.createElement('canvas');image.width=image.height=40;image.getContext('2d')!.fillStyle='#0044ff';image.getContext('2d')!.fillRect(0,0,40,40);
   const db=await database();await db.put('assets',{id:'first-paint-image',notebookId:notebook.id,name:'blue.png',mimeType:'image/png',blob:await(await fetch(image.toDataURL())).blob()});
   await localRequest('/api/pages/'+pages[0].id,{method:'PUT',body:JSON.stringify({background:'#83d131',pattern:'none',objects:[{id:'red-box',kind:'shape',shape:'rect',x:100,y:100,w:100,h:100,color:'#ff0000',width:2,filled:true,rotation:0}],media:[{id:'blue-image',kind:'image',assetId:'first-paint-image',x:300,y:100,width:100,height:100,rotation:0}]})});
-  localStorage.setItem('kopy-view:'+pages[0].id,JSON.stringify({tx:0,ty:0,scale:1}));
+  localStorage.setItem('phoenix-view:'+pages[0].id,JSON.stringify({tx:0,ty:0,scale:1}));
   return notebook.id;
  });
  await page.goto('/#/board/'+id);

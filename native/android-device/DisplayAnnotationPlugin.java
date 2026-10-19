@@ -13,12 +13,7 @@ import com.getcapacitor.annotation.*;
 public class DisplayAnnotationPlugin extends Plugin {
  private boolean launching;
  private android.content.SharedPreferences preferences(){
-  android.content.SharedPreferences p=getContext().getSharedPreferences("phoenix-display",0);
-  if(!p.contains("route")){
-   android.content.SharedPreferences legacy=getContext().getSharedPreferences("kopy-display",0);
-   if(legacy.contains("route"))p.edit().putString("route",legacy.getString("route","")).apply();
-  }
-  return p;
+  return getContext().getSharedPreferences("phoenix-display",0);
  }
  @PluginMethod public void start(PluginCall call){
   if(launching){call.reject("Display annotation setup is already open.");return;}launching=true;String route=call.getString("route","");if(route.matches("^#/board/[a-zA-Z0-9_-]+$"))preferences().edit().putString("route",route).apply();

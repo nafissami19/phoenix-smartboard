@@ -85,12 +85,12 @@ export function useWhiteboard(options: {
   useEffect(()=>{if(!shapeFeedback)return;const timeout=setTimeout(()=>setShapeFeedback(''),2600);return()=>clearTimeout(timeout);},[shapeFeedback]);
   const [tool, setTool] = useState<ActiveTool>("pen");
   const [pen, setPen] = useState<Pen>({ color: options.defaultPenColor??"#10151b", size: 4, opacity: 1, smartShapes: false, pressure: true, touchMode: "draw" });
-  const [selectionSettings,setSelectionSettings]=useState<SelectionSettings>(()=>{try{return readSelectionSettings(JSON.parse(localStorage.getItem('phoenix-selection-settings')??localStorage.getItem('kopy-selection-settings')??'null'));}catch{return readSelectionSettings(null);}});
+  const [selectionSettings,setSelectionSettings]=useState<SelectionSettings>(()=>{try{return readSelectionSettings(JSON.parse(localStorage.getItem('phoenix-selection-settings')??'null'));}catch{return readSelectionSettings(null);}});
   const selectionSettingsRef=useRef(selectionSettings);selectionSettingsRef.current=selectionSettings;
   useEffect(()=>{try{localStorage.setItem('phoenix-selection-settings',JSON.stringify(selectionSettings));}catch{}},[selectionSettings]);
   const [eraserSize, setEraserSize] = useState(24);
-  const [eraserMode,setEraserMode]=useState<EraserMode>(()=>{try{return readEraserMode(localStorage.getItem('phoenix-eraser-mode')??localStorage.getItem('kopy-eraser-mode'));}catch{return 'ink';}});
-  const [palmEraser,setPalmEraser]=useState(()=>{try{return (localStorage.getItem('phoenix-palm-eraser')??localStorage.getItem('kopy-palm-eraser'))==='true';}catch{return false;}});
+  const [eraserMode,setEraserMode]=useState<EraserMode>(()=>{try{return readEraserMode(localStorage.getItem('phoenix-eraser-mode'));}catch{return 'ink';}});
+  const [palmEraser,setPalmEraser]=useState(()=>{try{return (localStorage.getItem('phoenix-palm-eraser'))==='true';}catch{return false;}});
   const eraserModeRef=useRef(eraserMode),palmEraserRef=useRef(palmEraser),gestureEraserMode=useRef<'ink'|'object'>('ink');
   eraserModeRef.current=eraserMode;palmEraserRef.current=palmEraser;
   useEffect(()=>{try{localStorage.setItem('phoenix-eraser-mode',eraserMode);}catch{}},[eraserMode]);
@@ -1115,13 +1115,11 @@ export function useWhiteboard(options: {
     const unsubscribe=subscribePerformance(refresh);
     document.addEventListener('visibilitychange',visibility);
     window.addEventListener('phoenix-memory-pressure',refresh);
-    window.addEventListener('kopy-memory-pressure',refresh);
     document.fonts?.addEventListener('loadingdone',refresh);
     return()=>{
       unsubscribe();
       document.removeEventListener('visibilitychange',visibility);
       window.removeEventListener('phoenix-memory-pressure',refresh);
-      window.removeEventListener('kopy-memory-pressure',refresh);
       document.fonts?.removeEventListener('loadingdone',refresh);
       canvasObserver.current?.disconnect();
       if(rafRef.current!==null)cancelAnimationFrame(rafRef.current);
@@ -1157,7 +1155,7 @@ export function useWhiteboard(options: {
   useEffect(()=>{const timer=window.setInterval(()=>{if(document.hidden||!laserObjects.current.length)return;const now=performance.now();const next=objectsRef.current.filter(o=>{if(o.kind!=='stroke'||o.tool!=='laser')return true;if(selectedIdsRef.current.includes(o.id)&&now<(o.laserCreatedAt??now)+14000)o.laserExpiresAt=now+1200;return (o.laserExpiresAt??0)>now;});if(next.length!==objectsRef.current.length){objectsRef.current=next;setObjectsState(next);if(selectionRef.current&&!next.some(o=>o.id===selectionRef.current!.id))setSelection(null);scheduleRender();}},200);return()=>clearInterval(timer);},[scheduleRender]);
   const brushProfiles=useRef<Record<string,Pen>>({});
   const previousBrush=useRef(tool);
-  useEffect(()=>{try{const stored=JSON.parse(localStorage.getItem('phoenix-brush-profiles')??localStorage.getItem('kopy-brush-profiles')??'{}');for(const [key,value] of Object.entries(stored)){const brush=value as Pen;if(/^#[0-9a-f]{6}$/i.test(brush.color)&&Number.isFinite(brush.size)&&brush.size>=1&&brush.size<=100)brushProfiles.current[key]=brush;}if(brushProfiles.current.pen)setPen(brushProfiles.current.pen);}catch{}},[]);
+  useEffect(()=>{try{const stored=JSON.parse(localStorage.getItem('phoenix-brush-profiles')??'{}');for(const [key,value] of Object.entries(stored)){const brush=value as Pen;if(/^#[0-9a-f]{6}$/i.test(brush.color)&&Number.isFinite(brush.size)&&brush.size>=1&&brush.size<=100)brushProfiles.current[key]=brush;}if(brushProfiles.current.pen)setPen(brushProfiles.current.pen);}catch{}},[]);
   useEffect(()=>{const previous=previousBrush.current;if(previous!==tool){if(['pen','highlighter','marker'].includes(previous))brushProfiles.current[previous]=penRef.current;previousBrush.current=tool;}},[tool]);
   useEffect(()=>{if(['pen','highlighter','marker'].includes(tool)){brushProfiles.current[tool]=pen;try{localStorage.setItem('phoenix-brush-profiles',JSON.stringify(brushProfiles.current));}catch{}}},[pen]);
   // re-render when external-controlled inputs change

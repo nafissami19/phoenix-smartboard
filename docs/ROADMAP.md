@@ -1,4 +1,4 @@
-# Improve Kopy Notes
+# Improve Phoenix Smartboard
 
 Prioritize classroom reliability before adding a large number of toolbar buttons.
 

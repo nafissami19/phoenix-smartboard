@@ -107,11 +107,6 @@ jobs:
           PHOENIX_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           PHOENIX_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           PHOENIX_KEYSTORE_PATH: ${{ github.workspace }}/android/release.jks
-          KOPY_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KOPY_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KOPY_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KOPY_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          KOPY_KEYSTORE_PATH: ${{ github.workspace }}/android/release.jks
         run: node scripts/android-signing.mjs
       - name: Build development debug APK
         if: needs.prepare.outputs.development == 'true'
@@ -127,10 +122,6 @@ jobs:
           PHOENIX_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           PHOENIX_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           PHOENIX_KEYSTORE_PATH: ${{ github.workspace }}/android/release.jks
-          KOPY_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KOPY_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KOPY_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          KOPY_KEYSTORE_PATH: ${{ github.workspace }}/android/release.jks
         run: |
           chmod +x android/gradlew
           (cd android && ./gradlew assembleRelease)

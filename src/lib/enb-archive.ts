@@ -14,7 +14,7 @@ export function inspectEnbArchive(buffer:ArrayBuffer){
   if(next>end||(v.getUint16(at+8,true)&1)||![0,8].includes(v.getUint16(at+10,true)))throw new Error('Encrypted or unsupported ENB entries.');
   const name=new TextDecoder('utf-8',{fatal:true}).decode(bytes.subarray(at+46,at+46+length));
   if(!name||name.includes('\\')||name.startsWith('/')||name.split('/').includes('..')||/[\x00-\x1f:]/.test(name)||names.has(name))throw new Error('Unsafe or duplicate ENB file path.');
-  const limit=name==='Kopy/lesson.json'?MAX:/\.xml$/i.test(name)?8*1024*1024:25*1024*1024;
+  const limit=name==='Phoenix/lesson.json'?MAX:/\.xml$/i.test(name)?8*1024*1024:25*1024*1024;
   total+=expanded;if(expanded>limit||total>MAX)throw new Error('Expanded ENB contents exceed 100 MB or the per-file limit.');
   names.add(name);at=next;
  }

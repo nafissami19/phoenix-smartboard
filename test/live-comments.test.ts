@@ -5,8 +5,8 @@ import { parseYouTubeVideoId, readSavedCommentConnection, resolveLiveCommentSour
 const id='Abc_def-123';
 test('YouTube video IDs and explicit watch/live/shortened links resolve without external requests',()=>{
   for(const value of [id,`https://www.youtube.com/watch?v=${id}&t=5`, `https://youtube.com/live/${id}?feature=share`,`https://youtu.be/${id}?si=abc`,`youtube.com/watch?v=${id}`,`https://m.youtube.com/watch?v=${id}`,`https://www.youtube.com/live_chat?v=${id}`])assert.equal(parseYouTubeVideoId(value),id,value);
-  const source=resolveLiveCommentSource(`https://youtu.be/${id}`,'youtube','kopy-notes.netlify.app','https://kopy-notes.netlify.app');
-  const url=new URL(source.url);assert.equal(url.origin,'https://www.youtube.com');assert.equal(url.pathname,'/live_chat');assert.equal(url.searchParams.get('v'),id);assert.equal(url.searchParams.get('embed_domain'),'kopy-notes.netlify.app');assert.equal(source.externalUrl,`https://www.youtube.com/watch?v=${id}`);
+  const source=resolveLiveCommentSource(`https://youtu.be/${id}`,'youtube','phoenix-smartboard.app','https://phoenix-smartboard.app');
+  const url=new URL(source.url);assert.equal(url.origin,'https://www.youtube.com');assert.equal(url.pathname,'/live_chat');assert.equal(url.searchParams.get('v'),id);assert.equal(url.searchParams.get('embed_domain'),'phoenix-smartboard.app');assert.equal(source.externalUrl,`https://www.youtube.com/watch?v=${id}`);
 });
 test('YouTube parsing rejects spoofed hosts, credentials, missing IDs and executable schemes',()=>{
   for(const value of ['not-an-id','https://youtube.com/@teacher/live',`https://youtube.com.evil.test/watch?v=${id}`,`https://evil.test/live/${id}`,`https://user:secret@youtube.com/watch?v=${id}`,`https://youtube.com:444/watch?v=${id}`,`javascript:${id}`,`https://youtu.be/${id}/extra`])assert.throws(()=>parseYouTubeVideoId(value),Error,value);

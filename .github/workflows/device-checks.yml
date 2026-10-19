@@ -25,7 +25,6 @@ jobs:
       - run: npx playwright test --config=playwright.devices.config.ts
         env:
           PHOENIX_DEVICE_BROWSER: ${{ matrix.browser }}
-          KOPY_DEVICE_BROWSER: ${{ matrix.browser }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

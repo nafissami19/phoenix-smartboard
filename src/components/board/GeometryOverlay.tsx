@@ -12,7 +12,7 @@ const RAD=Math.PI/180, INK='var(--guide-ink,#153848)';
 /** Only attached grips intercept input. The transparent body lets board ink through. */
 export function GeometryOverlay({kind,onClose,onEdges,onDraw,pxPerMm}:{pxPerMm?:number;kind:Kind;onClose:()=>void;onEdges:(id:string,edges:GuideEdge[])=>void;onDraw:(edges:GuideEdge[],circle?:{center:Point;radius:number})=>void}) {
  const saved=useRef<{x:number;y:number;angle:number;size:number;width:number;height:number}|null>(null);
- if(saved.current===null){try{const v=JSON.parse((localStorage.getItem(`phoenix-instrument-${kind}`)??localStorage.getItem(`kopy-instrument-${kind}`))??'null');if(v&&[v.x,v.y,v.angle,v.size,v.width,v.height].every(Number.isFinite)&&v.size>0&&v.width>0&&v.height>0)saved.current=v;}catch{}}
+ if(saved.current===null){try{const v=JSON.parse(localStorage.getItem(`phoenix-instrument-${kind}`)??'null');if(v&&[v.x,v.y,v.angle,v.size,v.width,v.height].every(Number.isFinite)&&v.size>0&&v.width>0&&v.height>0)saved.current=v;}catch{}}
  const [pos,setPos]=useState(()=>saved.current?{x:saved.current.x*innerWidth/saved.current.width,y:saved.current.y*innerHeight/saved.current.height}:{x:Math.min(380,innerWidth*.4),y:Math.min(350,innerHeight*.5)});
  const [angle,setAngle]=useState(saved.current?.angle??0),[size,setSize]=useState(saved.current?.size??Math.min(kind==='protractor'?210:360,window.innerWidth*(kind==='protractor'?.26:.6))),[included,setIncluded]=useState(60);
  useEffect(()=>{try{localStorage.setItem(`phoenix-instrument-${kind}`,JSON.stringify({...pos,angle,size,width:innerWidth,height:innerHeight}));}catch{}},[kind,pos,angle,size]);

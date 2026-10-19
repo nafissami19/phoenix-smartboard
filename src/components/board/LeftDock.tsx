@@ -23,7 +23,7 @@ export function LeftDock({active,onOpen,onSave,onSwap}:{active:DockId|null;onOpe
     <button type="button" className="kn-side-switch kn-focus" aria-label="Swap menu side" title="Swap sides" onClick={onSwap}><ThemeIcon name="flipHorizontal"/></button>
     <button type="button" data-dock-action="file" aria-label="Menu" title="Menu" aria-expanded={active==='file'} onClick={()=>onOpen('file')} className="kn-focus"><ThemeIcon name="menu"/></button>
     <BoardFullscreen dock/>
-    {(window.phoenixDisplay||window.kopyDisplay)&&<button type="button" data-dock-action="display" aria-label="Display annotation" disabled={startingDisplay} onClick={()=>{setStartingDisplay(true);const detail:{pending:Promise<unknown>[]}={pending:[]};window.dispatchEvent(new CustomEvent('phoenix-flush-board',{detail}));window.dispatchEvent(new CustomEvent('kopy-flush-board',{detail}));void Promise.all(detail.pending).then(()=>(window.phoenixDisplay||window.kopyDisplay)!.start()).catch(error=>push(error instanceof Error?error.message:'Could not start display annotation.','error')).finally(()=>setStartingDisplay(false));}} className="kn-focus"><Icon name="board"/></button>}
+    {window.phoenixDisplay&&<button type="button" data-dock-action="display" aria-label="Display annotation" disabled={startingDisplay} onClick={()=>{setStartingDisplay(true);const detail:{pending:Promise<unknown>[]}={pending:[]};window.dispatchEvent(new CustomEvent('phoenix-flush-board',{detail}));void Promise.all(detail.pending).then(()=>window.phoenixDisplay!.start()).catch(error=>push(error instanceof Error?error.message:'Could not start display annotation.','error')).finally(()=>setStartingDisplay(false));}} className="kn-focus"><Icon name="board"/></button>}
     <button type="button" data-dock-action="treasure" aria-label="Treasure box" title="Treasure box" aria-expanded={active==='treasure'} onClick={()=>onOpen('treasure')} className="kn-focus"><ThemeIcon name="toolbox"/></button>
     <button type="button" data-dock-action="import" aria-label="Import file" title="Import file" onClick={()=>onOpen('import')} className="kn-focus"><ThemeIcon name="import"/></button>
     <button type="button" data-dock-action="save" aria-label="Save lesson" title="Save lesson" onClick={onSave} className="kn-focus"><ThemeIcon name="save"/></button>
@@ -68,8 +68,8 @@ export function FileMenu({
     const place=()=>{if(!menu||!button)return;const a=button.getBoundingClientRect(),r=menu.getBoundingClientRect();const above=a.top-12,below=innerHeight-a.bottom-12,maxHeight=Math.max(80,Math.max(above,below));const x=Math.max(8,Math.min(a.x,innerWidth-r.width-8)),y=above>=below?Math.max(8,a.top-Math.min(r.height,maxHeight)-4):a.bottom+4;setPosition(p=>p?.x===x&&p.y===y&&p.maxHeight===maxHeight?p:{x,y,maxHeight});};
     const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(place);};
     const observer=new ResizeObserver(schedule);if(menu)observer.observe(menu);if(button)observer.observe(button);
-    window.addEventListener('resize',schedule);window.addEventListener('phoenix-popup-layout',schedule);window.addEventListener('kopy-popup-layout',schedule);window.addEventListener('phoenix-layout-updated',schedule);window.addEventListener('kopy-layout-updated',schedule);place();
-    return()=>{observer.disconnect();cancelAnimationFrame(frame);window.removeEventListener('resize',schedule);window.removeEventListener('phoenix-popup-layout',schedule);window.removeEventListener('kopy-popup-layout',schedule);window.removeEventListener('phoenix-layout-updated',schedule);window.removeEventListener('kopy-layout-updated',schedule);};
+    window.addEventListener('resize',schedule);window.addEventListener('phoenix-popup-layout',schedule);window.addEventListener('phoenix-layout-updated',schedule);place();
+    return()=>{observer.disconnect();cancelAnimationFrame(frame);window.removeEventListener('resize',schedule);window.removeEventListener('phoenix-popup-layout',schedule);window.removeEventListener('phoenix-layout-updated',schedule);};
   },[]);
 
   useEffect(() => {
@@ -79,10 +79,10 @@ export function FileMenu({
     };
     const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!event.defaultPrevented)onClose();};
     document.addEventListener("pointerdown", onDown);
-    document.addEventListener('keydown',onKey);window.addEventListener('phoenix-close-file-menu',onClose);window.addEventListener('kopy-close-file-menu',onClose);
+    document.addEventListener('keydown',onKey);window.addEventListener('phoenix-close-file-menu',onClose);
     return () => {
       document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener('keydown',onKey);window.removeEventListener('phoenix-close-file-menu',onClose);window.removeEventListener('kopy-close-file-menu',onClose);
+      document.removeEventListener('keydown',onKey);window.removeEventListener('phoenix-close-file-menu',onClose);
     };
   }, [onClose]);
 
