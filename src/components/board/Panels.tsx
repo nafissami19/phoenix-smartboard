@@ -1,4 +1,3 @@
-import {AddonsSettings} from '@/components/AddonsSettings';
 import {SmartboardSettings} from '@/components/SmartboardSettings';
 import {SettingsSections} from '@/components/SettingsSections';
 import {DeviceStorage} from '@/components/DeviceStorage';
@@ -11,7 +10,6 @@ import {BrandMark} from '@/components/BrandMark';
 
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { TeachingPreferences } from "@/components/TeachingPreferences";
-import { ImportSources } from "@/components/board/ImportSources";
 import packageInfo from "../../../package.json";
 import { Icon } from "@/components/Icon";
 import { useApp } from "@/lib/app-context";
@@ -196,9 +194,7 @@ export function SettingsPanel({
 </div>},
           {id:'pens',label:'Pen store',description:'Manage the pens in your toolbar.',content:<PenStore/>},
           {id:'storage',label:'Storage & backup',description:'Save device copies and manage connected backups.',content:<><DeviceStorage/><BackupConnections/></>},
-          {id:'connections',label:'Import sources',description:'Import teaching material from other apps.',content:<ImportSources/>},
           {id:'display',label:'Smartboard display',description:'Touch targets, orientation and native Android display options.',content:<SmartboardSettings/>},
-        {id:'addons',label:'Add-ons',description:'Optional tools that load when needed.',content:<AddonsSettings/>},
         ]}/>
         <div className="flex justify-end gap-2 pt-2">
           <button

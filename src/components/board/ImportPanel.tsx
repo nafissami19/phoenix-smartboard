@@ -15,7 +15,6 @@ import { useToast } from "@/lib/toast";
 import { uid, type MediaItem } from "@/lib/constants";
 import { classifyFile, getPdfPageCount, loadPdf, renderDocxToCanvas, renderPdfPage, PDF_RENDER_WIDTH } from "@/lib/media";
 import {DEFAULT_IMPORT_LAYOUT,placeImportedMedia,validateImportLayout,combineImportFrames,orientImportFrame,type ImportLayout,type ImportFrame} from '@/lib/import-layout';
-import {ImportSources} from './ImportSources';
 import {importOfficeSlides} from '@/lib/office-slides';
 
 type Picked = { file: File; kind: "image" | "pdf" | "docx" | "presentation" | "unsupported"; message?: string; error?: string; status?: "pending" | "done" | "failed" };
@@ -276,7 +275,6 @@ export function ImportPanel({
 
       </fieldset>
       </>}
-      <ImportSources/>
       </fieldset>
       <div className="kn-import-footer"><span role="status">{busy?progress:archive?"Ready to open lesson":picked.filter(p=>p.kind!=="unsupported"&&p.status!=="done").length+" file(s) ready"}</span>
         <button
