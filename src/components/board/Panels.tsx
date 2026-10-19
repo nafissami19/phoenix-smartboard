@@ -75,8 +75,6 @@ export function SettingsPanel({
 }) {
   const { profile, updateProfile } = useApp();
   const [appName, setAppName] = useState(profile.appName);
-  const [teacher, setTeacher] = useState(profile.teacherName);
-  const [institution, setInstitution] = useState(profile.institution);
   const [accent, setAccent] = useState(profile.accent);
   const [splashText, setSplashText] = useState(profile.splashText || "A space for every lesson");
   const [iconData, setIconData] = useState(profile.iconData);
@@ -90,8 +88,6 @@ export function SettingsPanel({
     try{await updateProfile({
       ...preferences,
       appName: appName.trim() || BRANDING.APP_NAME,
-      teacherName: teacher.trim(),
-      institution: institution.trim(),
       accent,
       splashText,
       iconData,
@@ -156,24 +152,6 @@ export function SettingsPanel({
           {iconData && <img src={iconData} alt="Your icon" className="mb-2 h-14 w-14 object-contain"/>}
           <input type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>5*1024*1024){setSaveError('Choose an image under 5 MB.');return;}const image=await createImageBitmap(file);const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;const scale=Math.min(256/image.width,256/image.height);canvas.getContext('2d')!.drawImage(image,(256-image.width*scale)/2,(256-image.height*scale)/2,image.width*scale,image.height*scale);image.close();setIconData(canvas.toDataURL('image/png'));}} className="w-full text-sm"/>
         </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Teacher">
-            <input
-              value={teacher}
-              onChange={(e) => setTeacher(e.target.value)}
-              maxLength={60}
-              className="kn-focus w-full rounded-xl border border-line bg-base-2 px-4 py-2.5"
-            />
-          </Field>
-          <Field label="Institution">
-            <input
-              value={institution}
-              onChange={(e) => setInstitution(e.target.value)}
-              maxLength={60}
-              className="kn-focus w-full rounded-xl border border-line bg-base-2 px-4 py-2.5"
-            />
-          </Field>
-        </div>
         <Field label="Custom interface color"><input aria-label="Interface color" type="color" value={accent} onChange={e=>setAccent(e.target.value)}/></Field>
         <Field label="Accent colour">
           <div className="flex gap-2">
@@ -269,16 +247,6 @@ export function AboutPanel({ onClose }: { onClose: () => void }) {
         </div>
         <h3 className="text-xl font-bold">{profile.appName}</h3>
         <p className="mt-1 text-sm text-muted">Interactive smartboard & lesson notes</p>
-        {profile.teacherName && (
-          <p className="mt-3 text-sm">
-            Teacher: <span className="text-ink">{profile.teacherName}</span>
-          </p>
-        )}
-        {profile.institution && (
-          <p className="text-sm">
-            Institution: <span className="text-ink">{profile.institution}</span>
-          </p>
-        )}
         <p className="mt-5 text-xs text-faint">
           Phoenix Smartboard · v{packageInfo.version} · MIT open source · Web build; native hardware checks pending
         </p>

@@ -109,7 +109,7 @@ function LibraryInner() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{profile.appName}</h1>
               <p className="text-sm text-muted">
-                {profile.teacherName ? `${profile.teacherName} · ` : ""}Your lessons & boards
+                Your lessons & boards
               </p>
             </div>
           </div>

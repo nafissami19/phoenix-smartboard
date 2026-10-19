@@ -19,10 +19,10 @@ test('lesson search, filters, sort and remembered layout work together',async({p
   await cards.first().getByRole('button',{name:'Delete',exact:true}).click();await page.getByRole('button',{name:'Keep lesson'}).click();await expect(cards).toHaveCount(3);
 });
 test('settings preserve unsaved edits across categories and persist after saving',async({page})=>{
-  await library(page);await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByLabel('Teacher name').fill('Updated teacher');
+  await library(page);await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByLabel('Application name').fill('Updated app name');
   const nav=page.getByRole('navigation',{name:'Settings categories'});await nav.getByRole('button',{name:'Board & tools',exact:true}).click();await expect(page.getByLabel('Default board pattern')).toBeVisible();
-  await nav.getByRole('button',{name:'Storage & backup',exact:true}).click();await nav.getByRole('button',{name:'Profile',exact:true}).click();await expect(page.getByLabel('Teacher name')).toHaveValue('Updated teacher');
-  await page.getByRole('button',{name:'Save changes',exact:true}).click();await expect(page.getByText('Updated teacher', {exact:false})).toBeVisible();await page.reload();await page.getByRole('button',{name:'Settings',exact:true}).click();await expect(page.getByLabel('Teacher name')).toHaveValue('Updated teacher');
+  await nav.getByRole('button',{name:'Storage & backup',exact:true}).click();await nav.getByRole('button',{name:'Profile',exact:true}).click();await expect(page.getByLabel('Application name')).toHaveValue('Updated app name');
+  await page.getByRole('button',{name:'Save changes',exact:true}).click();await expect(page.getByText('Updated app name', {exact:false})).toBeVisible();await page.reload();await page.getByRole('button',{name:'Settings',exact:true}).click();await expect(page.getByLabel('Application name')).toHaveValue('Updated app name');
 });
 test('library and settings fit phone, portrait tablet and smartboard widths',async({page})=>{
   await library(page);
