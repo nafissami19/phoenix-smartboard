@@ -1,0 +1,247 @@
+# Changelog
+
+## 1.0.0 (2026-10-19) - Phoenix Smartboard Release
+
+- Rebranded and modernized full whiteboard ecosystem as **Phoenix Smartboard** (`com.phoenix.smartboard`).
+- Introduced modern `.ps` (`application/vnd.phoenix-smartboard+json`) portable lesson format with seamless backward compatibility for reading legacy `.kopy` and `.enb` lesson archives.
+- Complete K-12 STEM suite active:
+  - **Virtual Geometry Instruments**: Translucent Ruler, 180° Protractor, 45° and 60° Set Squares, Compass with adjustable radius.
+  - **Interactive Periodic Table**: All 118 elements with atomic properties, electron configurations, and group categorization.
+  - **Chemistry Simulation**: Dynamic liquid levels, beaker/flask meniscus rendering, acid-base titration, and indicator color transitions.
+  - **Physics Ray Optics**: Real-time light ray propagation, reflection, and Snell's law refraction through lenses and mirrors.
+  - **Physics DC Circuit Simulator**: Batteries, resistors, switches, bulbs, and live Kirchhoff's circuit network solving.
+  - **Classroom Tools**: Spotlight, Curtain, Dice, Stopwatch, Timer, Random Name Picker, Calculator, WebRTC Screen/Mic Recorder.
+- Multiplatform architecture:
+  - **Web**: Progressive Web App with offline service worker caching and `phoenix-smartboard-db` IndexedDB.
+  - **Desktop**: Electron application with transparent screen annotation overlay, multi-monitor support, and device folder backups (`.psbackup`).
+  - **Android**: Capacitor app with RAM budget profiles (2GB/4GB/8GB) and native display annotation service.
+- Privacy & Independence: 100% local, offline-first execution with zero third-party telemetry, ads, or tracking widgets.
+
+## 0.2.0-dev.12 (2026-10-15)
+
+- Added automatic and manual 2 GB / 4 GB / 8 GB performance budgets for board resolution, PDF rendering, decoded images, thumbnails and undo history.
+- Reuse static board rendering during handwriting, reduce background timers, release hidden media and respond to Android memory pressure.
+- Throttle draft snapshots before cloning, encode device backups in a worker, defer automatic backups while writing and avoid write locks for database reads.
+- Load editor routes and settings sections on demand; add an Add-ons coming-soon page without loading extensions.
+- Retain persistence, import, touch and rendering regressions; remove the private local-presentation test from the shared suite.
+- Physical Android smartboard verification remains required; browser memory-budget tests do not certify hardware performance.
+
+- Fixed PPTX artwork lost from image-filled custom shapes and scaled groups; preserve solid slide backgrounds and colored text-box fills, Office boolean bold/italic styles and Arimo-compatible font fallback.
+
+- Added theme/background stores with creator and added-by credits that survive theme exports.
+- Added portable board audio/video, YouTube links, safe web links and editable CSV/Excel worksheets, with worksheet formula support. PDF exports show a static object preview; `.kopy` preserves interactive objects.
+- Detect embedded PPTX audio/video, linked YouTube and embedded `.xlsx`/CSV worksheets as interactive board objects. Legacy OLE formats retain previews with warnings; flattened imports keep static previews.
+- Fixed PPTX text positioning with measured wrapping, run font/color styles, insets, alignment, paragraph spacing, vertical anchoring and layout/master inheritance.
+- Added Android smartboard display preferences, larger interactive-object controls and stable board centering during resizing. Native APK compilation/device verification remains pending.
+
+
+- Added three crawlable teaching guides, a guide hub, metadata, sitemap entries and original editable lesson templates.
+
+- Refined the lesson library with search, subject filters, sorting, touch-friendly deletion and remembered grid/list layouts.
+- Organized setup and in-lesson settings into consistent categories with responsive columns and preserved edits when switching sections.
+
+
+- Android smartboard display annotation with native floating tools, touch-through, stylus pressure, overlay permission flow, shared annotation recovery and consent-based screenshots.
+
+- Native device-folder storage for Windows and Android, with three verified recovery generations, editable attachments and settings.
+- Windows display annotation overlay, draggable mouse/drawing controls, shapes, undo/redo, screenshots and return to the same lesson.
+- Device storage setup, explicit uninstall/cleanup guidance and native build documentation.
+
+## 0.2.0-dev.11 (2026-10-11)
+
+- Keep floating subject tools above the docked on-screen keyboard, with reachable scrolling controls.
+- Verify brush texture and coverage across raster backends without assuming identical shade quantization.
+- Supersedes dev.10, whose download release was withheld after web checks failed.
+
+## 0.2.0-dev.10 (2026-10-11)
+
+- Restore immediate dragging of objects with smart rectangle selection.
+- Close expanded selection styles when the viewport width changes, keeping the inspector accessible.
+- Update brush coverage, chemistry output and mobile dock checks for the current interface.
+- Supersedes dev.9, whose release was withheld after browser checks failed.
+
+## 0.2.0-dev.9 (2026-10-11)
+
+- Added a contributor Code of Conduct and community reporting/enforcement guidance.
+- Fixed the Select cursor in older Note3 local theme packs; added rectangle/freehand selection with remembered Smart object mode and editable partial-ink selection.
+- Removed automatic document fit-zoom on import/open, sized default import frames to the board, and aligned slide thumbnail framing/backgrounds with the live board viewport.
+- Improved phone dock placement and added top/left/right/bottom positioning for menus and slide controls.
+- Stylus priority over touch gestures, a short palm rejection interval after pen lift, and configurable side-button eraser/hand support.
+- Swipeable 2D/3D shape groups with editable three-axis 3D rotation, wireframes, undo, and portable lesson persistence.
+- Consistent Note3 charcoal submenu headings while retaining its original toolbar artwork.
+
+
+- Moved custom pen management into Settings Pen Store, with selectable menu entries and optional chalk/oil brush extras.
+- Reworked wax crayon/oil pastel coverage and direction-following paint bristles with MIT Fluid Paint lighting equations.
+
+- Improved textured and pressure-sensitive pen rendering, added chalk/oil pastel/oil paint, and preserved opacity and brush parameters with saved strokes.
+- Added a custom pen editor with a live test pad, local presets and validated .kopy-pen import/export.
+
+- Prevented landing-page flashes on app startup, with an immediate local loading screen and retry on failed loading.
+- Limited automatic GitHub builds and security checks to version releases; routine pushes no longer trigger full workflows.
+
+- Added editable chemistry equipment directly on the board, with touch/mouse pouring, capacity-aware transfer, funnel routing, horizontal liquid surfaces, undo/redo and portable saved state.
+- Grouped the treasure box into Subjects, Tools and Classroom, with Chemistry, Physics and Mathematics sections, global search and remembered categories.
+
+- Added a searchable Note3 background gallery grouped into Teaching, Sports, Scenes and Textures, with local thumbnails and offline assets.
+- Added an interactive chemistry beaker with HCl/NaOH pouring, dilution, pH indicators, draining, overflow and lesson snapshots.
+
+## 0.2.0-dev.8 (2026-10-10)
+
+- Fixed remaining menu and touch browser tests by loading saved fixture preferences before checking tool popups.
+- Includes the official blue Buy Me a Coffee embed configured for adixdev.
+- Replaces the unpublished dev.7 build, whose web test gate prevented release publication.
+
+## 0.2.0-dev.7 (2026-10-10)
+
+- Prepared release downloads with platform build gates and SHA-256 checksums; configured Git LFS for future large source assets. All existing runtime assets remain ordinary Git files.
+
+- Added a Buy Me a Coffee support tab, embedded button and GitHub sponsor link for adixdev.
+- Stabilized browser setup by waiting for database initialization and reloading seeded preferences before interactions.
+
+
+- PDF textbooks support up to 1500 pages with bounded page rendering and responsive metadata processing. Invalid and protected PDFs show a specific reason instead of a generic import failure.
+
+
+- Improved import file feedback, grouped layout controls and per-file retry. Files save as original Blobs to reduce memory use; mixed imports save current-page media before switching to imported slides.
+
+
+- Paint saved lesson content when the canvas mounts, including after asynchronous loading, without requiring a click. Repaint when its visible size changes.
+
+
+- Added a responsive, static landing page with reduced-motion support, search metadata, roadmap and community links.
+- Included org-note3 artwork in production theme selection and offline caching.
+
+
+- Fixed overlapping menu controls, including the fullscreen button and narrow-screen dock layout.
+- Tool settings open on a second click by default; first-click opening is available in Tools and menus. Selected Note3 tool artwork rises without resizing the toolbar.
+
+
+### Note3 appearance and files
+
+- Theme saves are serialized so an earlier response cannot reset a newer selection; Settings applies themes immediately, and the built-in theme includes distinct artwork even without a local icon pack.
+- Optional `org-note3` theme with portable appearance metadata, silver controls and Note-style toolbar ordering.
+- Local installed artwork can be loaded as a separately attributed theme without entering production bundles.
+- ENB import supports editable basic ink and explicit page-preview fallbacks; experimental native picture-page export preserves an editable Kopy payload for unchanged round trips.
+- See [compatibility details and local artwork setup](docs/NOTE3_COMPATIBILITY.md).
+
+
+- Offline physics lab: series/parallel DC circuits with switch and readings, plus converging/diverging lens ray diagrams and snapshots. Corrected neutral buoyancy.
+- Chemistry lab: exact equation balancing with atom checks, dilution visualisation and editable equation insertion; searchable experiment names.
+- Four-direction curtain with a captured drag handle, keyboard adjustment, complete reveal and viewport-contained controls.
+- Added science model documentation, contribution priorities and calculation/browser regression checks.
+
+## 0.2.0-dev.6 | 2026-10-07
+
+- Restored the compact file menu. Import, export, settings and help open as attached side screens; Back returns to the menu, with a contained mobile layout.
+- Android builds apply Kopy Notes adaptive, round and themed launcher icons and a branded native startup screen.
+
+- Product Hunt and r/kopynotes community links in settings and setup; Product Hunt badge and Reddit community link in the GitHub README.
+
+- Keyboard persistence checks wait for the actual saved title before reloading, avoiding a race with the asynchronous database commit.
+- Floating tools reapply saved layout after viewport clamps settle, keeping panels inside the screen through repeated landscape and portrait resizing.
+
+- Bounded PDF raster cache, shared render requests, direct saved-file loading and automatic retries for temporary render failures.
+- Previous and next PDF pages warm in the background; imported pages retain selected paper colors, patterns and images.
+- Transparent PDF viewer paper and exports reveal the chosen board background; backgrounds explicitly painted inside the PDF remain part of the document.
+- Serialized page saves capture the correct slide and metadata; reopening restores the last slide and viewport without changing shape coordinates.
+- A separate durable edit journal checkpoints unfinished drawings. Teachers choose whether to recover edits or keep saved pages; three rotating lesson backups remain available.
+- Slow rendering/saving shows Please wait; the library offers the last interrupted lesson and records unfinished import/export activity.
+- Teaching controls use a gear-only button.
+- Keyboard space is reserved in setup, layout and comments panels; dismissing it no longer moves a button during a click. Custom dropdowns ignore drawing hotkeys, and regression checks follow the compact slide and side-setting controls.
+
+## 0.2.0-dev.5 — 2026-10-07
+
+- Larger bold classroom clock; solid pressure paint, wax-grain crayon and soft pencil rendering with remembered sizes for each pen family.
+- Glowing laser ink with a bright core; size feedback stays inside pen/eraser settings and appears only when size changes.
+- Saved teaching-control visibility, custom dropdowns, full dark-theme surfaces and configurable popup spacing.
+- Edge menu, compact thumbnail actions and import/export progress; blank pages after imports restore the saved page style.
+- Smartboard slide filmstrip with compact view, larger touch controls and page navigation.
+- Restored tool positions, pinned windows, circle size preview and floating/docked on-screen keyboard.
+- Dedicated Auto Shape mode with circle/polygon recognition and feedback when a sketch stays as ink.
+
+- Portable theme packs with custom colors, original pen artwork, embedded icons and page background images; import/export uses the same format on web, Android and Windows.
+- Original chalk/paper texture presets, music staff, handwriting and isometric guides. New pages inherit their current page background and images survive lesson/PDF export.
+- Horizontal compact toolbars on small screens, a pinnable More menu and a single illustrated pen family for normal, pencil, paint, Chinese brush, crayon, highlighter, stamp and laser pens.
+- MIT perfect-freehand pressure handwriting; original smile, star, heart and sun stamp pens.
+- Steady laser pointer with faster-blinking editable temporary strokes. Automatic fade after six seconds; selection briefly pauses fading, capped at fourteen seconds. Laser ink is excluded from backups.
+- Fill-board imports remove margins by default; aspect-preserving and original-size placement remain available. Removed extra view-fit padding.
+- Windows classroom startup screen with a retry page, isolated preload and renderer-ready handoff.
+
+## 0.2.0-dev.4 | 2026-10-04
+
+- Tablet touch cancellation fixes, responsive controls, fullscreen with an iOS focus-view fallback.
+- Drag individual controls and panels, resize or hide them, save named layouts and import/export presets.
+- Normal, paint and crayon brushes; synchronized blinking laser pointer and drawn trail that fades after release; compact pen settings and contextual selection controls.
+- Editable or flattened PPTX/ODP import, simpler import settings and complete lesson PDF export.
+- Scientific calculator, graph presets/ranges, optional Ollama vision handwriting transcription.
+- Partial ink erasing, insert pages after the current slide, optional recorder/live comments and custom toolbar placement.
+- Browser/device regression workflow; themes remain coming soon.
+
+Limitations: presentation conversion supports basic elements, not exact PowerPoint rendering. Handwriting recognition needs a configured vision model. Browser emulation does not replace physical iPad testing.
+
+
+## 0.2.0-dev.3 | 2026-10-03
+
+- Pin compatible packaging tools that remove vulnerable HTTP-cache and legacy UUID dependency chains.
+- Require the dependency audit to pass inside the release workflow before downloads can be published.
+- Supersedes dev.2; teaching features are unchanged.
+
+Validation: npm audit reports zero vulnerabilities. The release workflow rebuilds Android, Windows and web packages with the corrected lockfile.
+
+
+## 0.2.0-dev.2 | 2026-10-03
+
+- Public development releases automatically include Android test APK, unsigned Windows installer, web ZIP and checksums.
+- Contributor profiles, screenshot previews and clearer download links in the README.
+- Interactive offline periodic table, custom board colors and saved board presets.
+- Visible Hand tool for panning into extra board space.
+- Import file selection first, consistent field spacing, immediate placement validation and themed controls/scrollbars.
+- Menus remain reachable on short screens; keyboard editing stays separate from board shortcuts.
+
+
+Validation: 28 data tests, 2 release metadata tests and 25 Edge browser checks passed. TypeScript, production build, privacy scan and version metadata checks passed. Native release builds are checked separately by GitHub Actions; physical smartboard validation remains pending.
+
+## 0.2.0-dev.1 — 2026-10-02 — public development preview
+
+- Development release open to community contributions; native/device verification remains pending.
+- Classic original branding with web, Windows and Android assets; first-run teaching preferences, watermark, calibration, synced-folder backups and optional local assistant.
+- PPTX/ODP basic editable slide import; landscape/portrait frames, nine anchors, margins and document lock/rotate/fit/alignment.
+- Smart geometry recognition, hatch/crosshatch fills and rounded corners; pulsing laser and quiet autosave.
+- APK/Windows CI, redacted secret scanning, privacy/dependency checks and package/tag/changelog version validation.
+
+
+## 0.2.0 — 2026-10-02 — slides and direct board tools
+
+- Slide sidebar with lazy previews, mouse handle dragging, 450 ms touch hold, keyboard ordering, duplicate and visible Previous/Next navigation. Orders are saved atomically and retained in `.kopy` imports/exports.
+- Transparent instruments with attached move/rotate/stretch handles; protractor ray adjustment and compass sweeps draw editable arcs or circles.
+- Thirteen shapes with independent line/fill colors, widths, solid/dashed/dotted lines, and a style editor for existing selected shapes.
+- Repaired laser/clock glyphs, explicit SVG dimensions and distinct subject-tool artwork; all icons remain independently drawn.
+- Native installers and physical smartboard/stylus verification remain pending.
+
+
+## Unreleased
+
+- Fixed PPTX artwork lost from image-filled custom shapes and scaled groups; preserve solid slide backgrounds and colored text-box fills, Office boolean bold/italic styles and Arimo-compatible font fallback. — classroom tools, imports and recovery
+
+Validation on 2026-10-02: production build and TypeScript check passed, eight data/geometry tests passed, seven Edge browser checks passed, and the production app reopened offline after cache activation. Native builds, physical stylus/palm behavior and successful encoded-video validation remain pending.
+
+- Left/right edge page navigation, top-center recorder with pause/resume, custom board/ink/interface colors, corrected diagram SVG dimensions.
+- Transparent instruments directly over the board, movable controls, angle/size adjustments and pen strokes constrained to straight edges. Circle and angle insertion produce editable board objects.
+- Pressure-sensitive pen rendering, coalesced samples, pen-only touch rejection, optional contact-size palm erasing, and corrected fading laser opacity.
+- Interactive ideal buoyancy/displacement experiment and insertable snapshots; this is not a full fluid or circuit simulator.
+- Fast completed-edit autosave, three rotating local recovery copies, pre-delete snapshots, optional three-file external folder rotation, and restore-as-copy. See [backup setup and limits](docs/BACKUPS.md).
+- Multiple selection, uniform corner resize, independent brush sizes and configurable gestures. Selection clears when writing resumes.
+- Fixed the Import dock action; PDF lesson-page creation and visible isolated DOCX layout rendering.
+- Uncompressed editable `.kopy` v2, legacy v1 compatibility, multiple provider-synced folder destinations and editable existing text.
+- Stylus/palm hardware behavior, native packaging, long recording reliability and full Note3 feature parity still require work.
+
+## 0.1.0 — 2026-10-02 — web foundation, native releases pending
+
+- Note3 reference layout: green board, bottom drawing/page/menu controls, Treasure box and draggable windows. The experimental ZIP is not the UI specification.
+- Offline lessons, atomic page edits, portable `.kopy` backups including imported files, and editable name/icon/opening text.
+- Drawing, selection, shapes, undo/redo, pan/zoom; PDF/image/DOCX imports; current-page PNG/PDF export; timers and visual geometry guides.
+- Function graphs, 3D/chemistry/physics diagrams, camera snapshots, curtain and board recording with microphone option.
+- Recording rejects empty video and displays a capability error. Headless Edge produced zero frames even in an isolated browser test; successful encoded-video and native hardware verification remain pending.
+- MIT license, dependency notices, contribution/security guides, feature matrix and roadmap; web/Windows/Android CI and draft prereleases.
+- TypeScript, production PWA build and four persistence/backup tests passed. Native builds and full Note3 parity remain pending.

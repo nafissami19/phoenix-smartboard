@@ -1,0 +1,88 @@
+{
+  "name": "phoenix-smartboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "An offline-first, modern teaching smartboard for web, desktop and Android",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "dev": "vite --configLoader native --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build --configLoader native",
+    "preview": "vite preview --configLoader native --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test --test-isolation=none test/*.test.ts",
+    "desktop": "electron desktop/main.cjs",
+    "desktop:build": "npm run build && electron-builder --win nsis --publish never",
+    "android:sync": "npm run build && cap sync android",
+    "android:add": "cap add android",
+    "check:privacy": "node scripts/check-privacy.mjs",
+    "check:release": "node scripts/check-release.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "dompurify": "3.4.16",
+    "exceljs": "^4.4.0",
+    "html2canvas": "1.4.1",
+    "idb": "8.0.3",
+    "jspdf": "4.2.1",
+    "jszip": "3.10.2",
+    "mammoth": "1.13.0",
+    "mathjs": "15.2.0",
+    "pdfjs-dist": "6.3.289",
+    "perfect-freehand": "^1.2.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "simple-keyboard": "^3.8.192"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.4.3",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3",
+    "fake-indexeddb": "6.2.5",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.2",
+    "vite-plugin-pwa": "1.3.0"
+  },
+  "build": {
+    "appId": "com.phoenix.smartboard",
+    "productName": "Phoenix Smartboard",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "desktop/**/*",
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY.md",
+      "CODE_OF_CONDUCT.md",
+      "CONTRIBUTING.md"
+    ],
+    "win": {
+      "icon": "branding/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "overrides": {
+    "app-builder-lib": {
+      "@electron/get": "5.1.0"
+    }
+  }
+}

@@ -1,0 +1,83 @@
+name: Build and test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  device-checks:
+    uses: ./.github/workflows/device-checks.yml
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: node scripts/check-release.mjs
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: node scripts/check-privacy.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: web-browser-failure
+          path: test-results
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phoenix-smartboard-web
+          path: dist
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: node scripts/check-release.mjs
+      - run: npm ci
+      - run: npm run desktop:build
+      - run: npx playwright test --config=playwright.desktop.config.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phoenix-smartboard-windows-unsigned-test
+          path: release/*.exe
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: node scripts/check-release.mjs
+      - run: npm ci
+      - run: npm run android:add && npm run android:sync
+      - run: node scripts/apply-native-branding.mjs
+      - run: node scripts/android-permissions.mjs
+      - run: chmod +x android/gradlew && cd android && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phoenix-smartboard-android-debug-test
+          path: android/app/build/outputs/apk/debug/*.apk

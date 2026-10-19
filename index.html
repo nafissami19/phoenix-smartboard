@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Decide before styles, assets or application modules load. -->
+<script>
+(function () {
+ var isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+ var nativeApp = location.protocol === 'file:' ||
+   (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ||
+   window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true ||
+   (isDev && !location.search.includes('landing'));
+ if (isDev && !location.hash.startsWith('#/') && !location.search.includes('landing')) {
+  location.hash = '#/app';
+ }
+ function showLoader() {
+  if (nativeApp || location.hash.indexOf('#/') === 0) document.documentElement.classList.add('app-open');
+ }
+ showLoader();
+ window.addEventListener('hashchange', showLoader);
+})();
+</script>
+<style>
+#app-loader{display:none}.app-open #landing{display:none!important}html:not(.app-open) #root{display:none}
+.app-open:not(.app-ready) #app-loader{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px;padding:24px;box-sizing:border-box;text-align:center;background:#111214;color:#f2f5f7;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+.app-open:not(.app-ready) #app-loader strong{font-size:22px;color:#ffffff}
+.app-open:not(.app-ready) #app-loader img{width:64px;height:64px;object-fit:contain}
+.app-open:not(.app-ready) #app-loader span{font-size:14px;color:#94a3b8}
+#app-loader button{font:inherit;border:1px solid #e63946;border-radius:8px;background:#e63946;color:white;padding:12px 24px;cursor:pointer;font-weight:600}
+#app-loader button[hidden]{display:none}
+#app-loader button:focus-visible{outline:3px solid #2a9d8f;outline-offset:4px}
+</style>
+<title>Phoenix Smartboard &mdash; Ignite Your Classroom</title>
+<meta name="description" content="Phoenix Smartboard: an offline-first, high-performance teaching whiteboard for web, desktop and Android smartboards. Features complete K-12 STEM tools, virtual lab, and native .ps lesson format.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#e63946">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Phoenix Smartboard">
+<meta property="og:title" content="Phoenix Smartboard &mdash; Ignite your classroom. Your lesson, your way.">
+<meta property="og:description" content="Offline-first smartboard application with K-12 STEM suite, virtual physics/chemistry lab, and transparent desktop annotation.">
+<meta property="og:image" content="./icon.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Phoenix Smartboard">
+<meta name="twitter:description" content="Offline-first, high-performance teaching whiteboard with K-12 STEM suite.">
+<link rel="icon" href="./icon.svg">
+<link rel="stylesheet" href="./landing.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Phoenix Smartboard",
+  "description": "An offline-first, high-performance interactive smartboard and teaching whiteboard with full STEM suite.",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Web, Windows, Android",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+</head>
+<body>
+<div id="landing">
+<a class="lp-skip" href="#content">Skip to content</a>
+<header class="lp-nav">
+  <a class="lp-brand" href="./">
+    <img src="./icon.svg" alt="" width="36" height="36">
+    phoenix smartboard<span>1.0</span>
+  </a>
+  <nav aria-label="Main navigation">
+    <a href="#features">Features</a>
+    <a href="#stem-suite">STEM Suite</a>
+    <a href="#platforms">Platforms</a>
+    <a href="#faq">FAQ</a>
+    <a href="https://github.com/phoenix-smartboard/phoenix-smartboard" target="_blank" rel="noopener noreferrer">GitHub &#8599;</a>
+  </nav>
+  <a class="lp-button lp-small" data-launch href="#/app">Open Smartboard &#8599;</a>
+</header>
+
+<main id="content">
+<section class="lp-hero">
+<div class="lp-hero-copy">
+  <p class="lp-eyebrow"><span></span> OFFLINE-FIRST. HIGH PERFORMANCE. FULL STEM SUITE.</p>
+  <h1>Ignite your classroom.<br>Your lesson,<br><em>your way.</em></h1>
+  <p class="lp-lead">An interactive teaching whiteboard built to rival commercial smartboards. Smooth 240Hz stylus inking, virtual chemistry &amp; physics labs, geometry instruments, and zero subscription lock-in.</p>
+  <div class="lp-actions">
+    <a class="lp-button" data-launch href="#/app">Launch Phoenix Smartboard <span>&#8599;</span></a>
+    <a class="lp-text-link" href="#stem-suite">Explore STEM Tools &darr;</a>
+  </div>
+  <p class="lp-fine">100% Free &amp; Open Source &middot; Works Offline &middot; Web, Windows &amp; Android</p>
+  <p id="launch-status" role="status"></p>
+</div>
+
+<div class="lp-demo" aria-label="Illustration of a Phoenix Smartboard lesson">
+  <div class="lp-demo-top"><span><i></i><i></i><i></i></span><span>Phoenix Board &middot; Kinematics &amp; Optics</span><span>01 / 03</span></div>
+  <div class="lp-demo-board">
+    <span class="lp-note-label">PHYSICS &amp; MATH / 09:41</span>
+    <h2>Ray Optics &amp; Geometry</h2>
+    <svg viewBox="0 0 440 225" role="img" aria-label="Optics and geometry diagram"><g fill="none" stroke="#f4ecd5" stroke-width="3" stroke-linecap="round"><path d="M52 166 L52 35 L239 166 Z"/><path d="M52 143 H75 V166"/><path class="lp-demo-underline" d="M285 122 Q345 133 408 119" stroke="#e63946"/></g><g fill="#f4ecd5" font-family="Georgia,serif" font-size="25" font-style="italic"><text x="26" y="105">f</text><text x="138" y="195">do</text><text x="154" y="89">di</text><text x="270" y="107">1/f = 1/do + 1/di</text></g></svg>
+    <div class="lp-demo-tools" aria-hidden="true"><span>&#8598;</span><span class="lp-demo-pen">&#9998;</span><span>&#9649;</span><span>&#9651;</span><span>&#9995;</span><span>T</span><span>&#8630;</span></div>
+  </div>
+  <div class="lp-demo-caption"><span>Ready for every lesson</span><span>High precision &middot; Vector ink &middot; .ps Format</span></div>
+</div>
+</section>
+
+<div class="lp-proof">
+  <span><strong>Free</strong> &amp; Open Source</span>
+  <span><strong>Full K-12 STEM</strong> Suite</span>
+  <span><strong>100% Offline</strong> Persistence</span>
+  <span><strong>Native .ps</strong> Lesson Format</span>
+</div>
+
+<section class="lp-section" id="features">
+  <div class="lp-section-heading">
+    <p class="lp-eyebrow">BUILT FOR MODERN TEACHERS</p>
+    <h2>A Complete Interactive Whiteboard.<br>Engineered for Speed.</h2>
+    <p>Everything you need for fluid classroom delivery on screens from 13-inch laptops to 86-inch 4K smart panels.</p>
+  </div>
+  <div class="lp-features">
+    <article class="lp-feature lp-feature-wide">
+      <span class="lp-feature-number">01 / DUAL-LAYER VECTOR ENGINE</span>
+      <div class="lp-ink-sample" aria-hidden="true">Smooth. Precise.<span>Instant.</span></div>
+      <h3>240Hz Hardware Stylus Inking</h3>
+      <p>Coalesced pointer events, pressure sensitivity, Bezier curve smoothing, and hardware palm rejection. Pen, calligraphy, chalk, marker, highlighter, and glowing laser pointers.</p>
+    </article>
+    <article class="lp-feature">
+      <span class="lp-feature-number">02 / PORTABLE LESSONS</span>
+      <div class="lp-file-stack" aria-hidden="true"><span>.ps</span><span>PDF</span><span>DOCX</span></div>
+      <h3>Native .ps Lesson Bundles</h3>
+      <p>Save complete lessons with pages, vector ink, and embedded assets in human-readable .ps format. Import PDFs, Word docs, PowerPoints, and legacy lesson files seamlessly.</p>
+    </article>
+    <article class="lp-feature" id="stem-suite">
+      <span class="lp-feature-number">03 / K-12 CURRICULUM</span>
+      <div class="lp-formula" aria-hidden="true">H&#8322;O + HCl<small>&#9883; &nbsp; &#9651; &nbsp; &#9201;</small></div>
+      <h3>Virtual Science &amp; Math Laboratory</h3>
+      <p>Interactive chemistry glassware with real titration calculations, 118-element periodic table, physics ray optics and DC circuit builders, and geometry instruments with edge snapping.</p>
+    </article>
+    <article class="lp-feature lp-feature-wide lp-feature-theme" id="platforms">
+      <span class="lp-feature-number">04 / TRIPLE PLATFORM</span>
+      <div class="lp-swatches" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <h3>Web, Windows Desktop &amp; Android Smartboard</h3>
+      <p>Use the lightweight Web PWA, run the Windows desktop app with transparent screen annotations over PowerPoint and browsers, or deploy directly to Android interactive touch panels.</p>
+      <a class="lp-text-link" data-launch href="#/app">Launch the whiteboard &#8599;</a>
+    </article>
+  </div>
+</section>
+
+<section class="lp-section lp-faq" id="faq">
+  <div class="lp-section-heading">
+    <p class="lp-eyebrow">COMMON QUESTIONS</p>
+    <h2>Frequently Asked Questions</h2>
+  </div>
+  <details>
+    <summary>Is Phoenix Smartboard completely free and offline?</summary>
+    <p>Yes. Phoenix Smartboard runs 100% offline using client-side IndexedDB persistence and Service Workers. No internet connection or accounts required.</p>
+  </details>
+  <details>
+    <summary>What is the .ps file format?</summary>
+    <p>The .ps format is a portable, human-readable UTF-8 JSON bundle containing lesson metadata, page coordinates, vector strokes, and embedded media assets. It ensures your lessons are always yours and never locked to vendor cloud servers.</p>
+  </details>
+  <details>
+    <summary>Can I import existing lesson files?</summary>
+    <p>Yes! Phoenix Smartboard includes built-in converters to open PDF documents, Word (.docx) files, PowerPoint (.pptx) presentations, and legacy (.kopy and .enb) lesson archives.</p>
+  </details>
+</section>
+
+<section class="lp-final">
+  <h2>Your next great lesson<br>starts right here.</h2>
+  <a class="lp-button" data-launch href="#/app">Open Phoenix Smartboard &#8599;</a>
+</section>
+</main>
+
+<footer class="lp-footer">
+  <a class="lp-brand" href="./">
+    <img src="./icon.svg" width="30" height="30" alt="">
+    Phoenix Smartboard
+  </a>
+  <span>Ignite your classroom. Your lesson, your way.</span>
+  <div>
+    <a href="https://github.com/phoenix-smartboard/phoenix-smartboard" target="_blank" rel="noopener noreferrer">Source Code</a>
+    <a href="https://github.com/phoenix-smartboard/phoenix-smartboard/issues" target="_blank" rel="noopener noreferrer">Report Issue</a>
+    <a href="https://github.com/phoenix-smartboard/phoenix-smartboard/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+  </div>
+</footer>
+</div>
+
+<div id="app-loader" role="status">
+  <img src="./icon.svg" width="64" height="64" alt="">
+  <strong>Opening Phoenix Smartboard</strong>
+  <span id="app-load-message">Please wait...</span>
+  <button id="app-load-retry" type="button" hidden>Retry</button>
+</div>
+
+<div id="root"></div>
+<script type="module" src="/src/entry.ts"></script>
+</body>
+</html>

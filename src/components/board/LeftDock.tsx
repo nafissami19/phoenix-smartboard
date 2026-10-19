@@ -1,0 +1,122 @@
+import {useToast} from '@/lib/toast';
+import {BoardFullscreen} from './BoardFullscreen';
+import {ThemeIcon} from './ThemeIcon';
+import {createPortal} from 'react-dom';
+"use client";
+
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "@/components/Icon";
+
+export type DockId =
+  | "file"
+  | "treasure"
+  | "import"
+  | "export"
+  | "settings"
+  | "help"
+  | "present"
+  | "library";
+
+export function LeftDock({active,onOpen,onSave,onSwap}:{active:DockId|null;onOpen:(id:DockId)=>void;onSave:()=>void;onSwap:()=>void}){
+  const {push}=useToast();const [startingDisplay,setStartingDisplay]=useState(false);
+  return <div className="kn-dock pointer-events-auto flex items-center gap-1 rounded-xl border border-line bg-panel p-1 shadow-xl">
+    <button type="button" className="kn-side-switch kn-focus" aria-label="Swap menu side" title="Swap sides" onClick={onSwap}><ThemeIcon name="flipHorizontal"/></button>
+    <button type="button" data-dock-action="file" aria-label="Menu" title="Menu" aria-expanded={active==='file'} onClick={()=>onOpen('file')} className="kn-focus"><ThemeIcon name="menu"/></button>
+    <BoardFullscreen dock/>
+    {(window.phoenixDisplay||window.kopyDisplay)&&<button type="button" data-dock-action="display" aria-label="Display annotation" disabled={startingDisplay} onClick={()=>{setStartingDisplay(true);const detail:{pending:Promise<unknown>[]}={pending:[]};window.dispatchEvent(new CustomEvent('phoenix-flush-board',{detail}));window.dispatchEvent(new CustomEvent('kopy-flush-board',{detail}));void Promise.all(detail.pending).then(()=>(window.phoenixDisplay||window.kopyDisplay)!.start()).catch(error=>push(error instanceof Error?error.message:'Could not start display annotation.','error')).finally(()=>setStartingDisplay(false));}} className="kn-focus"><Icon name="board"/></button>}
+    <button type="button" data-dock-action="treasure" aria-label="Treasure box" title="Treasure box" aria-expanded={active==='treasure'} onClick={()=>onOpen('treasure')} className="kn-focus"><ThemeIcon name="toolbox"/></button>
+    <button type="button" data-dock-action="import" aria-label="Import file" title="Import file" onClick={()=>onOpen('import')} className="kn-focus"><ThemeIcon name="import"/></button>
+    <button type="button" data-dock-action="save" aria-label="Save lesson" title="Save lesson" onClick={onSave} className="kn-focus"><ThemeIcon name="save"/></button>
+  </div>;
+}
+
+const FILE_ITEMS: { id: string; label: string; icon: IconName }[] = [
+  { id: "new", label: "New lesson", icon: "plus" },
+  { id: "open", label: "Open…", icon: "folder" },
+  { id: "save", label: "Save", icon: "save" },
+  { id: "saveas", label: "Save as", icon: "copy" },
+  { id: "special", label: "Insert object", icon: "play" },
+  { id: "import", label: "Import", icon: "import" },
+  { id: "export", label: "Export", icon: "export" },
+  { id: "print", label: "Print", icon: "print" },
+  { id: "settings", label: "Settings", icon: "settings" },
+  { id: "themes", label: "Themes", icon: "board" },
+  { id: "help", label: "Help", icon: "help" },
+  { id: "about", label: "About", icon: "eye" },
+  { id: "exit", label: "Exit to library", icon: "back" },
+];
+
+const FILE_GROUPS=[
+  {label:'Lesson',ids:['new','open','save','saveas']},
+  {label:'Import & share',ids:['special','import','export','print']},
+  {label:'Application',ids:['settings','themes','help','about','exit']},
+];
+
+export function FileMenu({
+  onAction,
+  onClose,
+  appName,
+}: {
+  onAction: (action: string) => void;
+  onClose: () => void;
+  appName: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [position,setPosition]=useState<{x:number;y:number;maxHeight:number}|null>(null);
+  useLayoutEffect(()=>{
+    let frame=0;const menu=ref.current,button=document.querySelector<HTMLElement>('[data-dock-action="file"]');
+    const place=()=>{if(!menu||!button)return;const a=button.getBoundingClientRect(),r=menu.getBoundingClientRect();const above=a.top-12,below=innerHeight-a.bottom-12,maxHeight=Math.max(80,Math.max(above,below));const x=Math.max(8,Math.min(a.x,innerWidth-r.width-8)),y=above>=below?Math.max(8,a.top-Math.min(r.height,maxHeight)-4):a.bottom+4;setPosition(p=>p?.x===x&&p.y===y&&p.maxHeight===maxHeight?p:{x,y,maxHeight});};
+    const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(place);};
+    const observer=new ResizeObserver(schedule);if(menu)observer.observe(menu);if(button)observer.observe(button);
+    window.addEventListener('resize',schedule);window.addEventListener('phoenix-popup-layout',schedule);window.addEventListener('kopy-popup-layout',schedule);window.addEventListener('phoenix-layout-updated',schedule);window.addEventListener('kopy-layout-updated',schedule);place();
+    return()=>{observer.disconnect();cancelAnimationFrame(frame);window.removeEventListener('resize',schedule);window.removeEventListener('phoenix-popup-layout',schedule);window.removeEventListener('kopy-popup-layout',schedule);window.removeEventListener('phoenix-layout-updated',schedule);window.removeEventListener('kopy-layout-updated',schedule);};
+  },[]);
+
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if((e.target as Element).closest('[data-dock-action="file"],.kn-menu-screen'))return;
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!event.defaultPrevented)onClose();};
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener('keydown',onKey);window.addEventListener('phoenix-close-file-menu',onClose);window.addEventListener('kopy-close-file-menu',onClose);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener('keydown',onKey);window.removeEventListener('phoenix-close-file-menu',onClose);window.removeEventListener('kopy-close-file-menu',onClose);
+    };
+  }, [onClose]);
+
+  return createPortal((
+    <div
+      ref={ref}
+      data-side-menu
+      aria-label="File menu"
+      className="kn-file-menu kn-pop absolute bottom-24 left-3 z-40 flex w-64 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl"
+      role="region"
+      style={{position:'fixed',zIndex:100,left:position?.x??8,top:position?.y??8,right:'auto',bottom:'auto',width:240,maxWidth:'calc(100vw - 16px)',maxHeight:position?.maxHeight??'calc(100dvh - 16px)',visibility:position?'visible':'hidden'}}
+    >
+      <div className="shrink-0 border-b border-line bg-panel-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+        {appName}
+      </div>
+      <div className="kn-scroll min-h-0 overflow-y-auto overscroll-contain p-1.5">
+        {FILE_GROUPS.map(group=><section key={group.label} aria-label={group.label} className="kn-file-menu-group border-b border-line py-1 last:border-0">
+          <h3 className="sr-only">{group.label}</h3>
+          {FILE_ITEMS.filter(item=>group.ids.includes(item.id)).map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            style={{display:'flex',width:'100%',height:'auto',minHeight:44}}
+            onClick={() => {
+              onAction(item.id);
+              if(!['special','import','export','settings','themes','help','about'].includes(item.id))onClose();
+            }}
+            className="kn-focus flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-elevated"
+          >
+            <Icon name={item.icon} className="h-4 w-4 text-muted" />
+            {item.label}
+          </button>
+        ))}</section>)}
+      </div>
+    </div>
+  ),document.querySelector('.kn-board')??document.body);
+}

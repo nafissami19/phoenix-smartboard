@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>Phoenix Smartboard</title>
+  <defs>
+    <linearGradient id="phoenixBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e2229"/>
+      <stop offset="100%" stop-color="#111214"/>
+    </linearGradient>
+    <linearGradient id="flameGrad" x1="0%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#e63946"/>
+      <stop offset="60%" stop-color="#f77f00"/>
+      <stop offset="100%" stop-color="#fcbf49"/>
+    </linearGradient>
+    <linearGradient id="wingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e63946"/>
+      <stop offset="100%" stop-color="#d62828"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer Squircle Panel -->
+  <rect width="128" height="128" rx="28" fill="url(#phoenixBg)" stroke="#2a303c" stroke-width="2"/>
+  
+  <!-- Smartboard Screen Glow -->
+  <rect x="18" y="18" width="92" height="92" rx="14" fill="#181b20" stroke="#333b47" stroke-width="1.5"/>
+
+  <!-- Phoenix Wings / Open Book Base -->
+  <path d="M26 84 C42 88 56 76 64 66 C72 76 86 88 102 84 C96 66 84 56 64 56 C44 56 32 66 26 84 Z" fill="url(#wingGrad)" opacity="0.9"/>
+
+  <!-- Soaring Phoenix Flame & Pen Nib -->
+  <path d="M64 26 C64 26 76 44 76 56 C76 64 70 70 64 70 C58 70 52 64 52 56 C52 44 64 26 64 26 Z" fill="url(#flameGrad)"/>
+
+  <!-- Stylized Pen Nib Point / Spark -->
+  <polygon points="64,22 66,28 62,28" fill="#ffffff"/>
+  <circle cx="64" cy="56" r="3.5" fill="#111214"/>
+  <line x1="64" y1="59.5" x2="64" y2="70" stroke="#111214" stroke-width="2"/>
+
+  <!-- Bottom Stylus Stroke / Horizon -->
+  <path d="M38 98 Q64 104 90 98" stroke="url(#flameGrad)" stroke-width="3.5" stroke-linecap="round"/>
+</svg>
