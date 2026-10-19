@@ -1,4 +1,3 @@
-import {SmartboardSettings} from '@/components/SmartboardSettings';
 import {SettingsSections} from '@/components/SettingsSections';
 import {DeviceStorage} from '@/components/DeviceStorage';
 import {PenStore} from '@/components/PenStore';
@@ -40,7 +39,6 @@ export default function OnboardingPage(){
         {id:'teaching',label:'Board & tools',description:'Themes, page backgrounds, touch controls and teaching defaults.',content:<TeachingPreferences value={draft} onChange={change}/>},
         {id:'pens',label:'Pen store',description:'Choose the pens available in your teaching toolbar.',content:<PenStore/>},
         {id:'storage',label:'Storage & backup',description:'Keep copies of your lessons on this device and connected storage.',content:<><DeviceStorage/><BackupConnections/></>},
-        {id:'display',label:'Smartboard display',description:'Touch targets, orientation and native Android display options.',content:<SmartboardSettings/>},
       ]}/>
       {error&&<p role="alert" className="mt-5 text-sm text-red-400">{error}</p>}
       <footer className="kn-settings-footer"><span className="mr-auto text-xs text-muted">Saved locally on this device</span><button onClick={()=>void finish()} disabled={saving||loading} className="kn-focus flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 font-semibold text-white disabled:opacity-50">{saving?'Saving...':profile.onboarded?'Save changes':'Start teaching'}<Icon name="chevronRight" className="h-4 w-4"/></button></footer>

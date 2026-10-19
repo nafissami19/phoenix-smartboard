@@ -1,4 +1,3 @@
-import {SmartboardSettings} from '@/components/SmartboardSettings';
 import {SettingsSections} from '@/components/SettingsSections';
 import {DeviceStorage} from '@/components/DeviceStorage';
 import {PenStore} from '@/components/PenStore';
@@ -172,7 +171,6 @@ export function SettingsPanel({
 </div>},
           {id:'pens',label:'Pen store',description:'Manage the pens in your toolbar.',content:<PenStore/>},
           {id:'storage',label:'Storage & backup',description:'Save device copies and manage connected backups.',content:<><DeviceStorage/><BackupConnections/></>},
-          {id:'display',label:'Smartboard display',description:'Touch targets, orientation and native Android display options.',content:<SmartboardSettings/>},
         ]}/>
         <div className="flex justify-end gap-2 pt-2">
           <button
