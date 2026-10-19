@@ -25,13 +25,7 @@ test('drawings survive page changes and refresh; tools stay on the board',async(
   await page.reload();await expect(page.getByRole('button',{name:'Pen',exact:true})).toBeVisible();await page.getByRole('button',{name:'Treasure box',exact:true}).click();await page.getByRole('button',{name:'Timer',exact:true}).click();await expect(page.getByText('05:00',{exact:true})).toBeVisible();
   await page.screenshot({path:'test-results/reference-board.png'});expect(errors).toEqual([]);
 });
-test('recording saves video or reports unavailable capture without an empty download',async({page})=>{
-  await board(page);await page.getByLabel('Lesson details').click();let filename='';page.on('download',download=>{filename=download.suggestedFilename();});
-  await page.getByRole('button',{name:'Teaching controls',exact:true}).click();await page.getByLabel('Show recording controls').check();await page.getByRole('button',{name:'Done',exact:true}).click();
-  await page.getByRole('button',{name:'Record class',exact:true}).click();await expect(page.getByRole('button',{name:'Stop recording',exact:true})).toBeVisible();await page.waitForTimeout(1200);await page.getByRole('button',{name:'Stop recording',exact:true}).click();
-  await expect.poll(async()=>filename||(await page.getByRole('alert').allTextContents()).join(' '),{timeout:10000}).toBeTruthy();
-  if(filename)expect(filename).toMatch(/\.(webm|mp4)$/);else await expect(page.getByRole('alert')).toContainText('no video frames');
-});
+
 test('compact portrait and wide boards keep page and pen controls accessible',async({page})=>{
   await page.setViewportSize({width:720,height:1024});await board(page);await expect(page.getByRole('button',{name:'Add page',exact:true})).toBeVisible();await page.getByRole('button',{name:'Pen',exact:true}).click();await expect(page.getByText('Smart shapes',{exact:true})).toBeVisible();await page.setViewportSize({width:1920,height:720});await expect(page.getByRole('button',{name:'Next page',exact:true})).toBeVisible();
 });
@@ -60,11 +54,6 @@ test('geometry, science, pressure controls and backup recovery work together',as
   await page.getByRole('button',{name:'Treasure box',exact:true}).click();
   const previous=await page.getByRole('button',{name:'Previous page',exact:true}).boundingBox();
   expect(previous?.x).toBeGreaterThan(0);expect(previous?.y).toBeGreaterThan(500);
-  await page.getByRole('button',{name:'Teaching controls',exact:true}).click();await page.getByLabel('Show backup controls').check();await page.getByRole('button',{name:'Done',exact:true}).click();
-  await page.getByRole('button',{name:'Backups',exact:true}).click();
-  await page.getByRole('button',{name:'Back up now',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Restore as copy',exact:true}).first()).toBeVisible();
-  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download backup',exact:true}).click();expect((await download).suggestedFilename()).toBe('lesson-backup.ps');
 });
 
 test('selection clears on writing, supports multiple items and resizes them',async({page})=>{

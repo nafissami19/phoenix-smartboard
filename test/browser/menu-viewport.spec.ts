@@ -97,5 +97,5 @@ test('compact menu keeps import and export screens attached on both sides and mo
   await page.getByRole('button',{name:'Menu',exact:true}).click();await expect(menu).toHaveCount(0);
   await page.getByRole('button',{name:'Menu',exact:true}).click();await menu.getByRole('button',{name:'Import',exact:true}).click();
   await page.getByRole('dialog',{name:'Import to board',exact:true}).getByRole('button',{name:'Close',exact:true}).click();await expect(menu).toHaveCount(0);
-  await page.getByRole('button',{name:'Teaching controls',exact:true}).click();await expect(page.getByLabel('Show recording controls')).toBeVisible();
+  await page.getByRole('button',{name:'Teaching controls',exact:true}).click();await expect(page.getByText('Toolbar position')).toBeVisible();
 });

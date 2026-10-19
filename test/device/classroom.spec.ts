@@ -43,8 +43,7 @@ test('menus, imports and optional teaching controls respond to taps and stay in 
   if(await page.getByRole('button',{name:'Import file',exact:true}).isVisible())await activate(page,page.getByRole('button',{name:'Import file',exact:true}));else{await activate(page,menu);await activate(page,page.getByRole('region',{name:'File menu',exact:true}).getByRole('button',{name:'Import',exact:true}));}
   const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();await contained(page,dialog.getByRole('button',{name:'Close',exact:true}));
   await activate(page,dialog.getByRole('button',{name:'Close',exact:true}));
-  await activate(page,page.getByRole('button',{name:'Teaching controls',exact:true}));await page.getByLabel('Show recording controls').check();await activate(page,page.getByRole('button',{name:'Done',exact:true}));
-  await expect(page.getByRole('button',{name:'Record class',exact:true})).toBeVisible();await contained(page,page.locator('.class-recorder'));
+  await activate(page,page.getByRole('button',{name:'Teaching controls',exact:true}));await expect(page.getByText('Toolbar position')).toBeVisible();await activate(page,page.getByRole('button',{name:'Done',exact:true}));
   expect(errors).toEqual([]);
 });
 
@@ -80,11 +79,4 @@ test('partial eraser cuts handwriting and Undo restores it',async({page})=>{
   await expect.poll(async()=>(await stored(page)).filter((o:{kind:string})=>o.kind==='stroke').length).toBe(2);
   expect((await stored(page)).some((o:{id:string})=>o.id==='shape')).toBe(true);
   await activate(page,page.getByRole('button',{name:'Undo',exact:true}));await expect.poll(async()=>(await stored(page)).length).toBe(2);
-});
-
-test('live comments validate sources without loading third parties automatically',async({page})=>{
-  await board(page);await activate(page,page.getByRole('button',{name:'Teaching controls',exact:true}));await activate(page,page.getByLabel('Show live comments'));
-  const comments=page.getByRole('region',{name:'Live comments',exact:true});await expect(comments).toBeVisible();await expect(comments.locator('iframe')).toHaveCount(0);
-  await comments.getByLabel('YouTube video ID or live URL').fill('javascript:alert(1)');await activate(page,comments.getByRole('button',{name:'Connect',exact:true}));await expect(comments.getByRole('alert')).toBeVisible();await expect(comments.locator('iframe')).toHaveCount(0);
-  await contained(page,comments);await activate(page,comments.getByRole('button',{name:'Close',exact:true}));
 });

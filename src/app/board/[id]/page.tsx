@@ -21,11 +21,8 @@ import {ControlLayoutEditor} from '@/components/board/ControlLayoutEditor';
 "use client";
 import { LocalAssistant } from "@/components/board/LocalAssistant";
 import { ResizeHandles } from "@/components/board/ResizeHandles";
-import { RecoveryPanel } from "@/components/board/RecoveryPanel";
 import { GeometryOverlay } from "@/components/board/GeometryOverlay";
-import { ClassRecorder } from "@/components/board/ClassRecorder";
 import { TeachingControls } from "@/components/board/TeachingControls";
-import { LiveComments } from "@/components/board/LiveComments";
 import { exportLessonPDF, type PDFScope, type ExportProgress } from "@/lib/lesson-export";
 import { SubjectTools, type SubjectTool } from "@/components/board/SubjectTools";
 import { exportLesson } from "@/lib/lesson-bundle";
@@ -90,10 +87,6 @@ export default function BoardPage() {
   const [saveState, setSaveState] = useState<"saved" | "saving" | "dirty">("saved");
   const [operation,setOperation]=useState<string|null>(null);
   const [textValue, setTextValue] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [showRecorder,setShowRecorder]=useState(false);
-  const [showBackups,setShowBackups]=useState(false);
-  const [commentsOpen,setCommentsOpen]=useState(false);
   const [toolbarLayout,setToolbarLayout]=useState<'bottom'|'top'|'left'|'right'>(()=>{try{const value=localStorage.getItem('phoenix-toolbar-layout');return value==='left'||value==='right'||value==='top'?value:'bottom';}catch{return 'bottom';}});
   useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout',toolbarLayout);window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
   const [assistantOpen,setAssistantOpen]=useState(false);
@@ -407,11 +400,11 @@ export default function BoardPage() {
   };
   useEffect(() => {
     const save = () => { if (document.visibilityState === 'hidden') void flushSave().catch(()=>{}); };
-    const exit = (event: BeforeUnloadEvent) => { if (pendingRef.current || recording) { event.preventDefault(); event.returnValue = ''; void flushSave().catch(()=>{}); } };
+    const exit = (event: BeforeUnloadEvent) => { if (pendingRef.current) { event.preventDefault(); event.returnValue = ''; void flushSave().catch(()=>{}); } };
     const deviceFlush=(event:Event)=>{(event as CustomEvent<{pending:Promise<unknown>[]}>).detail.pending.push(flushSave());};
     window.addEventListener('phoenix-flush-board',deviceFlush);document.addEventListener('visibilitychange', save); window.addEventListener('beforeunload', exit);
     return () => { window.removeEventListener('phoenix-flush-board',deviceFlush);document.removeEventListener('visibilitychange', save); window.removeEventListener('beforeunload', exit); void flushSave().catch(()=>{}); };
-  }, [flushSave, recording]);
+  }, [flushSave]);
 
   // ------------------------------ page actions -----------------------------
 
@@ -873,12 +866,9 @@ export default function BoardPage() {
           />
         )}
 
-        <BoardTooltips/><ControlLayoutEditor/><TeachingControls onCustomize={()=>{window.dispatchEvent(new Event('phoenix-customize-controls'));}} layout={toolbarLayout} onLayout={setToolbarLayout} recorder={showRecorder} backups={showBackups} comments={commentsOpen} recording={recording} onRecorder={setShowRecorder} onBackups={setShowBackups} onComments={setCommentsOpen}/>
-        <div hidden={!showBackups}><RecoveryPanel lessonId={id} flush={flushSave}/></div>
-        {commentsOpen&&<LiveComments onClose={()=>setCommentsOpen(false)}/>}
+        <BoardTooltips/><ControlLayoutEditor/><TeachingControls onCustomize={()=>{window.dispatchEvent(new Event('phoenix-customize-controls'));}} layout={toolbarLayout} onLayout={setToolbarLayout}/>
         {profile.ai?.enabled&&<button className="local-assistant-launch" onClick={()=>setAssistantOpen(value=>!value)} aria-label="Local assistant">AI assistant</button>}
         {assistantOpen&&<LocalAssistant onClose={()=>setAssistantOpen(false)} onInsert={text=>{const center=centerWorld();wb.addObjects([{id:uid(),kind:'text',x:center.x-220,y:center.y,text,color:wb.pen.color,fontSize:24,fontFamily:'Arial',bold:false}]);}}/>}
-        <div hidden={!showRecorder&&!recording}><ClassRecorder canvas={() => wb.canvasRef.current} title={notebook.title} onActive={setRecording}/></div>
         {subjectTool && <SubjectTools onAddEquipment={addEquipment} onInsertText={text=>{const center=centerWorld();wb.addObjects([{id:uid(),kind:'text',x:center.x-220,y:center.y,text,color:wb.pen.color,fontSize:24,fontFamily:'Arial',bold:false}]);}} tool={subjectTool} onClose={() => setSubjectTool(null)} onInsert={async (url,width,height) => {
           const blob = await (await fetch(url)).blob();
           const response = await localRequest('/api/assets', {method:'POST',body:JSON.stringify({notebookId:id,name:'Teaching diagram',mimeType:blob.type,dataBase64:await fileToBase64(blob)})});

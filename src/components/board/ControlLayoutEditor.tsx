@@ -14,8 +14,7 @@ const groups:[string,string,string][]=[
   ['slides-panel','Slide panel','.kn-slides-panel'],['tools-panel','Tool library','.treasure-panel'],
   ['pen-options','Pen / eraser settings','.kn-tool-options'],['shape-options','Shape settings','.kn-shape-palette'],
   ['file-menu','File menu','.kn-file-menu'],
-  ['selection-actions','Selection settings','.selection-actions'],['recording','Recorder','.class-recorder'],
-  ['backups','Backup controls','.recovery-control'],['assistant-button','Assistant button','.local-assistant-launch'],
+  ['selection-actions','Selection settings','.selection-actions'],['assistant-button','Assistant button','.local-assistant-launch'],
 ];
 function discover():Control[]{
   const board=document.querySelector('.kn-board');if(!board)return[];
