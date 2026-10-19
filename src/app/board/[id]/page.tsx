@@ -714,8 +714,8 @@ export default function BoardPage() {
         <details className="board-meta"><summary aria-label="Lesson details">{ui.showTime?<BoardTime/>:<Icon name="doc"/>}</summary>
         <header className="board-header z-30 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-panel px-3">
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand">
-              <BrandMark className="h-4 w-4 text-white" />
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-white shadow-sm">
+              <BrandMark className="h-5 w-5" />
             </span>
             <span className="hidden text-sm font-semibold sm:block">{profile.appName}</span>
           </div>

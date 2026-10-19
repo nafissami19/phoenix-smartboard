@@ -17,11 +17,11 @@
   --color-muted: #a1a1ab;
   --color-faint: #6b6b75;
 
-  --color-brand: #e11d48;
-  --color-brand-dark: #9f1239;
-  --color-brand-darker: #6b0f28;
-  --color-brand-light: #fb7185;
-  --color-brand-glow: #f43f5e;
+  --color-brand: #0062ff;
+  --color-brand-dark: #004ecc;
+  --color-brand-darker: #003a99;
+  --color-brand-light: #3385ff;
+  --color-brand-glow: #0062ff;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif;
@@ -100,7 +100,7 @@ body {
   background: var(--color-brand);
   border: 2px solid #fff2;
   cursor: pointer;
-  box-shadow: 0 0 0 3px #e11d4833;
+  box-shadow: 0 0 0 3px #0062ff33;
 }
 .kn-range::-moz-range-thumb {
   width: 18px;

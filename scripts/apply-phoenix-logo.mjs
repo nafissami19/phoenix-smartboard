@@ -29,8 +29,8 @@ try {
   await page.setContent(`<img id="srcImg" src="data:image/png;base64,${logoBase64}" />`);
 
   // Extract bird and generate square icon at given size
-  const renderSquareIcon = async (size, paddingRatio = 0.12) => {
-    const data = await page.evaluate(async ({ size, paddingRatio }) => {
+  const renderSquareIcon = async (size, paddingRatio = 0.12, bgWhite = false) => {
+    const data = await page.evaluate(async ({ size, paddingRatio, bgWhite }) => {
       const img = document.getElementById('srcImg');
       await img.decode();
 
@@ -43,6 +43,11 @@ try {
       canvas.height = size;
       const ctx = canvas.getContext('2d');
 
+      if (bgWhite) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, size, size);
+      }
+
       const maxDim = size * (1 - paddingRatio * 2);
       const scale = Math.min(maxDim / bw, maxDim / bh);
       const drawW = bw * scale;
@@ -52,7 +57,7 @@ try {
 
       ctx.drawImage(img, bx, by, bw, bh, drawX, drawY, drawW, drawH);
       return canvas.toDataURL('image/png').split(',')[1];
-    }, { size, paddingRatio });
+    }, { size, paddingRatio, bgWhite });
     return Buffer.from(data, 'base64');
   };
 
@@ -64,8 +69,8 @@ try {
   const icon192 = await renderSquareIcon(192, 0.12);
   await writeFile(path.join(root, 'public/icon-192.png'), icon192);
 
-  // Generate maskable icon (padded to fit inside the safe circular area, ~22% padding)
-  const iconMaskable512 = await renderSquareIcon(512, 0.22);
+  // Generate maskable icon (padded to fit inside the safe circular area, ~22% padding, white background)
+  const iconMaskable512 = await renderSquareIcon(512, 0.22, true);
   await writeFile(path.join(root, 'public/icon-maskable-512.png'), iconMaskable512);
 
   // Generate public/icon.svg embedding the high-res 512x512 bird emblem
@@ -82,7 +87,7 @@ try {
   for (const [density, size] of Object.entries(densities)) {
     const folder = path.join(root, 'branding/android', `mipmap-${density}`);
     await mkdir(folder, { recursive: true });
-    const png = await renderSquareIcon(size, 0.1);
+    const png = await renderSquareIcon(size, 0.1, true);
     await writeFile(path.join(folder, 'ic_launcher.png'), png);
     await writeFile(path.join(folder, 'ic_launcher_round.png'), png);
   }

@@ -13,8 +13,8 @@ function Splash() {
   return (
     <div className="grid h-dvh w-full place-items-center bg-base">
       <div className="flex flex-col items-center gap-5">
-        <div className="relative grid h-20 w-20 place-items-center rounded-3xl bg-brand shadow-[0_0_60px_-8px_var(--color-brand-glow)]">
-          <BrandMark className="h-10 w-10 text-white" />
+        <div className="relative grid h-20 w-20 place-items-center rounded-3xl bg-white shadow-[0_0_40px_-8px_rgba(255,255,255,0.4)]">
+          <BrandMark className="h-12 w-12" />
         </div>
         <div className="h-1 w-40 overflow-hidden rounded-full bg-panel-2">
           <div className="h-full w-1/2 animate-pulse rounded-full bg-brand" />

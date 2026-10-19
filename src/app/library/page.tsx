@@ -105,8 +105,8 @@ function LibraryInner() {
       <div className="kn-workspace-inner">
         <header className="kn-workspace-header">
           <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand shadow-[0_10px_40px_-12px_var(--color-brand-glow)]">
-              <BrandMark className="h-6 w-6 text-white" />
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white shadow-md">
+              <BrandMark className="h-7 w-7" />
             </span>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{profile.appName}</h1>

@@ -6,6 +6,7 @@ import {PenStore} from '@/components/PenStore';
 import {MenuScreen,MenuScreenContext} from './MenuScreen';
 import {BackupConnections} from '@/components/BackupConnections';
 import {BRANDING} from '@/config/branding';
+import {BrandMark} from '@/components/BrandMark';
 "use client";
 
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
@@ -267,8 +268,8 @@ export function AboutPanel({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="About" icon={<Icon name="eye" className="h-5 w-5 text-brand-light" />} onClose={onClose} width={420}>
       <div className="text-center">
-        <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-brand shadow-lg">
-          <Icon name="pen" className="h-8 w-8 text-white" />
+        <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-white shadow-lg">
+          <BrandMark className="h-10 w-10" />
         </div>
         <h3 className="text-xl font-bold">{profile.appName}</h3>
         <p className="mt-1 text-sm text-muted">Interactive smartboard & lesson notes</p>
