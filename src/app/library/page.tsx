@@ -12,7 +12,7 @@ import { Icon } from "@/components/Icon";
 import { BrandMark } from '@/components/BrandMark';
 import { importPdfPages } from "@/lib/pdf-pages";
 import { Modal } from "@/components/board/Panels";
-import { COVER_COLORS, SUBJECTS } from "@/lib/constants";
+import { COVER_COLORS } from "@/lib/constants";
 import type { Notebook } from "@/db/schema";
 
 export default function LibraryPage() {
@@ -38,8 +38,6 @@ function LibraryInner() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(search.get("new") === "1");
   const [pdfFile,setPdfFile]=useState<File|null>(null);
-  const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState("General");
   const [cover, setCover] = useState(COVER_COLORS[0]);
   const [busy, setBusy] = useState(false);
   const [query,setQuery]=useState(''),[filter,setFilter]=useState('all'),[sort,setSort]=useState('recent');
@@ -72,16 +70,16 @@ function LibraryInner() {
   async function create() {
     setBusy(true);
     try {
+      const lessonTitle = (pdfFile ? pdfFile.name.replace(/\.pdf$/i, "") : "").trim() || "Untitled lesson";
       const res = await localRequest("/api/notebooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim() || "Untitled lesson", subject, coverColor: cover }),
+        body: JSON.stringify({ title: lessonTitle, subject: "General", coverColor: cover }),
       });
       const { notebook } = (await res.json()) as { notebook: Notebook };
       if(pdfFile)await importPdfPages(notebook.id,pdfFile,true);
       setPdfFile(null);
       setCreating(false);
-      setTitle("");
       router.push(`/board/${notebook.id}`);
     } catch {
       push("Could not create the lesson.", "error");
@@ -153,34 +151,8 @@ function LibraryInner() {
 
       {creating && (
         <Modal title="New lesson" icon={<Icon name="plus" className="h-5 w-5 text-brand-light" />} onClose={() => setCreating(false)}>
-                      <div className="space-y-4">
-              <label className="block text-sm">Start from PDF (optional)<input aria-label="Start lesson from PDF" type="file" accept=".pdf,application/pdf" disabled={busy} onChange={e=>{const file=e.target.files?.[0]??null;setPdfFile(file);if(file&&!title)setTitle(file.name.replace(/\.pdf$/i,''));}} className="mt-2 block w-full"/><span className="mt-1 block text-xs text-muted">One PDF page per board page, ready to annotate. Up to 25 MB / 1500 pages.</span></label>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Lesson title</label>
-              <input
-                autoFocus
-                aria-label="Lesson title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Photosynthesis — Class 7"
-                maxLength={80}
-                className="kn-focus w-full rounded-xl border border-line bg-base-2 px-4 py-2.5"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Subject</label>
-              <CustomSelect aria-label="Subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="kn-focus w-full rounded-xl border border-line bg-base-2 px-4 py-2.5"
-              >
-                {SUBJECTS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </CustomSelect>
-            </div>
+          <div className="space-y-4">
+            <label className="block text-sm">Start from PDF (optional)<input aria-label="Start lesson from PDF" type="file" accept=".pdf,application/pdf" disabled={busy} onChange={e=>{setPdfFile(e.target.files?.[0]??null);}} className="mt-2 block w-full"/><span className="mt-1 block text-xs text-muted">One PDF page per board page, ready to annotate. Up to 25 MB / 1500 pages.</span></label>
             <div>
               <label className="mb-2 block text-sm font-medium">Cover colour</label>
               <div className="flex flex-wrap gap-2">
