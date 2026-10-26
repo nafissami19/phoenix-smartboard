@@ -98,8 +98,12 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 .kn-fullscreen-controls{right:env(safe-area-inset-right,0px);top:env(safe-area-inset-top,0px)}
 .kn-fullscreen-controls>button{border-radius:0 0 0 10px}
 .kn-customize-launch{right:env(safe-area-inset-right,0px);border-radius:10px 0 0 10px}
-.kn-page-navigation .kn-page-side-prev{left:env(safe-area-inset-left,0px)!important;border-radius:0 10px 10px 0}
-.kn-page-navigation .kn-page-side-next{right:env(safe-area-inset-right,0px);border-radius:10px 0 0 10px}
+.kn-page-side-group{position:fixed;right:env(safe-area-inset-right,0px);top:50%!important;transform:translateY(-50%)!important;display:flex!important;flex-direction:column!important;gap:3px!important;z-index:40!important;transition:right .2s ease}
+.kn-board:has(.kn-slides-panel:not(.is-large)) .kn-page-side-group{right:324px}
+.kn-board:has(.kn-slides-panel.is-large) .kn-page-side-group{right:444px}
+.kn-page-navigation .kn-page-side{position:relative!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;border-radius:10px 0 0 10px!important;border-right:none!important}
+.kn-page-navigation .kn-page-side-prev{border-bottom-left-radius:4px!important}
+.kn-page-navigation .kn-page-side-next{border-top-left-radius:4px!important}
 [data-window-mode=docked]{border-radius:0 12px 12px 0}
 @media(min-width:1501px){.kn-board .board-toolbar[data-layout=left],.kn-board .board-toolbar[data-layout=right]{top:50%;bottom:auto;transform:translateY(-50%);left:env(safe-area-inset-left,0px)}.kn-board .board-toolbar[data-layout=right]{left:auto;right:env(safe-area-inset-right,0px)}.kn-board .board-toolbar:not([data-layout=bottom]) .kn-main-tools{border-radius:0 10px 10px 0}}
 @media(max-width:1500px){.kn-board .board-toolbar,.kn-board .board-toolbar[data-layout=left],.kn-board .board-toolbar[data-layout=right]{top:50%;bottom:auto!important;left:env(safe-area-inset-left,0px);right:auto;transform:translateY(-50%);max-width:60px}.kn-board .board-toolbar[data-layout=right]{left:auto;right:env(safe-area-inset-right,0px)}.kn-board .board-toolbar .kn-main-tools{flex-direction:column;flex-wrap:nowrap;max-height:calc(100dvh - 160px);overflow-y:auto;border-radius:0 10px 10px 0}.kn-board .board-toolbar .kn-main-tools>.mx-1{width:28px;height:1px;flex-shrink:0}.kn-board .board-toolbar .kn-tool-options,.kn-board .board-toolbar .kn-shape-palette{position:fixed;left:64px;right:auto;top:0;bottom:auto;transform:none;max-height:calc(100dvh - 160px)}.kn-board .board-toolbar[data-layout=right] .kn-tool-options,.kn-board .board-toolbar[data-layout=right] .kn-shape-palette{left:auto;right:64px}.kn-board .board-toolbar[data-layout=right] .kn-main-tools{border-radius:10px 0 0 10px}}
@@ -110,7 +114,7 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 .kn-board .local-assistant-launch{z-index:80;right:52px;top:64px}
 .kn-board .board-toolbar .kn-main-tools{justify-content:flex-start}
 .kn-anchored-popover>.kn-tool-options,.kn-anchored-popover>.kn-shape-palette{max-height:calc(100dvh - 96px)!important}
-@media(max-width:1500px){.kn-board .kn-slides-panel{left:auto;right:env(safe-area-inset-right,0px);top:64px;bottom:128px}.kn-board .board-toolbar .kn-main-tools{max-height:calc(100dvh - 240px)}.kn-page-navigation .kn-page-side{top:auto;bottom:calc(64px + env(safe-area-inset-bottom,0px));min-height:48px}}
+@media(max-width:1500px){.kn-board .kn-slides-panel{left:auto;right:env(safe-area-inset-right,0px);top:64px;bottom:128px}.kn-board .board-toolbar .kn-main-tools{max-height:calc(100dvh - 240px)}}
 
 /* Themes and horizontal compact docks. Side docking is always an explicit choice. */
 .kn-board{--color-panel:var(--theme-panel,#f5f3ed);--color-panel-2:var(--theme-surface,#e6e4dc);--color-elevated:var(--theme-surface,#e6e4dc);--color-line:var(--theme-line,#a8b0ae);--color-ink:var(--theme-ink,#253137);--color-muted:var(--theme-muted,#58676e);--color-faint:var(--theme-muted,#58676e);color:var(--color-ink)}
@@ -131,7 +135,7 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 @media(min-width:1600px){.kn-board .board-toolbar[data-layout=bottom]{bottom:env(safe-area-inset-bottom,0px)!important}}
 
 .kn-board .board-toolbar[data-layout=bottom]{bottom:env(safe-area-inset-bottom,0px)!important}
-@media(max-width:1599px){.kn-board .menu-dock,.kn-board .page-toolbar{bottom:calc(56px + env(safe-area-inset-bottom,0px))}.kn-page-navigation .kn-page-side{bottom:calc(112px + env(safe-area-inset-bottom,0px))}}
+@media(max-width:1599px){.kn-board .menu-dock,.kn-board .page-toolbar{bottom:calc(56px + env(safe-area-inset-bottom,0px))}}
 
 .kn-anchored-popover>.kn-tool-options,.kn-anchored-popover>.kn-shape-palette,.kn-more-tools{max-height:calc(100dvh - 152px)!important}
 
@@ -309,3 +313,27 @@ body:has(.kn-smart-keyboard.is-bottom) .kn-menu-screen{top:8px!important;max-hei
 }
 
 .kn-selection-modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}.kn-selection-modes button{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:76px;border:1px solid var(--color-line);border-radius:8px;background:var(--color-panel);color:var(--color-ink)}.kn-selection-modes button svg{width:26px;height:26px}.kn-selection-modes button[aria-pressed="true"]{background:var(--color-brand);color:#fff}.kn-select-options .kn-smart-object{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px}.kn-select-options small{display:block;padding:0 12px 12px;color:var(--color-muted);line-height:1.5}
+
+/* Drawing toolbar always fixed at left side */
+.kn-board .board-toolbar {
+  position: fixed !important;
+  top: 50% !important;
+  bottom: auto !important;
+  left: env(safe-area-inset-left, 0px) !important;
+  right: auto !important;
+  transform: translateY(-50%) !important;
+  max-width: 60px !important;
+  z-index: 30 !important;
+}
+.kn-board .board-toolbar .kn-main-tools {
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  max-height: calc(100dvh - 120px) !important;
+  overflow-y: auto !important;
+  border-radius: 0 10px 10px 0 !important;
+}
+.kn-board .board-toolbar .kn-main-tools > .mx-1 {
+  width: 28px !important;
+  height: 1px !important;
+  flex-shrink: 0 !important;
+}

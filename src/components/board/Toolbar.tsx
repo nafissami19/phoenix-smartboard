@@ -75,7 +75,7 @@ export function Toolbar({
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  onOpenTreasure: () => void;eraserMode:EraserMode;onEraserMode:(mode:EraserMode)=>void;palmEraser:boolean;onPalmEraser:(enabled:boolean)=>void;onClearAnnotations:()=>void;
+  onOpenTreasure?: () => void;eraserMode:EraserMode;onEraserMode:(mode:EraserMode)=>void;palmEraser:boolean;onPalmEraser:(enabled:boolean)=>void;onClearAnnotations:()=>void;
 }) {
   const [penMenu,setPenMenu]=useState(loadPenMenu),[customPens,setCustomPens]=useState(loadCustomPens);
   useEffect(()=>{const update=()=>{setPenMenu(loadPenMenu());setCustomPens(loadCustomPens());};window.addEventListener('phoenix-pen-store-updated',update);window.addEventListener('storage',update);return()=>{window.removeEventListener('phoenix-pen-store-updated',update);window.removeEventListener('storage',update);};},[]);
@@ -254,11 +254,9 @@ export function Toolbar({
         <ToolButton secondary pinned={pinned.includes("Redo")} onClick={redo} icon="redo" label="Redo" disabled={!canRedo} />
 
         <div className="mx-1 h-8 w-px bg-line" />
-
-        <ToolButton secondary pinned={pinned.includes("Tools")} onClick={onOpenTreasure} icon="toolbox" label="Tools" />
         <ToolButton active={moreOpen} onClick={()=>{setMoreOpen(v=>!v);setOptionsOpen(false);setShapeOpen(false);}} icon="menu" label="More tools"/>
       </div>
-      {moreOpen&&<ToolPopover anchor="More tools"><section className="kn-more-tools kn-pop" data-toolbar-surface aria-label="More tools panel"><header><strong>More tools</strong><button aria-label="Close more tools" onClick={()=>setMoreOpen(false)}><Icon name="close"/></button></header><div>{[{label:'Select',icon:'select',action:()=>{setOptionsOpen(openSettings('select',tool==='select',optionsOpen));setTool('select');}},{label:'Text',icon:'text',action:()=>setTool('text')},{label:'Shapes',icon:'shapes',action:()=>{if(!isShape)setTool('auto-shape');setShapeOpen(true);}},{label:'Redo',icon:'redo',action:redo},{label:'Tools',icon:'toolbox',action:onOpenTreasure}].map(item=><section key={item.label}><button type="button" aria-label={item.label} onClick={()=>{setMoreOpen(false);item.action();}}><Icon name={item.icon as IconName}/><span>{item.label}</span></button><label><input type="checkbox" aria-label={`Pin ${item.label}`} checked={pinned.includes(item.label)} onChange={e=>setPinned(ids=>e.target.checked?[...ids,item.label]:ids.filter(id=>id!==item.label))}/>Pin</label></section>)}</div></section></ToolPopover>}
+      {moreOpen&&<ToolPopover anchor="More tools"><section className="kn-more-tools kn-pop" data-toolbar-surface aria-label="More tools panel"><header><strong>More tools</strong><button aria-label="Close more tools" onClick={()=>setMoreOpen(false)}><Icon name="close"/></button></header><div>{[{label:'Select',icon:'select',action:()=>{setOptionsOpen(openSettings('select',tool==='select',optionsOpen));setTool('select');}},{label:'Text',icon:'text',action:()=>setTool('text')},{label:'Shapes',icon:'shapes',action:()=>{if(!isShape)setTool('auto-shape');setShapeOpen(true);}},{label:'Redo',icon:'redo',action:redo}].map(item=><section key={item.label}><button type="button" aria-label={item.label} onClick={()=>{setMoreOpen(false);item.action();}}><Icon name={item.icon as IconName}/><span>{item.label}</span></button><label><input type="checkbox" aria-label={`Pin ${item.label}`} checked={pinned.includes(item.label)} onChange={e=>setPinned(ids=>e.target.checked?[...ids,item.label]:ids.filter(id=>id!==item.label))}/>Pin</label></section>)}</div></section></ToolPopover>}
     </>
   );
 }

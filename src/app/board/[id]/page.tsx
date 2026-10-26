@@ -87,8 +87,8 @@ export default function BoardPage() {
   const [saveState, setSaveState] = useState<"saved" | "saving" | "dirty">("saved");
   const [operation,setOperation]=useState<string|null>(null);
   const [textValue, setTextValue] = useState("");
-  const [toolbarLayout,setToolbarLayout]=useState<'bottom'|'top'|'left'|'right'>(()=>{try{const value=localStorage.getItem('phoenix-toolbar-layout');return value==='left'||value==='right'||value==='top'?value:'bottom';}catch{return 'bottom';}});
-  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout',toolbarLayout);window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
+  const [toolbarLayout,setToolbarLayout]=useState<'bottom'|'top'|'left'|'right'>('left');
+  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout','left');window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
   const [assistantOpen,setAssistantOpen]=useState(false);
   const [subjectTool, setSubjectTool] = useState<SubjectTool | null>(null);
 

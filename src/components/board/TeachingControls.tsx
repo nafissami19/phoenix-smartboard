@@ -22,7 +22,7 @@ export function TeachingControls({layout,onLayout,onCustomize}:{
     {open&&<section className="teaching-options kn-pop" aria-label="Teaching controls options">
       <strong>Teaching controls</strong>
       <button type="button" onClick={()=>{setOpen(false);onCustomize();}}>Customize all controls</button>
-      <fieldset className="toolbar-layout"><legend>Toolbar position</legend><div>{(['bottom','top','left','right'] as const).map(value=><button key={value} aria-label={`Dock ${value}`} aria-pressed={layout===value} onClick={()=>onLayout(value)}>{value[0].toUpperCase()+value.slice(1)}</button>)}</div></fieldset>
+      
       <fieldset className="kn-visible-controls"><legend>Show controls</legend>{[{id:'showFullscreen',label:'Fullscreen'},{id:'showCustomize',label:'Tool editor'},{id:'showTime',label:'Time'},{id:'showSlideControls',label:'Slide navigation'},{id:'showMenu',label:'Main menu'},{id:'showToolbar',label:'Drawing tools'}].map(item=><label key={item.id}><input type="checkbox" aria-label={`Show ${item.label}`} checked={ui[item.id as keyof InterfaceSettings] as boolean} onChange={event=>update(item.id as keyof InterfaceSettings,event.target.checked)}/>{item.label}</label>)}</fieldset>
       <button onClick={()=>setOpen(false)}>Done</button>
     </section>}
