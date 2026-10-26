@@ -61,7 +61,7 @@ export function Toolbar({
   redo,
   canUndo,
   canRedo,
-  selectionSettings,onSelectionSettings,onAddSolid,onOpenTreasure,eraserMode,onEraserMode,palmEraser,onPalmEraser,onClearAnnotations,
+  selectionSettings,onSelectionSettings,onAddSolid,onOpenTreasure,eraserMode,onEraserMode,palmEraser,onPalmEraser,onClearAnnotations,onOpenBoardTools,boardToolsActive,
 }: {
   selectionSettings:SelectionSettings;onSelectionSettings:(value:SelectionSettings)=>void;
   onAddSolid:(kind:SolidKind)=>void;
@@ -75,7 +75,7 @@ export function Toolbar({
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  onOpenTreasure?: () => void;eraserMode:EraserMode;onEraserMode:(mode:EraserMode)=>void;palmEraser:boolean;onPalmEraser:(enabled:boolean)=>void;onClearAnnotations:()=>void;
+  onOpenTreasure?: () => void;eraserMode:EraserMode;onEraserMode:(mode:EraserMode)=>void;palmEraser:boolean;onPalmEraser:(enabled:boolean)=>void;onClearAnnotations:()=>void;onOpenBoardTools?: () => void;boardToolsActive?: boolean;
 }) {
   const [penMenu,setPenMenu]=useState(loadPenMenu),[customPens,setCustomPens]=useState(loadCustomPens);
   useEffect(()=>{const update=()=>{setPenMenu(loadPenMenu());setCustomPens(loadCustomPens());};window.addEventListener('phoenix-pen-store-updated',update);window.addEventListener('storage',update);return()=>{window.removeEventListener('phoenix-pen-store-updated',update);window.removeEventListener('storage',update);};},[]);
@@ -95,7 +95,7 @@ export function Toolbar({
   useEffect(()=>{if(tool==='pen'||tool==='highlighter'||tool==='laser'){brushSizes.current[tool==='pen'?(pen.brush??'normal'):tool]=pen.size;try{localStorage.setItem('phoenix-brush-sizes',JSON.stringify(brushSizes.current));}catch{}}},[tool,pen.brush,pen.size]);
   useEffect(()=>{if(tool!=='pen')return;const available=pen.customPenId?customPens.some(p=>p.id===pen.customPenId&&p.enabled!==false):penMenu.includes(pen.brush??'normal');if(!available)setPen({...pen,brush:'normal',brushSettings:brushSettings('normal'),customPenId:undefined,size:4,opacity:1});},[penMenu,customPens,tool,pen.customPenId,pen.brush]);
   const [touchOpen,setTouchOpen]=useState(false);
-  const [moreOpen,setMoreOpen]=useState(false);
+  // moreOpen removed
   const [pinned,setPinned]=useState<string[]>(()=>{try{const value=JSON.parse(localStorage.getItem('phoenix-toolbar-pins')??'[]');return Array.isArray(value)?value.filter(id=>['Select','Text','Shapes','Redo','Tools'].includes(id)):[];}catch{return [];}});
   useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-pins',JSON.stringify(pinned));}catch{}},[pinned]);
   const [shapeGroup,setShapeGroup]=useState<"2d"|"3d">("2d");
@@ -105,13 +105,13 @@ export function Toolbar({
   const isShape = SHAPES.some((s) => s.id === tool);
 
   useEffect(()=>{
-    if(!shapeOpen&&!optionsOpen&&!moreOpen)return;
-    const outside=(event:PointerEvent)=>{if(!(event.target as Element).closest('[data-toolbar-surface]')){setShapeOpen(false);setOptionsOpen(false);setMoreOpen(false);}};
-    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){setShapeOpen(false);setOptionsOpen(false);setMoreOpen(false);}};
+    if(!shapeOpen&&!optionsOpen)return;
+    const outside=(event:PointerEvent)=>{if(!(event.target as Element).closest('[data-toolbar-surface]')){setShapeOpen(false);setOptionsOpen(false);}};
+    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){setShapeOpen(false);setOptionsOpen(false);}};
     document.addEventListener('pointerdown',outside);
     document.addEventListener('keydown',escape);
     return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape);};
-  },[shapeOpen,optionsOpen,moreOpen]);
+  },[shapeOpen,optionsOpen]);
 
   return (
     <>
@@ -211,7 +211,7 @@ export function Toolbar({
           <ToolButton
             key={t.id}
             active={t.id==="pen"?isPen:tool === t.id}
-            onClick={() => { setMoreOpen(false);setShapeOpen(false);setTouchOpen(false);setOptionsOpen((t.id==="pen"||t.id==="eraser"||t.id==="select")?openSettings(t.id,t.id==="pen"?isPen:tool===t.id,optionsOpen):false);if(t.id!=="pen"||!isPen)setTool(t.id); }}
+            onClick={() => { setShapeOpen(false);setTouchOpen(false);setOptionsOpen((t.id==="pen"||t.id==="eraser"||t.id==="select")?openSettings(t.id,t.id==="pen"?isPen:tool===t.id,optionsOpen):false);if(t.id!=="pen"||!isPen)setTool(t.id); }}
             secondary={t.id==="select"||t.id==="text"} pinned={pinned.includes(t.label)} art={t.id==="pen"?(tool==="laser"?"laser":tool==="highlighter"?"highlighter":pen.brush??"normal"):undefined} color={pen.color}
             icon={t.icon}
             label={t.label}
@@ -245,8 +245,8 @@ export function Toolbar({
           )}
         </div>
 
-        <ToolButton active={tool==='pan'} onClick={()=>{lastToolClick.current='pan';setTool('pan');setOptionsOpen(false);setShapeOpen(false);setMoreOpen(false);}} icon="hand" label="Hand"/>
-        <ToolButton active={tool==='text'} secondary pinned={pinned.includes('Text')} onClick={()=>{lastToolClick.current='text';setOptionsOpen(false);setTool('text');setShapeOpen(false);setMoreOpen(false);}} icon="text" label="Text"/>
+        <ToolButton active={tool==='pan'} onClick={()=>{lastToolClick.current='pan';setTool('pan');setOptionsOpen(false);setShapeOpen(false);}} icon="hand" label="Hand"/>
+        <ToolButton active={tool==='text'} secondary pinned={pinned.includes('Text')} onClick={()=>{lastToolClick.current='text';setOptionsOpen(false);setTool('text');setShapeOpen(false);}} icon="text" label="Text"/>
 
         <div className="mx-1 h-8 w-px bg-line" />
 
@@ -254,9 +254,9 @@ export function Toolbar({
         <ToolButton secondary pinned={pinned.includes("Redo")} onClick={redo} icon="redo" label="Redo" disabled={!canRedo} />
 
         <div className="mx-1 h-8 w-px bg-line" />
-        <ToolButton active={moreOpen} onClick={()=>{setMoreOpen(v=>!v);setOptionsOpen(false);setShapeOpen(false);}} icon="menu" label="More tools"/>
+        <ToolButton active={boardToolsActive} onClick={()=>{setOptionsOpen(false);setShapeOpen(false);onOpenBoardTools?.();}} icon="board" label="Board & tools"/>
       </div>
-      {moreOpen&&<ToolPopover anchor="More tools"><section className="kn-more-tools kn-pop" data-toolbar-surface aria-label="More tools panel"><header><strong>More tools</strong><button aria-label="Close more tools" onClick={()=>setMoreOpen(false)}><Icon name="close"/></button></header><div>{[{label:'Select',icon:'select',action:()=>{setOptionsOpen(openSettings('select',tool==='select',optionsOpen));setTool('select');}},{label:'Text',icon:'text',action:()=>setTool('text')},{label:'Shapes',icon:'shapes',action:()=>{if(!isShape)setTool('auto-shape');setShapeOpen(true);}},{label:'Redo',icon:'redo',action:redo}].map(item=><section key={item.label}><button type="button" aria-label={item.label} onClick={()=>{setMoreOpen(false);item.action();}}><Icon name={item.icon as IconName}/><span>{item.label}</span></button><label><input type="checkbox" aria-label={`Pin ${item.label}`} checked={pinned.includes(item.label)} onChange={e=>setPinned(ids=>e.target.checked?[...ids,item.label]:ids.filter(id=>id!==item.label))}/>Pin</label></section>)}</div></section></ToolPopover>}
+
     </>
   );
 }

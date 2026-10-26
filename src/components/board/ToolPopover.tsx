@@ -9,7 +9,7 @@ export function ToolPopover({anchor,children,selector}:{anchor:string;children:R
     let frame=0;
     const place=()=>{
       let button=document.querySelector<HTMLElement>(selector??`.kn-main-tools button[aria-label="${anchor}"]`),node=panel.current;
-      if(button&&!button.getClientRects().length)button=document.querySelector<HTMLElement>('.kn-main-tools button[aria-label="More tools"]');
+      if(button&&!button.getClientRects().length)button=document.querySelector<HTMLElement>('.kn-main-tools button[aria-label="Board & tools"]');
       if(!button||!node)return;
       const a=button.getBoundingClientRect(),r=node.getBoundingClientRect(),toolbar=document.querySelector<HTMLElement>('.board-toolbar')?.getBoundingClientRect();
       const gap=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tool-popup-gap'))||0;

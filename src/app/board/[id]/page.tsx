@@ -17,6 +17,7 @@ import {ThemeSettings} from '@/components/ThemeSettings';
 import {controlContrast,controlPalette,BUILTIN_THEMES} from '@/lib/theme-pack';
 import {BoardPresets} from '@/components/BoardPresets';
 import {ControlLayoutEditor} from '@/components/board/ControlLayoutEditor';
+import {TeachingPreferences} from '@/components/TeachingPreferences';
 
 "use client";
 import { LocalAssistant } from "@/components/board/LocalAssistant";
@@ -58,7 +59,7 @@ import {
 import {FLOATING_TOOLS, type FloatingToolId, type MediaItem } from "@/lib/constants";
 import type { Notebook, Page } from "@/db/schema";
 
-type Modal = "special" | "backgrounds" | "themes" | "settings" | "help" | "about" | "import" | "export" | null;
+type Modal = "special" | "backgrounds" | "themes" | "settings" | "help" | "about" | "import" | "export" | "board-tools" | null;
 
 export default function BoardPage() {
   const params = useParams();
@@ -579,7 +580,7 @@ export default function BoardPage() {
           printPage();
           break;
         case "themes":
-          setModal("themes");
+          setModal("board-tools");
           break;
         case "settings":
           setModal("settings");
@@ -961,7 +962,7 @@ export default function BoardPage() {
             redo={wb.redo}
             canUndo={wb.canUndo}
             canRedo={wb.canRedo}
-            onOpenTreasure={() => {setThumbsOpen(false);setPanel((p) => (p === "treasure" ? null : "treasure"));}}
+            onOpenTreasure={() => {setThumbsOpen(false);setPanel((p) => (p === "treasure" ? null : "treasure"));}} onOpenBoardTools={() => setModal((m) => (m === "board-tools" ? null : "board-tools"))} boardToolsActive={modal === "board-tools"}
           />
         </div>
         <div className="page-toolbar">
@@ -1009,7 +1010,47 @@ export default function BoardPage() {
       )}
       {(slowSave||wb.processing)&&<LoadingOverlay detail="Processing and saving your edits..."/>}
       {(recoveryEdits.length>0||lastActivity)&&<Dialog title="Interrupted work" onClose={()=>{setRecoveryEdits([]);setLastActivity(undefined);}} width={460}><p className="mb-4 text-sm">{lastActivity&&<span className="mb-2 block">Last operation: {lastActivity}. Open the saved lesson to review it; an interrupted import or export can be started again.</span>}{recoveryEdits.length>0?'An unfinished edit was saved before this lesson closed. Restore it, or keep the last saved pages.':'Your saved pages are ready to open.'}</p><div className="flex gap-3">{recoveryEdits.length>0&&<button className="kn-focus rounded-lg bg-brand p-3 text-white" onClick={()=>{void recoverWork().then(()=>{setLastActivity(undefined);void setWorkActivity(id,undefined);});}}>Restore unfinished work</button>}<button className="kn-focus rounded-lg border border-line p-3" onClick={()=>{const entries=recoveryEdits;void Promise.all(entries.map(e=>acknowledge(e.pageId,e.revision))).then(()=>{setRecoveryEdits([]);setLastActivity(undefined);void setWorkActivity(id,undefined);});}}>Keep saved pages</button></div></Dialog>}
-      {(modal === "themes"||modal === "backgrounds")&&<Dialog title={modal==="themes"?"Themes & page presets":"Subject backgrounds"} onClose={()=>setModal(null)} width={650}>{modal==="themes"&&<><ThemeSettings value={profile} onChange={patch=>{void updateProfile(patch).catch(e=>push(e.message,'error'));}}/><div className="my-5 border-t border-line"/></>}<BoardPresets onlyGallery={modal==="backgrounds"} value={{...profile,boardBg:background,boardPattern:pattern,boardImage:pageImage}} onChange={patch=>{if(patch.boardCredits)void updateProfile({boardCredits:patch.boardCredits});if(patch.boardBg){setBackground(patch.boardBg);bgRef.current=patch.boardBg;}if(patch.boardPattern){setPattern(patch.boardPattern);patternRef.current=patch.boardPattern;}if('boardImage' in patch){pageImageRef.current=patch.boardImage;setPageImage(patch.boardImage);}if(patch.defaultPenColor)wb.setPen({...wb.pen,color:patch.defaultPenColor});if(patch.boardPresets)void updateProfile({boardPresets:patch.boardPresets});void saveNow(wb.objects,wb.media,bgRef.current,patternRef.current).catch(e=>push(e.message,'error'));}}/></Dialog>}
+      {(modal === "themes" || modal === "board-tools" || modal === "backgrounds") && (
+        <Dialog
+          title={modal === "backgrounds" ? "Subject backgrounds" : "Board & tools"}
+          icon={<Icon name="board" className="h-5 w-5 text-brand-light" />}
+          onClose={() => setModal(null)}
+          width={700}
+        >
+          {modal === "backgrounds" ? (
+            <BoardPresets
+              onlyGallery={true}
+              value={{ ...profile, boardBg: background, boardPattern: pattern, boardImage: pageImage }}
+              onChange={patch => {
+                if (patch.boardCredits) void updateProfile({ boardCredits: patch.boardCredits });
+                if (patch.boardBg) { setBackground(patch.boardBg); bgRef.current = patch.boardBg; }
+                if (patch.boardPattern) { setPattern(patch.boardPattern); patternRef.current = patch.boardPattern; }
+                if ('boardImage' in patch) { pageImageRef.current = patch.boardImage; setPageImage(patch.boardImage); }
+                if (patch.defaultPenColor) wb.setPen({ ...wb.pen, color: patch.defaultPenColor });
+                if (patch.boardPresets) void updateProfile({ boardPresets: patch.boardPresets });
+                void saveNow(wb.objects, wb.media, bgRef.current, patternRef.current).catch(e => push(e.message, 'error'));
+              }}
+            />
+          ) : (
+            <TeachingPreferences
+              value={{ ...profile, boardBg: background, boardPattern: pattern, boardImage: pageImage }}
+              onChange={patch => {
+                if (patch.boardCredits) void updateProfile({ boardCredits: patch.boardCredits });
+                if (patch.boardBg) { setBackground(patch.boardBg); bgRef.current = patch.boardBg; }
+                if (patch.boardPattern) { setPattern(patch.boardPattern); patternRef.current = patch.boardPattern; }
+                if ('boardImage' in patch) { pageImageRef.current = patch.boardImage; setPageImage(patch.boardImage); }
+                if (patch.defaultPenColor) wb.setPen({ ...wb.pen, color: patch.defaultPenColor });
+                if (patch.boardPresets) void updateProfile({ boardPresets: patch.boardPresets });
+                void updateProfile(patch).catch(e => push(e.message, 'error'));
+                void saveNow(wb.objects, wb.media, bgRef.current, patternRef.current).catch(e => push(e.message, 'error'));
+              }}
+              onThemeChange={patch => {
+                void updateProfile(patch).catch(e => push(e.message, 'error'));
+              }}
+            />
+          )}
+        </Dialog>
+      )}
       {modal === "help" && <HelpPanel onClose={() => setModal(null)} />}
       {modal === "about" && <AboutPanel onClose={() => setModal(null)} />}
       {modal === "special" && <InsertSpecialObject notebookId={id} center={centerWorld()} onAdd={wb.addMedia} onClose={()=>setModal(null)}/>}

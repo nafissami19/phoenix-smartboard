@@ -52,7 +52,7 @@
 [data-theme-appearance="org-note3"] .kn-main-tools>button[aria-label="Undo"]{order:6}
 [data-theme-appearance="org-note3"] .kn-main-tools>button[aria-label="Redo"]{order:7}
 [data-theme-appearance="org-note3"] .kn-main-tools>button[aria-label="Tools"]{order:8}
-[data-theme-appearance="org-note3"] .kn-main-tools>button[aria-label="More tools"]{order:9}
+[data-theme-appearance="org-note3"] .kn-main-tools>button[aria-label="Board & tools"]{order:9}
 [data-theme-appearance="org-note3"] .kn-main-tools>div:not(.kn-responsive-secondary){display:none}
 
 [data-theme-appearance="org-note3"] .kn-pen-family .kn-theme-tool-image{width:36px;height:48px;object-fit:contain}
