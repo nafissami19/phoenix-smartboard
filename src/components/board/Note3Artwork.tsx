@@ -1,4 +1,4 @@
-﻿import {useId} from 'react';
+import {useId} from 'react';
 import {Icon,type IconName} from '@/components/Icon';
 /** Independently drawn artwork for the built-in theme; no external file is needed. */
 export function Note3Artwork({name,className}:{name:string;className?:string}){
@@ -21,7 +21,7 @@ export function Note3Artwork({name,className}:{name:string;className?:string}){
  else if(name==='board')drawing=<><rect x="4" y="5" width="40" height="29" rx="3" fill={metal} stroke="#69787f"/><rect x="8" y="9" width="32" height="20" fill={sky}/><path d="M20 34v6h-8v4h25v-4h-9v-6" fill={metal} stroke="#69787f"/></>;
  else if(name==='import'||name==='export'||name==='layers')drawing=<><path d="M7 7h23l10 10v27H7z" fill={metal} stroke="#839092"/><path d="M30 7v11h10" fill="#d6dfe0" stroke="#839092"/>{name==='layers'?<path d="M12 27h22m-22 6h22m-22 6h15" stroke="#526e7a" strokeWidth="3"/>:<g transform={name==='export'?'translate(48 0) scale(-1 1)':undefined}><path d="M3 21h19v-7l15 12-15 12v-7H3z" fill={sky} stroke="#306c94"/></g>}</>;
  else if(name==='plus')drawing=<path d="M19 5h10v14h14v10H29v14H19V29H5V19h14z" fill={black} stroke="#646e73"/>;
- else if(name==='chevronLeft'||name==='chevronRight')drawing=<path d={name==='chevronLeft'?'M34 5 12 24l22 19z':'m14 5 22 19-22 19z'} fill={metal} stroke="#7b8588"/>;
+ else if(name==='chevronLeft'||name==='chevronRight')drawing=<path d={name==='chevronLeft'?'M34 5 12 24l22 19z':'m14 5 22 19-22 19z'} fill={black} stroke="#1b2428"/>;
  else if(name==='tools'||name==='toolbox')drawing=<><path d="m13 4 6 7-5 5-8-5c-3 10 4 15 11 10l20 22 7-7-22-20c4-7 0-14-9-12z" fill={metal} stroke="#5d6d72"/><path d="m7 39 19-21 5 5-19 21z" fill="#b79559" stroke="#6d6046"/><path d="m22 12 9-9 13 11-6 7-8-4-4 5-6-5z" fill={black}/></>;
  else return <Icon name={name as IconName} className={className}/>;
  return <svg aria-hidden="true" data-note3-artwork={name} className={className??'kn-note3-artwork'} viewBox="0 0 48 48" width="38" height="38" fill="none"><defs><linearGradient id={silver} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#fff"/><stop offset=".45" stopColor="#e4e8e9"/><stop offset="1" stopColor="#9faeb5"/></linearGradient><linearGradient id={dark} x2="0" y2="1"><stop stopColor="#687176"/><stop offset=".5" stopColor="#282d30"/><stop offset="1" stopColor="#111719"/></linearGradient><linearGradient id={blue} x2="1" y2="1"><stop stopColor="#ccefff"/><stop offset=".4" stopColor="#65b4de"/><stop offset="1" stopColor="#206196"/></linearGradient></defs>{drawing}</svg>;

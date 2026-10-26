@@ -259,9 +259,16 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 .kn-page-side-group{position:fixed;right:env(safe-area-inset-right,0px);top:50%!important;transform:translateY(-50%)!important;display:flex!important;flex-direction:column!important;gap:3px!important;z-index:40!important;transition:right .2s ease}
 .kn-board:has(.kn-slides-panel:not(.is-large)) .kn-page-side-group{right:324px}
 .kn-board:has(.kn-slides-panel.is-large) .kn-page-side-group{right:444px}
-.kn-page-navigation .kn-page-side{position:relative!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;border-radius:10px 0 0 10px!important;border-right:none!important}
-.kn-page-navigation .kn-page-side-prev{border-bottom-left-radius:4px!important}
-.kn-page-navigation .kn-page-side-next{border-top-left-radius:4px!important}
+.kn-page-navigation .kn-page-side{position:relative!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;min-width:48px!important;min-height:56px!important;border:1.5px solid #cbd5e1!important;border-right:none!important;background:#ffffff!important;color:#1e293b!important;box-shadow:-2px 3px 14px rgba(0,0,0,0.22)!important;border-radius:10px 0 0 10px!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;transition:background .15s ease,color .15s ease}
+.kn-page-navigation .kn-page-side.kn-page-side-prev{border-bottom-left-radius:4px!important}
+.kn-page-navigation .kn-page-side.kn-page-side-next{border-top-left-radius:4px!important}
+.kn-page-navigation .kn-page-side:hover:not(:disabled){background:#f1f5f9!important;color:#0f172a!important}
+.kn-page-navigation .kn-page-side:active:not(:disabled){background:#e2e8f0!important}
+.kn-page-navigation .kn-page-side:disabled{opacity:0.45!important;background:#f8fafc!important;color:#94a3b8!important;cursor:not-allowed!important;border-color:#e2e8f0!important}
+.kn-page-navigation .kn-page-side svg{width:26px!important;height:26px!important;color:#1e293b!important;stroke:#1e293b!important;stroke-width:2.4px!important}
+.kn-page-navigation .kn-page-side:disabled svg{color:#94a3b8!important;stroke:#94a3b8!important;stroke-width:2px!important}
+.kn-page-navigation .kn-page-side svg[data-note3-artwork] path{fill:#1e293b!important;stroke:#0f172a!important}
+.kn-page-navigation .kn-page-side:disabled svg[data-note3-artwork] path{fill:#94a3b8!important;stroke:#94a3b8!important}
 [data-window-mode=docked]{border-radius:0 12px 12px 0}
 @media(min-width:1501px){.kn-board .board-toolbar[data-layout=left],.kn-board .board-toolbar[data-layout=right]{top:50%;bottom:auto;transform:translateY(-50%);left:env(safe-area-inset-left,0px)}.kn-board .board-toolbar[data-layout=right]{left:auto;right:env(safe-area-inset-right,0px)}.kn-board .board-toolbar:not([data-layout=bottom]) .kn-main-tools{border-radius:0 10px 10px 0}}
 @media(max-width:1500px){.kn-board .board-toolbar,.kn-board .board-toolbar[data-layout=left],.kn-board .board-toolbar[data-layout=right]{top:50%;bottom:auto!important;left:env(safe-area-inset-left,0px);right:auto;transform:translateY(-50%);max-width:60px}.kn-board .board-toolbar[data-layout=right]{left:auto;right:env(safe-area-inset-right,0px)}.kn-board .board-toolbar .kn-main-tools{flex-direction:column;flex-wrap:nowrap;max-height:calc(100dvh - 160px);overflow-y:auto;border-radius:0 10px 10px 0}.kn-board .board-toolbar .kn-main-tools>.mx-1{width:28px;height:1px;flex-shrink:0}.kn-board .board-toolbar .kn-tool-options,.kn-board .board-toolbar .kn-shape-palette{position:fixed;left:64px;right:auto;top:0;bottom:auto;transform:none;max-height:calc(100dvh - 160px)}.kn-board .board-toolbar[data-layout=right] .kn-tool-options,.kn-board .board-toolbar[data-layout=right] .kn-shape-palette{left:auto;right:64px}.kn-board .board-toolbar[data-layout=right] .kn-main-tools{border-radius:10px 0 0 10px}}
@@ -277,7 +284,7 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 /* Themes and horizontal compact docks. Side docking is always an explicit choice. */
 .kn-board{--color-panel:var(--theme-panel,#f5f3ed);--color-panel-2:var(--theme-surface,#e6e4dc);--color-elevated:var(--theme-surface,#e6e4dc);--color-line:var(--theme-line,#a8b0ae);--color-ink:var(--theme-ink,#253137);--color-muted:var(--theme-muted,#58676e);--color-faint:var(--theme-muted,#58676e);color:var(--color-ink)}
 .kn-board .kn-main-tools,.kn-board .kn-dock,.kn-board .page-toolbar>nav{background:var(--control-panel);color:var(--control-ink);border-color:var(--control-line);--color-muted:var(--control-ink);--color-ink:var(--control-ink);--color-line:var(--control-line)}
-.kn-board .teaching-controls>button,.kn-board .kn-fullscreen-controls>button,.kn-customize-launch,.kn-page-side{background:var(--control-panel);color:var(--control-ink);border-color:var(--control-line)}
+.kn-board .teaching-controls>button,.kn-board .kn-fullscreen-controls>button,.kn-customize-launch{background:var(--control-panel);color:var(--control-ink);border-color:var(--control-line)}
 .kn-board .board-toolbar[data-layout=bottom]{top:auto;bottom:env(safe-area-inset-bottom,0px)!important;left:50%;right:auto;transform:translateX(-50%);max-width:calc(100vw - 16px)}
 .kn-board .board-toolbar[data-layout=bottom] .kn-main-tools{flex-direction:row;flex-wrap:wrap;justify-content:center;max-height:140px;overflow:visible;border-radius:10px 10px 0 0;gap:2px;padding:3px}
 .kn-board .board-toolbar[data-layout=bottom] .kn-main-tools>.mx-1{width:1px;height:28px}
@@ -339,7 +346,7 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 .kn-side-settings>button{display:flex;justify-content:space-between;width:100%;margin-top:8px;border:1px solid var(--color-line);border-radius:8px;padding:8px;min-height:44px}
 .selection-actions-side .selection-properties{border:0;margin:0;padding:0}.selection-actions-side .selection-properties>div{display:grid;gap:12px;padding:12px 0}
 .kn-board .kn-page-navigation button:hover:not(:disabled),.kn-board .kn-slide-duplicate:hover{background:color-mix(in srgb,currentColor 10%,transparent)}
-.kn-board .kn-page-side{background:var(--control-panel);color:var(--control-ink);border-color:var(--control-line)}
+.kn-board .kn-page-side{background:#ffffff;color:#1e293b;border-color:#cbd5e1}
 
 .kn-eraser-modes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
 .kn-eraser-modes button{min-height:48px;display:grid;place-items:center;border:1px solid var(--color-line);border-radius:10px;background:var(--color-panel-2);color:var(--color-ink)}

@@ -9,10 +9,16 @@
 
 
 .kn-page-side-group{position:fixed;right:env(safe-area-inset-right,0px);top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:3px;z-index:40;transition:right .2s ease}
-.kn-page-navigation .kn-page-side{position:relative;top:auto;left:auto;right:auto;bottom:auto;min-width:46px;min-height:56px;border:1px solid #aab4be;border-right:none;background:#f2f4f6;box-shadow:-2px 3px 14px #0002;border-radius:10px 0 0 10px;display:flex;align-items:center;justify-content:center}
+.kn-page-navigation .kn-page-side{position:relative;top:auto;left:auto;right:auto;bottom:auto;min-width:48px;min-height:56px;border:1.5px solid #cbd5e1;border-right:none;background:#ffffff;color:#1e293b;box-shadow:-2px 3px 14px rgba(0,0,0,0.22);border-radius:10px 0 0 10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s ease,color .15s ease}
 .kn-page-navigation .kn-page-side.kn-page-side-prev{border-bottom-left-radius:4px}
 .kn-page-navigation .kn-page-side.kn-page-side-next{border-top-left-radius:4px}
-.kn-page-navigation .kn-page-side svg{width:24px;height:24px}
+.kn-page-navigation .kn-page-side:hover:not(:disabled){background:#f1f5f9;color:#0f172a}
+.kn-page-navigation .kn-page-side:active:not(:disabled){background:#e2e8f0}
+.kn-page-navigation .kn-page-side:disabled{opacity:0.45;background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0}
+.kn-page-navigation .kn-page-side svg{width:26px;height:26px;color:#1e293b;stroke:#1e293b;stroke-width:2.4px}
+.kn-page-navigation .kn-page-side:disabled svg{color:#94a3b8;stroke:#94a3b8;stroke-width:2px}
+.kn-page-navigation .kn-page-side svg[data-note3-artwork] path{fill:#1e293b;stroke:#0f172a}
+.kn-page-navigation .kn-page-side:disabled svg[data-note3-artwork] path{fill:#94a3b8;stroke:#94a3b8}
 @media(max-width:600px){.kn-page-navigation .kn-page-side{min-width:38px;min-height:48px}}
 
 /* Match the board frame rather than stretching every page into a 16:9 tile. */
