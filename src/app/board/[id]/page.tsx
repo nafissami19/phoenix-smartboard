@@ -71,10 +71,10 @@ export default function BoardPage() {
   const [pages, setPages] = useState<Page[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [background, setBackground] = useState("#111214");
+  const [background, setBackground] = useState("#18212b");
   const [pageImage,setPageImage]=useState<string|undefined>();
   const pageImageRef=useRef(pageImage);pageImageRef.current=pageImage;
-  const [pattern, setPattern] = useState("none");
+  const [pattern, setPattern] = useState("dots");
   const [panel, setPanel] = useState<DockId | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [chemistryDose,setChemistryDose]=useState(25);
@@ -303,8 +303,8 @@ export default function BoardPage() {
       bgRef.current=pg.background;patternRef.current=pg.pattern;
       try{localStorage.setItem('phoenix-last-page:'+id,pg.id);}catch{}
       void recordSession({lessonId:id,pageId:pg.id,title:notebook?.title??'Last lesson',active:true,updatedAt:Date.now()}).catch(()=>{});
-      setBackground(pg.background || "#111214");
-      setPattern(pg.pattern || "none");
+      setBackground(pg.background || profile.boardBg || "#18212b");
+      setPattern(pg.pattern || profile.boardPattern || "dots");
       pageImageRef.current=pg.backgroundImage;setPageImage(pg.backgroundImage);
       const syncOn = isViewSyncEnabled(id);
       const defaultView = savedLessonDefaultView(id);

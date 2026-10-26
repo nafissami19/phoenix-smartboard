@@ -84,6 +84,7 @@ export const HIGHLIGHTER_COLORS = [
 export const PEN_SIZES = [2, 4, 6, 10, 16, 24];
 
 export const BOARD_BACKGROUNDS = [
+  { label: "Night", value: "#18212b" },
   { label: "Dark", value: "#111214" },
   { label: "Black", value: "#000000" },
   { label: "Slate", value: "#1e293b" },

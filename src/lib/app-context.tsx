@@ -23,9 +23,9 @@ const DEFAULT_PROFILE: AppProfile = {
   teacherName: "",
   institution: "",
   accent: BRANDING.COLORS.PRIMARY,
-  boardBg: BRANDING.COLORS.CHALKBOARD_GREEN,
-  boardPattern: "none",
-  defaultPenColor: "#ffffff",
+  boardBg: "#18212b",
+  boardPattern: "dots",
+  defaultPenColor: "#f4f4f5",
   onboarded: 0,
   createdAt: new Date(0),
   updatedAt: new Date(0),
@@ -69,9 +69,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await localRequest("/api/profile", { cache: "no-store" });
       if (!res.ok) throw new Error("bad status");
       const data = (await res.json()) as { profile: AppProfile };
+      const p = data.profile;
+      const legacyBg = !p.boardBg || p.boardBg === BRANDING.COLORS.CHALKBOARD_GREEN || p.boardBg === '#83d131';
       if(revision===profileRevision.current)setProfile({
         ...DEFAULT_PROFILE,
-        ...data.profile,
+        ...p,
+        ...(legacyBg ? { boardBg: '#18212b', boardPattern: p.boardPattern === 'none' ? 'dots' : (p.boardPattern || 'dots'), defaultPenColor: p.defaultPenColor === '#ffffff' ? '#f4f4f5' : (p.defaultPenColor || '#f4f4f5') } : {}),
         createdAt: new Date(data.profile.createdAt),
         updatedAt: new Date(data.profile.updatedAt),
       });
@@ -132,7 +135,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         if(!response.ok)throw new Error('The local profile could not be saved.');
         const data=await response.json() as {profile:AppProfile};
-        if(revision===profileRevision.current)setProfile({...DEFAULT_PROFILE,...data.profile,createdAt:new Date(data.profile.createdAt),updatedAt:new Date(data.profile.updatedAt)});
+        const p = data.profile;
+      const legacyBg = !p.boardBg || p.boardBg === BRANDING.COLORS.CHALKBOARD_GREEN || p.boardBg === '#83d131';
+      if(revision===profileRevision.current)setProfile({...DEFAULT_PROFILE,...p,...(legacyBg ? { boardBg: '#18212b', boardPattern: p.boardPattern === 'none' ? 'dots' : (p.boardPattern || 'dots'), defaultPenColor: p.defaultPenColor === '#ffffff' ? '#f4f4f5' : (p.defaultPenColor || '#f4f4f5') } : {}),createdAt:new Date(p.createdAt),updatedAt:new Date(p.updatedAt)});
       }catch(error){
         if(revision===profileRevision.current)await reload();
         throw new Error(error instanceof Error?`Settings could not be saved: ${error.message}`:'Settings could not be saved. Check available local storage.');

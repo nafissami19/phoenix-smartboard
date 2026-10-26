@@ -33,6 +33,7 @@ export const BRANDING = {
     ACCENT: '#009eff', // Phoenix Cyan
     DARK: '#111214',
     OBSIDIAN: '#1e293b',
+    NIGHT_BOARD: '#18212b',
     CHALKBOARD_GREEN: '#1a4331',
     PAPER: '#f5f1e6',
   },

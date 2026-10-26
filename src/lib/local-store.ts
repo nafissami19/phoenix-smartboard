@@ -20,9 +20,9 @@ export const DEFAULT_PROFILE: AppProfile = {
   teacherName: '',
   institution: '',
   accent: BRANDING.COLORS.PRIMARY,
-  boardBg: BRANDING.COLORS.CHALKBOARD_GREEN,
-  boardPattern: 'none',
-  defaultPenColor: '#ffffff',
+  boardBg: '#18212b',
+  boardPattern: 'dots',
+  defaultPenColor: '#f4f4f5',
   onboarded: 0,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -70,7 +70,10 @@ export async function localRequest(path: string, options: RequestInit = {}): Pro
   try {
     let result: Response;
     if (kind === 'profile') {
-      const current = await tx.objectStore('profile').get(1) || DEFAULT_PROFILE;
+      let current = await tx.objectStore('profile').get(1) || DEFAULT_PROFILE;
+      if (!current.boardBg || current.boardBg === BRANDING.COLORS.CHALKBOARD_GREEN || current.boardBg === '#83d131') {
+        current = { ...current, boardBg: '#18212b', boardPattern: current.boardPattern === 'none' ? 'dots' : current.boardPattern, defaultPenColor: current.defaultPenColor === '#ffffff' ? '#f4f4f5' : current.defaultPenColor };
+      }
       if (method === 'PUT') {
         const updated: AppProfile = { ...current, ui:body.ui===undefined?current.ui:interfaceSettings({...current.ui,...(body.ui as object)}), theme:body.theme===undefined?current.theme:parseThemePack(body.theme),themePacks:body.themePacks===undefined?current.themePacks:(Array.isArray(body.themePacks)?body.themePacks.slice(0,8).map(parseThemePack):[]),boardImage:body.boardImage===undefined?current.boardImage:(isRasterData(body.boardImage)?body.boardImage:undefined), boardPresets:body.boardPresets===undefined?current.boardPresets:validateBoardPresets(body.boardPresets), appName: text(body.appName, current.appName, 60) || BRANDING.APP_NAME, teacherName: text(body.teacherName,current.teacherName,60), institution: text(body.institution,current.institution,60), accent: color(body.accent,current.accent), boardBg: color(body.boardBg,current.boardBg), boardPattern: typeof body.boardPattern === 'string' && patterns.includes(body.boardPattern) ? body.boardPattern : current.boardPattern, defaultPenColor: color(body.defaultPenColor,current.defaultPenColor), onboarded: body.onboarded === 1 ? 1 : current.onboarded, splashText: text(body.splashText,current.splashText || '',120), watermark: body.watermark && typeof body.watermark==='object'?{enabled:Boolean((body.watermark as any).enabled),text:text((body.watermark as any).text,current.watermark?.text??'',120),position:['center','top-left','top-right','bottom-left','bottom-right'].includes((body.watermark as any).position)?(body.watermark as any).position:'bottom-right',opacity:Math.max(.02,Math.min(.5,Number((body.watermark as any).opacity)||.12))}:current.watermark, calibrationPxPerMm: Number.isFinite(body.calibrationPxPerMm)?Math.max(.1,Math.min(50,Number(body.calibrationPxPerMm))):current.calibrationPxPerMm, ai:body.ai && typeof body.ai==='object'?{enabled:Boolean((body.ai as any).enabled),endpoint:text((body.ai as any).endpoint,current.ai?.endpoint??'http://127.0.0.1:11434',300),model:text((body.ai as any).model,current.ai?.model??'llama3.2',100)}:current.ai, iconData: typeof body.iconData === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(body.iconData) && body.iconData.length < 750000 ? body.iconData : current.iconData, updatedAt: now };
         await tx.objectStore('profile').put(updated); result = json({profile:updated});
@@ -78,7 +81,10 @@ export async function localRequest(path: string, options: RequestInit = {}): Pro
     } else if (kind === 'notebooks' && !id && method === 'GET') {
       const notebooks = await tx.objectStore('notebooks').getAll(); notebooks.sort((a,b)=>Number(b.updatedAt)-Number(a.updatedAt)); result = json({notebooks});
     } else if (kind === 'notebooks' && !id && method === 'POST') {
-      const profile = await tx.objectStore('profile').get(1) || DEFAULT_PROFILE;
+      let profile = await tx.objectStore('profile').get(1) || DEFAULT_PROFILE;
+      if (!profile.boardBg || profile.boardBg === BRANDING.COLORS.CHALKBOARD_GREEN || profile.boardBg === '#83d131') {
+        profile = { ...profile, boardBg: '#18212b', boardPattern: profile.boardPattern === 'none' ? 'dots' : profile.boardPattern, defaultPenColor: profile.defaultPenColor === '#ffffff' ? '#f4f4f5' : profile.defaultPenColor };
+      }
       const notebook: Notebook = {id:uid(),title:text(body.title,'Untitled lesson') || 'Untitled lesson',subject:text(body.subject,'General',60),coverColor:color(body.coverColor,BRANDING.COLORS.PRIMARY),pageCount:1,createdAt:now,updatedAt:now};
       const page: Page = {id:uid(),notebookId:notebook.id,position:0,background:profile.boardBg,pattern:profile.boardPattern,backgroundImage:profile.boardImage,objects:[],media:[],createdAt:now,updatedAt:now};
       await tx.objectStore('notebooks').add(notebook); await tx.objectStore('pages').add(page); result = json({notebook},201);
