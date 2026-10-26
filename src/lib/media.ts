@@ -128,15 +128,20 @@ export function loadImage(assetId: string): Promise<HTMLImageElement> {
   imageLoads.set(assetId,promise);return promise;
 }
 
-export function loadPdf(assetId: string): Promise<PdfDoc> {
+export function loadPdf(assetId: string, directBlob?: Blob): Promise<PdfDoc> {
   const cached = pdfCache.get(assetId);
   if (cached) {pdfCache.delete(assetId);pdfCache.set(assetId,cached);return cached;}
   const retired=retiredPdfs.get(assetId);if(retired){clearTimeout(retired.timer);retiredPdfs.delete(assetId);pdfCache.set(assetId,retired.promise);trimPdfDocuments();return retired.promise;}
   const promise = (async () => {
     const pdfjsLib = await getPdfjs();
-    const db=await database();let asset;try{asset=await db.get('assets',assetId);}finally{db.close();}
-    if(!asset)throw new Error('The saved PDF is missing. Restore a lesson backup.');
-    const task = pdfjsLib.getDocument({data:new Uint8Array(await asset.blob.arrayBuffer())});
+    let blob = directBlob;
+    if (!blob) {
+      const db=await database();let asset;try{asset=await db.get('assets',assetId);}finally{db.close();}
+        if(!asset)throw new Error('The saved PDF is missing. Restore a lesson backup.');
+        blob = asset.blob;
+    }
+
+    const task = pdfjsLib.getDocument({data:new Uint8Array(await blob!.arrayBuffer())});
     return task.promise;
   })();
   pdfCache.set(assetId, promise);
@@ -145,8 +150,8 @@ export function loadPdf(assetId: string): Promise<PdfDoc> {
   return promise;
 }
 
-export async function getPdfPageCount(assetId: string): Promise<number> {
-  const doc = await loadPdf(assetId);
+export async function getPdfPageCount(assetId: string, directBlob?: Blob): Promise<number> {
+  const doc = await loadPdf(assetId, directBlob);
   return doc.numPages;
 }
 

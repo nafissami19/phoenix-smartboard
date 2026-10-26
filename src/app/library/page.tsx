@@ -56,7 +56,7 @@ function LibraryInner() {
       const data = (await res.json()) as { notebooks: Notebook[] };
       setNotebooks(data.notebooks);
       const sessions=await interruptedSessions();setInterrupted(sessions.filter(s=>data.notebooks.some(n=>n.id===s.lessonId)));
-    } catch {
+    } catch (error) {
       setLoadError(true);
     } finally {
       setLoading(false);
@@ -69,6 +69,7 @@ function LibraryInner() {
 
   async function create() {
     setBusy(true);
+    let createdNotebookId: string | null = null;
     try {
       const lessonTitle = (pdfFile ? pdfFile.name.replace(/\.pdf$/i, "") : "").trim() || "Untitled lesson";
       const res = await localRequest("/api/notebooks", {
@@ -76,13 +77,29 @@ function LibraryInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: lessonTitle, subject: "General", coverColor: cover }),
       });
-      const { notebook } = (await res.json()) as { notebook: Notebook };
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || "Could not create the lesson.");
+      }
+      const data = (await res.json()) as { notebook?: Notebook; error?: string };
+      if (!data.notebook) throw new Error(data.error || "Could not create the lesson.");
+      const notebook = data.notebook;
+      createdNotebookId = notebook.id;
       if(pdfFile)await importPdfPages(notebook.id,pdfFile,true);
       setPdfFile(null);
       setCreating(false);
       router.push(`/board/${notebook.id}`);
-    } catch {
-      push("Could not create the lesson.", "error");
+    } catch (error) {
+      if (createdNotebookId) {
+        try {
+          await localRequest(`/api/notebooks/${createdNotebookId}`, { method: "DELETE" });
+        } catch {
+          // Ignore rollback failure
+        }
+      }
+      const msg = error instanceof Error ? error.message : "Could not create the lesson.";
+      console.error("Lesson creation failed:", error);
+      push(msg, "error");
     } finally {
       setBusy(false);
     }
@@ -93,7 +110,7 @@ function LibraryInner() {
       await localRequest(`/api/notebooks/${id}`, { method: "DELETE" });
       setNotebooks((prev) => prev.filter((n) => n.id !== id));
       push("Lesson deleted.", "success");
-    } catch {
+    } catch (error) {
       push("Could not delete the lesson.", "error");
     }
   }

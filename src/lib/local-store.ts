@@ -5,6 +5,7 @@ import {validateBoardPresets} from './board-presets';
 import { openDB, type IDBPTransaction, type DBSchema } from 'idb';
 import type { AppProfile, Notebook, Page } from '../db/schema';
 import { BRANDING } from '@/config/branding';
+import { uid } from './constants';
 
 type Asset = { id: string; notebookId: string; name: string; mimeType: string; blob: Blob };
 interface Store extends DBSchema {
@@ -78,8 +79,8 @@ export async function localRequest(path: string, options: RequestInit = {}): Pro
       const notebooks = await tx.objectStore('notebooks').getAll(); notebooks.sort((a,b)=>Number(b.updatedAt)-Number(a.updatedAt)); result = json({notebooks});
     } else if (kind === 'notebooks' && !id && method === 'POST') {
       const profile = await tx.objectStore('profile').get(1) || DEFAULT_PROFILE;
-      const notebook: Notebook = {id:crypto.randomUUID(),title:text(body.title,'Untitled lesson') || 'Untitled lesson',subject:text(body.subject,'General',60),coverColor:color(body.coverColor,BRANDING.COLORS.PRIMARY),pageCount:1,createdAt:now,updatedAt:now};
-      const page: Page = {id:crypto.randomUUID(),notebookId:notebook.id,position:0,background:profile.boardBg,pattern:profile.boardPattern,backgroundImage:profile.boardImage,objects:[],media:[],createdAt:now,updatedAt:now};
+      const notebook: Notebook = {id:uid(),title:text(body.title,'Untitled lesson') || 'Untitled lesson',subject:text(body.subject,'General',60),coverColor:color(body.coverColor,BRANDING.COLORS.PRIMARY),pageCount:1,createdAt:now,updatedAt:now};
+      const page: Page = {id:uid(),notebookId:notebook.id,position:0,background:profile.boardBg,pattern:profile.boardPattern,backgroundImage:profile.boardImage,objects:[],media:[],createdAt:now,updatedAt:now};
       await tx.objectStore('notebooks').add(notebook); await tx.objectStore('pages').add(page); result = json({notebook},201);
     } else if (kind === 'notebooks' && id) {
       const notebook = await tx.objectStore('notebooks').get(id);
@@ -128,7 +129,7 @@ export async function localRequest(path: string, options: RequestInit = {}): Pro
           if(after!==undefined&&(typeof after!=='string'||insertion===0))result=json({error:'The current slide does not belong to this lesson'},400);
           else {
             const defaults=newPageStyle((await tx.objectStore('profile').get(1))??{},pages[insertion-1]);
-            const page: Page = {id:crypto.randomUUID(),notebookId:id,position:insertion,background:color(body.background,defaults.background),pattern:patterns.includes(String(body.pattern))?String(body.pattern):defaults.pattern,backgroundImage:body.backgroundImage===undefined?defaults.backgroundImage:(isRasterData(body.backgroundImage)?body.backgroundImage:undefined),objects:[],media:[],createdAt:now,updatedAt:now};
+            const page: Page = {id:uid(),notebookId:id,position:insertion,background:color(body.background,defaults.background),pattern:patterns.includes(String(body.pattern))?String(body.pattern):defaults.pattern,backgroundImage:body.backgroundImage===undefined?defaults.backgroundImage:(isRasterData(body.backgroundImage)?body.backgroundImage:undefined),objects:[],media:[],createdAt:now,updatedAt:now};
             const ordered=[...pages];ordered.splice(insertion,0,page);
             for(let position=0;position<ordered.length;position++){ordered[position]={...ordered[position],position};await tx.objectStore('pages').put(ordered[position]);}
             await tx.objectStore('notebooks').put({...notebook,pageCount:ordered.length,updatedAt:now});result=json({page,pages:ordered},201);
@@ -164,7 +165,7 @@ export async function localRequest(path: string, options: RequestInit = {}): Pro
       if (!(await tx.objectStore('notebooks').get(notebookId))) throw new Error('Lesson not found');
       const encoded=String(body.dataBase64 || ''); if (encoded.length > 36*1024*1024) throw new Error('Asset exceeds 25 MB');
       const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));
-      const asset: Asset={id:crypto.randomUUID(),notebookId,name:text(body.name,'asset',255),mimeType:text(body.mimeType,'application/octet-stream'),blob:new Blob([bytes],{type:text(body.mimeType,'application/octet-stream')})};
+      const asset: Asset={id:uid(),notebookId,name:text(body.name,'asset',255),mimeType:text(body.mimeType,'application/octet-stream'),blob:new Blob([bytes],{type:text(body.mimeType,'application/octet-stream')})};
       await tx.objectStore('assets').add(asset); result=json({asset:{id:asset.id,name:asset.name,mimeType:asset.mimeType}},201);
     } else result=json({error:'Unsupported local operation'},400);
     await tx.done;if(method!=='GET'&&result.ok)void import('./device-library').then(({scheduleDeviceSave})=>scheduleDeviceSave()); return result;

@@ -9,10 +9,10 @@ export async function importPdfPages(notebookId:string,file:File,replaceEmptyFir
  try{
   await db.put('assets',{id:assetId,notebookId,name:file.name,mimeType:'application/pdf',blob:file});
   try{
-   const count=await getPdfPageCount(assetId);if(count>1500)throw new Error('This PDF has '+count+' pages. Import a PDF with up to 1500 pages, or split this book into sections.');
-   const doc=await loadPdf(assetId),dimensions=[];
+   const count=await getPdfPageCount(assetId,file);if(count>1500)throw new Error('This PDF has '+count+' pages. Import a PDF with up to 1500 pages, or split this book into sections.');
+   const doc=await loadPdf(assetId,file),dimensions=[];
    for(let i=1;i<=count;i++){const page=await doc.getPage(i),v=page.getViewport({scale:1});dimensions.push(placement?placeImportedMedia({width:v.width*96/72,height:v.height*96/72},placement.layout,placement.center):{x:0,y:0,width:900,height:900*v.height/v.width,frame:undefined as ImportFrame|undefined});page.cleanup();if(i%25===0)await new Promise<void>(resolve=>setTimeout(resolve,0));}
-   await renderPdfPage(assetId,1,PDF_RENDER_WIDTH);
+   try{await renderPdfPage(assetId,1,PDF_RENDER_WIDTH);}catch{/* First page cache warmup is best-effort */}
    const tx=db.transaction(['notebooks','pages','profile'],'readwrite'),notebook=await tx.objectStore('notebooks').get(notebookId);if(!notebook)throw new Error('Lesson not found');
    const profile=await tx.objectStore('profile').get(1);
    const existing=(await tx.objectStore('pages').index('notebookId').getAll(notebookId)).sort((a,b)=>a.position-b.position);
