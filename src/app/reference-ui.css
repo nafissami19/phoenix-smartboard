@@ -1,6 +1,164 @@
 /* Independently drawn chrome following the supplied Note3 layout references. */
 @media(min-width:761px) and (max-width:1300px){.kn-board .board-toolbar{bottom:64px}.kn-board .treasure-panel{bottom:120px}}
-.selection-handle{position:fixed;width:16px;height:16px;border:2px solid white;background:var(--color-brand);border-radius:4px;z-index:29;box-shadow:0 1px 4px #0006}.resize-feedback{position:fixed;left:50%;top:155px;transform:translateX(-50%);background:var(--color-panel);padding:10px 14px;border-radius:10px;z-index:30;font-size:13px}
+/* Selection resize handles and live feedback */
+.selection-handle {
+  position: fixed;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff;
+  background: var(--color-brand, #2563eb);
+  border-radius: 4px;
+  z-index: 35;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform 0.08s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.selection-handle:hover {
+  transform: scale(1.2);
+  background: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35), 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+.selection-handle.is-active {
+  transform: scale(1.35);
+  background: #2563eb;
+  border-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.45), 0 4px 12px rgba(0, 0, 0, 0.5);
+  cursor: grabbing !important;
+}
+
+/* Enhanced live resize feedback badge with animation */
+.resize-feedback {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  background: rgba(15, 23, 42, 0.93);
+  color: #ffffff;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(37, 99, 235, 0.3);
+  font-family: system-ui, -apple-system, sans-serif;
+  pointer-events: none;
+  animation: kn-feedback-pop 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+@keyframes kn-feedback-pop {
+  0% { opacity: 0; transform: translate(-50%, -90%) scale(0.92); }
+  100% { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+}
+
+.resize-feedback-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.resize-delta-badge {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.resize-delta-badge.is-growing {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  animation: kn-pulse-green 1s infinite alternate;
+}
+
+.resize-delta-badge.is-shrinking {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+}
+
+.resize-delta-badge.is-neutral {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+}
+
+@keyframes kn-pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+  100% { box-shadow: 0 0 10px 2px rgba(52, 211, 153, 0.5); }
+}
+
+.resize-dimensions {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.resize-dimensions strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.resize-dimensions-diff {
+  font-size: 11px;
+  font-weight: 600;
+}
+.resize-dimensions-diff.is-growing {
+  color: #34d399;
+}
+.resize-dimensions-diff.is-shrinking {
+  color: #fbbf24;
+}
+
+/* Animated visual scale bar */
+.resize-scale-bar-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.resize-scale-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.05s linear;
+}
+
+.resize-scale-bar-marker {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Dynamic ghost box for live resize preview */
+.kn-resize-preview-box {
+  position: fixed;
+  pointer-events: none;
+  z-index: 28;
+  border: 2px dashed #3b82f6;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+  animation: kn-border-glow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes kn-border-glow {
+  0% { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.2); }
+  100% { border-color: #60a5fa; box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); }
+}
 :root { font-family: Arial, 'Noto Sans', sans-serif; color-scheme: dark; }
 body { margin:0; background:#131519; color:#f3f4f6; }
 button,input,select { font:inherit; } button { touch-action:manipulation; }

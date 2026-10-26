@@ -827,7 +827,15 @@ export default function BoardPage() {
 
         <SpecialObjectsLayer items={wb.media} scale={wb.view.scale} worldToScreen={wb.worldToScreen} onChange={wb.changeMedia} onSelect={id=>{if(!id)setThumbsOpen(false);wb.setTool('select');wb.setSelection(id?{kind:'media',id}:null);}} onRemove={wb.removeMedia}/>
         <BoardChemistryLayer objects={wb.objects} selected={isEquipment(selectedObject)?selectedObject:undefined} worldToScreen={wb.worldToScreen} screenToWorld={wb.screenToWorld} scale={wb.view.scale} onChange={wb.changeObjects} dose={chemistryDose}/>
-        {wb.selection && !selectedMedia?.locked && wb.selectionBounds && <ResizeHandles bounds={wb.selectionBounds} screen={wb.worldToScreen} resize={wb.resizeSelected}/>}
+        {wb.selection && !selectedMedia?.locked && wb.selectionBounds && (
+          <ResizeHandles
+            bounds={wb.selectionBounds}
+            screen={wb.worldToScreen}
+            resize={wb.commitResize}
+            onPreview={wb.previewResize}
+            onCancel={wb.cancelResize}
+          />
+        )}
         {/* Text editor overlay */}
         {wb.editingText && (
           <textarea data-board-text

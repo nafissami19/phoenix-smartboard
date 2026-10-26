@@ -1011,11 +1011,105 @@ export function useWhiteboard(options: {
     const bounds=[...objectsRef.current.filter(o=>selectedIdsRef.current.includes(o.id)).map(o=>objectBounds(o,canvasRef.current?.getContext('2d')??undefined)),...mediaRef.current.filter(m=>selectedIdsRef.current.includes(m.id)).map(m=>mediaBounds(m))];
     if(!bounds.length)return null;const x=Math.min(...bounds.map(b=>b.x)),y=Math.min(...bounds.map(b=>b.y));return{x,y,w:Math.max(...bounds.map(b=>b.x+b.w))-x,h:Math.max(...bounds.map(b=>b.y+b.h))-y};
   };
-  const resizeSelected=(factor:number,anchor?:Point)=>{
-    const bounds=selectionBounds();if(!bounds||!Number.isFinite(factor))return;factor=clamp(factor,.1,10);const origin=anchor??{x:bounds.x,y:bounds.y};
-    const point=(p:Point)=>({...p,x:origin.x+(p.x-origin.x)*factor,y:origin.y+(p.y-origin.y)*factor});
-    commit(objectsRef.current.map(o=>!selectedIdsRef.current.includes(o.id)?o:o.kind==='stroke'?{...o,width:o.width*factor,points:o.points.map(point)}:o.kind==='shape'?{...o,...point(o),w:o.w*factor,h:o.h*factor,width:o.width*factor}:{...o,...point(o),fontSize:o.fontSize*factor}),mediaRef.current.map(m=>selectedIdsRef.current.includes(m.id)&&!m.locked?{...m,...point(m),width:m.width*factor,height:m.height*factor}:m));
-  };
+  const resizeOriginal = useRef<{ objects: BoardObject[]; media: MediaItem[] } | null>(null);
+
+  const previewResize = useCallback(
+    (factor: number, anchor?: Point) => {
+      if (!Number.isFinite(factor)) return;
+      factor = clamp(factor, 0.1, 10);
+      if (!resizeOriginal.current) {
+        resizeOriginal.current = {
+          objects: objectsRef.current,
+          media: mediaRef.current,
+        };
+      }
+      const bounds = selectionBounds();
+      const origin = anchor ?? (bounds ? { x: bounds.x, y: bounds.y } : { x: 0, y: 0 });
+      const point = (p: Point) => ({
+        ...p,
+        x: origin.x + (p.x - origin.x) * factor,
+        y: origin.y + (p.y - origin.y) * factor,
+      });
+      const ids = selectedIdsRef.current;
+      const nextObjects = resizeOriginal.current.objects.map((o) =>
+        !ids.includes(o.id)
+          ? o
+          : o.kind === "stroke"
+          ? { ...o, width: o.width * factor, points: o.points.map(point) }
+          : o.kind === "shape"
+          ? { ...o, ...point(o), w: o.w * factor, h: o.h * factor, width: o.width * factor }
+          : { ...o, ...point(o), fontSize: o.fontSize * factor }
+      );
+      const nextMedia = resizeOriginal.current.media.map((m) =>
+        ids.includes(m.id) && !m.locked
+          ? { ...m, ...point(m), width: m.width * factor, height: m.height * factor }
+          : m
+      );
+      objectsRef.current = nextObjects;
+      mediaRef.current = nextMedia;
+      setObjectsState(nextObjects);
+      setMediaState(nextMedia);
+      scheduleRender();
+    },
+    [scheduleRender],
+  );
+
+  const cancelResize = useCallback(() => {
+    if (resizeOriginal.current) {
+      objectsRef.current = resizeOriginal.current.objects;
+      mediaRef.current = resizeOriginal.current.media;
+      setObjectsState(resizeOriginal.current.objects);
+      setMediaState(resizeOriginal.current.media);
+      resizeOriginal.current = null;
+      scheduleRender();
+    }
+  }, [scheduleRender]);
+
+  const commitResize = useCallback(
+    (factor: number, anchor?: Point) => {
+      if (!Number.isFinite(factor)) {
+        cancelResize();
+        return;
+      }
+      factor = clamp(factor, 0.1, 10);
+      const original = resizeOriginal.current;
+      resizeOriginal.current = null;
+      const ids = selectedIdsRef.current;
+      const baseObjects = original ? original.objects : objectsRef.current;
+      const baseMedia = original ? original.media : mediaRef.current;
+
+      const bounds = selectionBounds();
+      const origin = anchor ?? (bounds ? { x: bounds.x, y: bounds.y } : { x: 0, y: 0 });
+      const point = (p: Point) => ({
+        ...p,
+        x: origin.x + (p.x - origin.x) * factor,
+        y: origin.y + (p.y - origin.y) * factor,
+      });
+      const nextObjects = baseObjects.map((o) =>
+        !ids.includes(o.id)
+          ? o
+          : o.kind === "stroke"
+          ? { ...o, width: o.width * factor, points: o.points.map(point) }
+          : o.kind === "shape"
+          ? { ...o, ...point(o), w: o.w * factor, h: o.h * factor, width: o.width * factor }
+          : { ...o, ...point(o), fontSize: o.fontSize * factor }
+      );
+      const nextMedia = baseMedia.map((m) =>
+        ids.includes(m.id) && !m.locked
+          ? { ...m, ...point(m), width: m.width * factor, height: m.height * factor }
+          : m
+      );
+
+      if (original) {
+        objectsRef.current = original.objects;
+        mediaRef.current = original.media;
+      }
+      commit(nextObjects, nextMedia);
+    },
+    [cancelResize, commit],
+  );
+
+  const resizeSelected = commitResize;
 
   const commitText = useCallback(
     (id: string, value: string) => {
@@ -1194,7 +1288,7 @@ export function useWhiteboard(options: {
     selection,
     setSelection,
     selectionSettings,setSelectionSettings:(value:SelectionSettings)=>{setSelectionSettings(value);setSelection(null);},
-    selectedIds,selectionBounds:selectionBounds(),resizeSelected,
+    selectedIds,selectionBounds:selectionBounds(),resizeSelected,previewResize,commitResize,cancelResize,
     selectAll:()=>{setTool('select');selectIds([...objectsRef.current.map(o=>o.id),...mediaRef.current.map(m=>m.id)]);scheduleRender();},
     editingText,
     editSelectedText: () => {
