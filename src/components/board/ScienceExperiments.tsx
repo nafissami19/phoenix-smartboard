@@ -20,21 +20,133 @@ function Diagram({svg,label,children}:{svg:RefObject<SVGSVGElement|null>;label:s
   return <svg ref={svg} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 310" width="520" height="310" role="img" aria-label={label} className="experiment-diagram"><rect width="520" height="310" rx="12" fill="#f2f6f7"/><g fontFamily="Arial, sans-serif" fontSize="14" fill="#183c36">{children}</g></svg>;
 }
 
+function LightBulbFixture({
+  id,
+  x,
+  y,
+  current,
+  resistance,
+  closed,
+  label,
+}: {
+  id: string;
+  x: number;
+  y: number;
+  current: number;
+  resistance: number;
+  closed: boolean;
+  label: string;
+}) {
+  // Calculated power P = I^2 * R
+  const power = closed ? Math.pow(current, 2) * resistance : 0;
+  const norm = Math.min(1, power / 18);
+  const glowR = Math.max(22, 22 + norm * 40);
+  const innerA = closed && power > 0 ? Math.min(0.95, 0.28 + norm * 0.7) : 0;
+  const midA = closed && power > 0 ? Math.min(0.72, 0.16 + norm * 0.55) : 0;
+  const filamentStroke = closed && power > 0 ? (norm > 0.45 ? '#fffbe6' : '#ffd066') : '#765c1c';
+
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <defs>
+        <radialGradient id={`bulb-glow-${id}`} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fff7cc" stopOpacity={innerA} />
+          <stop offset="38%" stopColor="#ffb703" stopOpacity={midA} />
+          <stop offset="78%" stopColor="#fb8500" stopOpacity={midA * 0.35} />
+          <stop offset="100%" stopColor="#ff6b00" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Dynamic SVG radial gradient glow proportional to calculated power P = I^2 * R */}
+      {closed && power > 0 && (
+        <circle cx="0" cy="-6" r={glowR} fill={`url(#bulb-glow-${id})`} pointerEvents="none" />
+      )}
+
+      {/* Light bulb glass globe */}
+      <path
+        d="M -9 6 C -15 1, -17 -8, -12 -16 C -7 -25, 7 -25, 12 -16 C 17 -8, 15 1, 9 6 Z"
+        fill={closed && power > 0 ? `rgba(255, 240, 160, ${0.2 + norm * 0.45})` : "rgba(226, 232, 240, 0.3)"}
+        stroke={closed && power > 0 ? "#e28743" : "#64748b"}
+        strokeWidth="1.6"
+      />
+      {/* Specular glass reflection */}
+      <path d="M -9 -12 C -8 -18, -2 -21, 3 -21" fill="none" stroke="rgba(255, 255, 255, 0.7)" strokeWidth="1.2" strokeLinecap="round" />
+
+      {/* Tungsten filament element */}
+      <path d="M -5 6 L -3 -6 L 0 -9 L 3 -6 L 5 6" fill="none" stroke="#64748b" strokeWidth="0.8" />
+      <path
+        d="M -3 -6 Q 0 -11 3 -6"
+        fill="none"
+        stroke={filamentStroke}
+        strokeWidth={closed && power > 0 ? 2.5 : 1.2}
+        strokeLinecap="round"
+      />
+
+      {/* Metal socket */}
+      <rect x="-10" y="6" width="20" height="6" rx="2" fill="#94a3b8" stroke="#475569" strokeWidth="1" />
+
+      {/* Resistor housing below */}
+      <rect x="-44" y="14" width="88" height="20" rx="3" fill="#fce7b3" stroke="#765c1c" strokeWidth="1.5" />
+      <text x="0" y="28" fontSize="10" fontWeight="600" textAnchor="middle" fill="#183c36">{label}</text>
+
+      {/* Calculated Power display P = I^2 R */}
+      <text x="0" y="-30" fontSize="10" fontWeight="700" textAnchor="middle" fill={closed && power > 0 ? "#c2410c" : "#64748b"}>
+        {closed ? `P = ${power.toFixed(2)} W` : "0.00 W"}
+      </text>
+    </g>
+  );
+}
+
 function Circuit({onInsert}:{onInsert:Insert}) {
   const [layout,setLayout]=useState<'Series'|'Parallel'>('Series'),[voltage,setVoltage]=useState(12),[r1,setR1]=useState(10),[r2,setR2]=useState(20),[closed,setClosed]=useState(true);
   const svg=useRef<SVGSVGElement>(null),reading=resistorCircuit(voltage,r1,r2,layout==='Parallel',closed);
-  const resistor=(x:number,y:number,label:string)=><g><rect x={x} y={y-12} width="100" height="24" rx="3" fill="#fce7b3" stroke="#765c1c" strokeWidth="2"/><text x={x+50} y={y-23} textAnchor="middle">{label}</text></g>;
+  const pulseDuration = Math.max(0.3, Math.min(2.5, 1.2 / Math.max(0.08, reading.current)));
+
   return <section className="experiment-content" aria-label="Circuit experiment">
     <Switches label="Circuit connection" value={layout} options={['Series','Parallel']} onChange={setLayout}/>
     <Diagram svg={svg} label={`${layout} circuit: ${reading.current.toFixed(3)} amperes`}>
+      <defs>
+        <style>{
+          `@keyframes kn-electron-flow {
+            from { stroke-dashoffset: 24; }
+            to { stroke-dashoffset: 0; }
+          }
+          .kn-flowing-electrons {
+            animation: kn-electron-flow ${pulseDuration}s linear infinite;
+          }`
+        }</style>
+      </defs>
+
+      {/* Circuit wire base */}
       <g fill="none" stroke={closed?'#21866e':'#7b8d8a'} strokeWidth="3" strokeLinejoin="round">
         <path d="M60 156V80H145M195 80H460V230H60V184"/><path d={closed?'M145 80H195':'M145 80l45-25'}/>
         {layout==='Parallel'&&<path d="M220 80V170H420V80"/>}
         <path d="M40 156H80M48 184H72" stroke="#183c36"/>
       </g>
+
+      {/* Animated flowing electron pulses (marching dashes) through the wires when circuit switch is closed */}
+      {closed && reading.current > 0 && (
+        <g fill="none" stroke="#00f5ff" strokeWidth="2.5" strokeDasharray="5 7" strokeLinecap="round" className="kn-flowing-electrons" opacity="0.95">
+          <path d="M60 156V80H145M145 80H195M195 80H460V230H60V184" />
+          {layout==='Parallel' && <path d="M220 80V170H420V80" />}
+        </g>
+      )}
+
       <circle cx="145" cy="80" r="4" fill="#183c36"/><circle cx="195" cy="80" r="4" fill="#183c36"/>
       <text x="18" y="139">{voltage} V</text><text x="150" y="120">{closed?'Closed':'Open'}</text>
-      {layout==='Series'?<>{resistor(230,80,`R₁ ${r1} Ω`)}{resistor(340,80,`R₂ ${r2} Ω`)}</>:<>{resistor(270,80,`R₁ ${r1} Ω`)}{resistor(270,170,`R₂ ${r2} Ω`)}</>}
+
+      {/* Light bulbs glowing with dynamic SVG radial gradients proportional to calculated power P = I^2 R */}
+      {layout==='Series' ? (
+        <>
+          <LightBulbFixture id="series-1" x={240} y={70} current={reading.currents[0] ?? 0} resistance={r1} closed={closed} label={`R₁ ${r1} Ω`} />
+          <LightBulbFixture id="series-2" x={360} y={70} current={reading.currents[1] ?? 0} resistance={r2} closed={closed} label={`R₂ ${r2} Ω`} />
+        </>
+      ) : (
+        <>
+          <LightBulbFixture id="parallel-1" x={320} y={70} current={reading.currents[0] ?? 0} resistance={r1} closed={closed} label={`R₁ ${r1} Ω`} />
+          <LightBulbFixture id="parallel-2" x={320} y={160} current={reading.currents[1] ?? 0} resistance={r2} closed={closed} label={`R₂ ${r2} Ω`} />
+        </>
+      )}
+
       <circle cx="260" cy="230" r="19" fill="#fff" stroke="#183c36" strokeWidth="2"/><text x="260" y="235" textAnchor="middle">A</text>
       <text x="260" y="276" textAnchor="middle">I = {reading.current.toFixed(3)} A · R = {reading.resistance.toFixed(2)} Ω</text>
     </Diagram>

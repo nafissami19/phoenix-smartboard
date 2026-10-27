@@ -23,7 +23,7 @@ import {TeachingPreferences} from '@/components/TeachingPreferences';
 import { LocalAssistant } from "@/components/board/LocalAssistant";
 import { ResizeHandles } from "@/components/board/ResizeHandles";
 import { GeometryOverlay } from "@/components/board/GeometryOverlay";
-import { TeachingControls } from "@/components/board/TeachingControls";
+
 import { exportLessonPDF, type PDFScope, type ExportProgress } from "@/lib/lesson-export";
 import { SubjectTools, type SubjectTool } from "@/components/board/SubjectTools";
 import { exportLesson } from "@/lib/lesson-bundle";
@@ -88,7 +88,7 @@ export default function BoardPage() {
   const [saveState, setSaveState] = useState<"saved" | "saving" | "dirty">("saved");
   const [operation,setOperation]=useState<string|null>(null);
   const [textValue, setTextValue] = useState("");
-  const [toolbarLayout,setToolbarLayout]=useState<'bottom'|'top'|'left'|'right'>('left');
+  const [toolbarLayout]=useState<'bottom'|'top'|'left'|'right'>('left');
   useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout','left');window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
   const [assistantOpen,setAssistantOpen]=useState(false);
   const [subjectTool, setSubjectTool] = useState<SubjectTool | null>(null);
@@ -875,7 +875,7 @@ export default function BoardPage() {
           />
         )}
 
-        <BoardTooltips/><ControlLayoutEditor/><TeachingControls onCustomize={()=>{window.dispatchEvent(new Event('phoenix-customize-controls'));}} layout={toolbarLayout} onLayout={setToolbarLayout}/>
+        <BoardTooltips/><ControlLayoutEditor/>
         {profile.ai?.enabled&&<button className="local-assistant-launch" onClick={()=>setAssistantOpen(value=>!value)} aria-label="Local assistant">AI assistant</button>}
         {assistantOpen&&<LocalAssistant onClose={()=>setAssistantOpen(false)} onInsert={text=>{const center=centerWorld();wb.addObjects([{id:uid(),kind:'text',x:center.x-220,y:center.y,text,color:wb.pen.color,fontSize:24,fontFamily:'Arial',bold:false}]);}}/>}
         {subjectTool && <SubjectTools onAddEquipment={addEquipment} onInsertText={text=>{const center=centerWorld();wb.addObjects([{id:uid(),kind:'text',x:center.x-220,y:center.y,text,color:wb.pen.color,fontSize:24,fontFamily:'Arial',bold:false}]);}} tool={subjectTool} onClose={() => setSubjectTool(null)} onInsert={async (url,width,height) => {

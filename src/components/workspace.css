@@ -11,12 +11,48 @@
 .kn-library-summary span{font-size:13px;color:var(--color-muted);}
 .kn-library-filters{display:grid;grid-template-columns:minmax(180px,1fr) 180px 180px auto;gap:12px;margin:16px 0 20px;align-items:center;}
 .kn-library-filters input{width:100%;padding:12px 40px 12px 14px;background:var(--color-panel);border:1px solid var(--color-line);border-radius:12px;}
-.kn-lesson-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;}
-.kn-lesson-card{min-width:0;border-radius:18px;border:1px solid var(--color-line);background:var(--color-panel);overflow:hidden;position:relative;}
-.kn-lesson-card:hover{border-color:var(--color-line-2);}
-.kn-lesson-cover{height:144px;position:relative;overflow:hidden;}
+.kn-lesson-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px;}
+
+/* 3D perspective hover cards */
+.kn-lesson-card{
+  min-width:0;
+  border-radius:18px;
+  border:1px solid var(--color-line);
+  background:var(--color-panel);
+  overflow:hidden;
+  position:relative;
+  transform-style:preserve-3d;
+  will-change:transform;
+  transition:transform 0.22s cubic-bezier(0.2, 0.8, 0.4, 1), box-shadow 0.22s ease, border-color 0.2s ease;
+  box-shadow:0 4px 16px -2px rgba(0, 0, 0, 0.25);
+}
+.kn-lesson-card:hover{
+  border-color:rgba(255, 255, 255, 0.22);
+  box-shadow:0 16px 36px -6px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+}
+.kn-lesson-cover{
+  height:148px;
+  position:relative;
+  overflow:hidden;
+  background-color:var(--color-panel-2);
+}
 .kn-lesson-cover:before{content:'';position:absolute;inset:0;background:linear-gradient(140deg,transparent,rgba(0,0,0,.3));}
 .kn-lesson-cover:after{content:'';position:absolute;inset:20px 30px;border:1px solid #ffffff30;border-radius:6px;transform:rotate(-7deg);}
+.kn-lesson-cover.has-thumbnail:before{display:none;}
+.kn-lesson-cover.has-thumbnail:after{display:none;}
+
+.kn-lesson-thumbnail-canvas{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.kn-lesson-glare{
+  pointer-events:none;
+  position:absolute;
+  inset:0;
+}
+
 .kn-lesson-delete{position:absolute;right:12px;bottom:12px;min-width:44px;color:var(--color-muted);border-radius:10px;}
 .kn-lesson-delete:hover{background:var(--color-elevated);color:var(--color-ink);}
 .kn-lesson-list{display:grid;gap:10px;}

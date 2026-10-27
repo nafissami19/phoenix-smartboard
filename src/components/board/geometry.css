@@ -1,10 +1,51 @@
 .direct-instrument .geometry-surface { overflow: visible; filter: none; }
 .direct-instrument .instrument-grip { pointer-events: all; touch-action: none; cursor: grab; outline: none; }
 .direct-instrument .instrument-hit { fill: transparent; stroke: none; }
-.direct-instrument .instrument-grip-disc { fill: var(--color-panel,#fff); stroke: var(--guide-ink,#153848); stroke-opacity: .6; stroke-width: 1; }
-.direct-instrument .instrument-grip path { fill: none; stroke: var(--guide-ink,#153848); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.direct-instrument .instrument-grip:hover .instrument-grip-disc,.direct-instrument .instrument-grip:focus-visible .instrument-grip-disc,.direct-instrument .instrument-grip.is-active .instrument-grip-disc { fill: color-mix(in srgb, var(--color-brand,#5b62e8) 25%, var(--color-panel,#fff)); stroke: var(--color-brand,#5b62e8); stroke-opacity: 1; stroke-width: 2; }
+.direct-instrument .instrument-grip-disc {
+  fill: rgba(18, 22, 34, 0.88);
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 1.2px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+  transition: fill 0.15s ease, stroke 0.15s ease, filter 0.15s ease;
+}
+.direct-instrument .instrument-grip path {
+  fill: none;
+  stroke: #00f0ff;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.15s ease;
+}
+.direct-instrument .instrument-grip:hover .instrument-grip-disc,
+.direct-instrument .instrument-grip:focus-visible .instrument-grip-disc,
+.direct-instrument .instrument-grip.is-active .instrument-grip-disc {
+  fill: rgba(0, 98, 255, 0.5);
+  stroke: #00f0ff;
+  stroke-width: 2px;
+  filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.75));
+}
+.direct-instrument .instrument-grip:hover path,
+.direct-instrument .instrument-grip:focus-visible path,
+.direct-instrument .instrument-grip.is-active path {
+  stroke: #ffffff;
+}
 .direct-instrument .instrument-grip.is-active { cursor: grabbing; }
 .direct-instrument .instrument-close { cursor: pointer; }
-.direct-instrument .instrument-measure { pointer-events: none; paint-order: stroke; stroke: var(--color-panel,#fff); stroke-width: 2px; stroke-linejoin: round; }
-.direct-instrument .instrument-arc-preview { fill: none; stroke: var(--color-brand,#5b62e8); stroke-width: 3; pointer-events: none; }
+.direct-instrument .instrument-measure {
+  pointer-events: none;
+  paint-order: stroke fill;
+  stroke: rgba(15, 23, 42, 0.95);
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
+  fill: #00f0ff;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.direct-instrument .instrument-arc-preview {
+  fill: none;
+  stroke: #00f0ff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+  pointer-events: none;
+}

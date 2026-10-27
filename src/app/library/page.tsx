@@ -1,10 +1,10 @@
-import '@/components/workspace.css';
-import {interruptedSessions,finishSession,type WorkSession} from '@/lib/work-journal';
-import {CustomSelect} from '@/components/CustomSelect';
 "use client";
-import { localRequest } from "@/lib/local-store";
 
-import { useCallback, useEffect, useState, Suspense } from "react";
+import '@/components/workspace.css';
+import { useCallback, useEffect, useState, useRef, Suspense } from "react";
+import { interruptedSessions, finishSession, type WorkSession } from '@/lib/work-journal';
+import { CustomSelect } from '@/components/CustomSelect';
+import { localRequest } from "@/lib/local-store";
 import { useRouter, useSearchParams } from "@/lib/navigation";
 import { useApp } from "@/lib/app-context";
 import { useToast } from "@/lib/toast";
@@ -13,7 +13,9 @@ import { BrandMark } from '@/components/BrandMark';
 import { importPdfPages } from "@/lib/pdf-pages";
 import { Modal } from "@/components/board/Panels";
 import { COVER_COLORS } from "@/lib/constants";
-import type { Notebook } from "@/db/schema";
+import type { Notebook, Page } from "@/db/schema";
+import { drawBackground, drawObject } from "@/lib/render";
+import { loadBackgroundImage } from "@/lib/background-image";
 
 export default function LibraryPage() {
   return (
@@ -33,35 +35,57 @@ function LibraryInner() {
   const { profile } = useApp();
   const { push } = useToast();
 
-  const [interrupted,setInterrupted]=useState<WorkSession[]>([]);
+  const [interrupted, setInterrupted] = useState<WorkSession[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(search.get("new") === "1");
-  const [pdfFile,setPdfFile]=useState<File|null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [cover, setCover] = useState(COVER_COLORS[0]);
   const [busy, setBusy] = useState(false);
-  const [query,setQuery]=useState(''),[filter,setFilter]=useState('all'),[sort,setSort]=useState('recent');
-  const [view,setView]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('phoenix-library-view')==='list'?'list':'grid';}catch{return 'grid';}});
-  const [loadError,setLoadError]=useState(false);
-  const visible=notebooks.filter(n=>(filter==='all'||n.subject===filter)&&`${n.title} ${n.subject}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).sort((a,b)=>sort==='title'?a.title.localeCompare(b.title):sort==='pages'?b.pageCount-a.pageCount:new Date(b.updatedAt).getTime()-new Date(a.updatedAt).getTime());
-  const subjects=[...new Set(notebooks.map(n=>n.subject))].sort();
-  const setLayout=(layout:'grid'|'list')=>{setView(layout);try{localStorage.setItem('phoenix-library-view',layout);}catch{}};
-  useEffect(()=>{if(search.get('new')==='1')setCreating(true);},[search]);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [sort, setSort] = useState('recent');
+  const [view, setView] = useState<'grid' | 'list'>(() => {
+    try {
+      return localStorage.getItem('phoenix-library-view') === 'list' ? 'list' : 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+  const [loadError, setLoadError] = useState(false);
+
+  const visible = notebooks
+    .filter(n => (filter === 'all' || n.subject === filter) && `${n.title} ${n.subject}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+    .sort((a, b) => sort === 'title' ? a.title.localeCompare(b.title) : sort === 'pages' ? b.pageCount - a.pageCount : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const subjects = [...new Set(notebooks.map(n => n.subject))].sort();
+  const setLayout = (layout: 'grid' | 'list') => {
+    setView(layout);
+    try {
+      localStorage.setItem('phoenix-library-view', layout);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (search.get('new') === '1') setCreating(true);
+  }, [search]);
 
   const load = useCallback(async () => {
-    setLoading(true);setLoadError(false);
+    setLoading(true);
+    setLoadError(false);
     try {
       const res = await localRequest("/api/notebooks", { cache: "no-store" });
-      if(!res.ok)throw new Error("Could not load lessons");
+      if (!res.ok) throw new Error("Could not load lessons");
       const data = (await res.json()) as { notebooks: Notebook[] };
       setNotebooks(data.notebooks);
-      const sessions=await interruptedSessions();setInterrupted(sessions.filter(s=>data.notebooks.some(n=>n.id===s.lessonId)));
-    } catch (error) {
+      const sessions = await interruptedSessions();
+      setInterrupted(sessions.filter(s => data.notebooks.some(n => n.id === s.lessonId)));
+    } catch {
       setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [push]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -85,7 +109,7 @@ function LibraryInner() {
       if (!data.notebook) throw new Error(data.error || "Could not create the lesson.");
       const notebook = data.notebook;
       createdNotebookId = notebook.id;
-      if(pdfFile)await importPdfPages(notebook.id,pdfFile,true);
+      if (pdfFile) await importPdfPages(notebook.id, pdfFile, true);
       setPdfFile(null);
       setCreating(false);
       router.push(`/board/${notebook.id}`);
@@ -110,7 +134,7 @@ function LibraryInner() {
       await localRequest(`/api/notebooks/${id}`, { method: "DELETE" });
       setNotebooks((prev) => prev.filter((n) => n.id !== id));
       push("Lesson deleted.", "success");
-    } catch (error) {
+    } catch {
       push("Could not delete the lesson.", "error");
     }
   }
@@ -148,28 +172,130 @@ function LibraryInner() {
           </div>
         </header>
 
-        {interrupted.length>0&&<section className="mb-5 rounded-xl border border-line bg-panel p-4" aria-label="Interrupted lessons"><strong>Continue interrupted work</strong><p className="mb-3 text-sm text-muted">Your last lesson and any unfinished drawing are available to review.</p>{interrupted.slice(0,3).map(session=><div key={session.lessonId} className="flex items-center justify-between gap-3"><span>{notebooks.find(n=>n.id===session.lessonId)?.title??session.title}{session.activity&&<small className="ml-3 text-muted">{session.activity}</small>}</span><div className="flex gap-2"><button className="kn-focus rounded-lg bg-brand p-3 text-white" onClick={()=>router.push(`/board/${session.lessonId}`)}>Open last lesson</button><button aria-label="Dismiss interrupted lesson" className="kn-focus p-3" onClick={()=>{void finishSession(session.lessonId).then(()=>setInterrupted(list=>list.filter(s=>s.lessonId!==session.lessonId)));}}><Icon name="close" className="h-4 w-4"/></button></div></div>)}</section>}
-        {!loading&&!loadError&&notebooks.length>0&&<>
-          <div className="kn-library-summary" aria-label="Library overview"><div><strong>{notebooks.length}</strong><span>Lessons</span></div><div><strong>{notebooks.reduce((sum,n)=>sum+n.pageCount,0)}</strong><span>Pages</span></div><div><strong>{subjects.length}</strong><span>Subjects</span></div></div>
-          <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Your lessons</h2><span className="text-sm text-muted" role="status">{visible.length} of {notebooks.length}</span></div>
-          <div className="kn-library-filters"><label className="relative"><span className="sr-only">Search lessons</span><input className="kn-focus" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search lessons or subjects"/>{query&&<button aria-label="Clear search" className="absolute right-1 top-0 grid w-10 place-items-center text-muted" onClick={()=>setQuery('')}><Icon name="close" className="h-4 w-4"/></button>}</label>
-            <CustomSelect aria-label="Filter by subject" value={filter} onChange={e=>setFilter(e.target.value)} className="kn-focus min-h-11 rounded-xl border border-line bg-panel px-3 py-2"> <option value="all">All subjects</option>{subjects.map(s=><option key={s}>{s}</option>)}</CustomSelect>
-            <CustomSelect aria-label="Sort lessons" value={sort} onChange={e=>setSort(e.target.value)} className="kn-focus min-h-11 rounded-xl border border-line bg-panel px-3 py-2"><option value="recent">Recently updated</option><option value="title">Title A to Z</option><option value="pages">Most pages</option></CustomSelect>
-            <div className="flex gap-1 rounded-xl border border-line p-1" aria-label="Lesson layout">{(['grid','list'] as const).map(layout=><button key={layout} aria-label={`${layout==='grid'?'Grid':'List'} view`} aria-pressed={view===layout} onClick={()=>setLayout(layout)} className={`kn-focus grid w-11 place-items-center rounded-lg ${view===layout?'bg-elevated text-ink':'text-muted'}`}><Icon name={layout==='grid'?'shapes':'menu'} className="h-5 w-5"/></button>)}</div>
-          </div>
-        </>}
-        {loading ? <div className="kn-lesson-grid" role="status" aria-label="Loading lessons">{[1,2,3].map(n=><div key={n} className="h-64 rounded-2xl border border-line bg-panel"><div className="h-36 bg-panel-2"/><div className="m-5 h-4 w-2/3 rounded bg-elevated"/><div className="mx-5 h-3 w-1/3 rounded bg-elevated"/></div>)}</div>
-          :loadError?<div className="rounded-2xl border border-line bg-panel p-10 text-center"><h2 className="text-lg font-semibold">Could not load your lessons</h2><p className="mt-2 text-sm text-muted">Your saved lessons have not been changed.</p><button className="kn-focus mt-5 rounded-xl bg-brand px-5 py-2 text-white" onClick={()=>void load()}>Try again</button></div>
-          :notebooks.length===0?<EmptyState onCreate={()=>setCreating(true)}/>
-          :visible.length===0?<div className="rounded-2xl border border-dashed border-line p-12 text-center"><h3 className="font-semibold">No matching lessons</h3><p className="mt-2 text-sm text-muted">Try another title or subject.</p><button onClick={()=>{setQuery('');setFilter('all');}} className="kn-focus mt-4 rounded-xl border border-line px-4 py-2">Clear filters</button></div>
-          :<div className={view==='grid'?'kn-lesson-grid':'kn-lesson-list'}>{visible.map(n=><NotebookCard key={n.id} notebook={n} onOpen={()=>router.push(`/board/${n.id}`)} onDelete={()=>remove(n.id)}/>)}</div>}
+        {interrupted.length > 0 && (
+          <section className="mb-5 rounded-xl border border-line bg-panel p-4" aria-label="Interrupted lessons">
+            <strong>Continue interrupted work</strong>
+            <p className="mb-3 text-sm text-muted">Your last lesson and any unfinished drawing are available to review.</p>
+            {interrupted.slice(0, 3).map(session => (
+              <div key={session.lessonId} className="flex items-center justify-between gap-3">
+                <span>
+                  {notebooks.find(n => n.id === session.lessonId)?.title ?? session.title}
+                  {session.activity && <small className="ml-3 text-muted">{session.activity}</small>}
+                </span>
+                <div className="flex gap-2">
+                  <button className="kn-focus rounded-lg bg-brand p-3 text-white" onClick={() => router.push(`/board/${session.lessonId}`)}>
+                    Open last lesson
+                  </button>
+                  <button
+                    aria-label="Dismiss interrupted lesson"
+                    className="kn-focus p-3"
+                    onClick={() => {
+                      void finishSession(session.lessonId).then(() => setInterrupted(list => list.filter(s => s.lessonId !== session.lessonId)));
+                    }}
+                  >
+                    <Icon name="close" className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
 
+        {!loading && !loadError && notebooks.length > 0 && (
+          <>
+            <div className="kn-library-summary" aria-label="Library overview">
+              <div><strong>{notebooks.length}</strong><span>Lessons</span></div>
+              <div><strong>{notebooks.reduce((sum, n) => sum + n.pageCount, 0)}</strong><span>Pages</span></div>
+              <div><strong>{subjects.length}</strong><span>Subjects</span></div>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">Your lessons</h2>
+              <span className="text-sm text-muted" role="status">{visible.length} of {notebooks.length}</span>
+            </div>
+            <div className="kn-library-filters">
+              <label className="relative">
+                <span className="sr-only">Search lessons</span>
+                <input className="kn-focus" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search lessons or subjects" />
+                {query && (
+                  <button aria-label="Clear search" className="absolute right-1 top-0 grid w-10 place-items-center text-muted" onClick={() => setQuery('')}>
+                    <Icon name="close" className="h-4 w-4" />
+                  </button>
+                )}
+              </label>
+              <CustomSelect aria-label="Filter by subject" value={filter} onChange={e => setFilter(e.target.value)} className="kn-focus min-h-11 rounded-xl border border-line bg-panel px-3 py-2">
+                <option value="all">All subjects</option>
+                {subjects.map(s => <option key={s}>{s}</option>)}
+              </CustomSelect>
+              <CustomSelect aria-label="Sort lessons" value={sort} onChange={e => setSort(e.target.value)} className="kn-focus min-h-11 rounded-xl border border-line bg-panel px-3 py-2">
+                <option value="recent">Recently updated</option>
+                <option value="title">Title A to Z</option>
+                <option value="pages">Most pages</option>
+              </CustomSelect>
+              <div className="flex gap-1 rounded-xl border border-line p-1" aria-label="Lesson layout">
+                {(['grid', 'list'] as const).map(layout => (
+                  <button
+                    key={layout}
+                    aria-label={`${layout === 'grid' ? 'Grid' : 'List'} view`}
+                    aria-pressed={view === layout}
+                    onClick={() => setLayout(layout)}
+                    className={`kn-focus grid w-11 place-items-center rounded-lg ${view === layout ? 'bg-elevated text-ink' : 'text-muted'}`}
+                  >
+                    <Icon name={layout === 'grid' ? 'shapes' : 'menu'} className="h-5 w-5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {loading ? (
+          <div className="kn-lesson-grid" role="status" aria-label="Loading lessons">
+            {[1, 2, 3].map(n => (
+              <div key={n} className="h-64 rounded-2xl border border-line bg-panel">
+                <div className="h-36 bg-panel-2" />
+                <div className="m-5 h-4 w-2/3 rounded bg-elevated" />
+                <div className="mx-5 h-3 w-1/3 rounded bg-elevated" />
+              </div>
+            ))}
+          </div>
+        ) : loadError ? (
+          <div className="rounded-2xl border border-line bg-panel p-10 text-center">
+            <h2 className="text-lg font-semibold">Could not load your lessons</h2>
+            <p className="mt-2 text-sm text-muted">Your saved lessons have not been changed.</p>
+            <button className="kn-focus mt-5 rounded-xl bg-brand px-5 py-2 text-white" onClick={() => void load()}>Try again</button>
+          </div>
+        ) : notebooks.length === 0 ? (
+          <EmptyState onCreate={() => setCreating(true)} />
+        ) : visible.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-line p-12 text-center">
+            <h3 className="font-semibold">No matching lessons</h3>
+            <p className="mt-2 text-sm text-muted">Try another title or subject.</p>
+            <button onClick={() => { setQuery(''); setFilter('all'); }} className="kn-focus mt-4 rounded-xl border border-line px-4 py-2">Clear filters</button>
+          </div>
+        ) : (
+          <div className={view === 'grid' ? 'kn-lesson-grid' : 'kn-lesson-list'}>
+            {visible.map(n => (
+              <NotebookCard key={n.id} notebook={n} onOpen={() => router.push(`/board/${n.id}`)} onDelete={() => remove(n.id)} />
+            ))}
+          </div>
+        )}
       </div>
 
       {creating && (
         <Modal title="New lesson" icon={<Icon name="plus" className="h-5 w-5 text-brand-light" />} onClose={() => setCreating(false)}>
           <div className="space-y-4">
-            <label className="block text-sm">Start from PDF (optional)<input aria-label="Start lesson from PDF" type="file" accept=".pdf,application/pdf" disabled={busy} onChange={e=>{setPdfFile(e.target.files?.[0]??null);}} className="mt-2 block w-full"/><span className="mt-1 block text-xs text-muted">One PDF page per board page, ready to annotate. Up to 25 MB / 1500 pages.</span></label>
+            <label className="block text-sm">
+              Start from PDF (optional)
+              <input
+                aria-label="Start lesson from PDF"
+                type="file"
+                accept=".pdf,application/pdf"
+                disabled={busy}
+                onChange={e => { setPdfFile(e.target.files?.[0] ?? null); }}
+                className="mt-2 block w-full"
+              />
+              <span className="mt-1 block text-xs text-muted">One PDF page per board page, ready to annotate. Up to 25 MB / 1500 pages.</span>
+            </label>
             <div>
               <label className="mb-2 block text-sm font-medium">Cover colour</label>
               <div className="flex flex-wrap gap-2">
@@ -199,6 +325,149 @@ function LibraryInner() {
   );
 }
 
+/**
+ * Slide 1 Thumbnail Canvas Preview Component.
+ * Fetches slide 1 of the lesson and renders its tactile background, textures,
+ * and objects onto an HTML5 canvas. Falls back smoothly to the cover color.
+ */
+function Slide1Thumbnail({
+  notebookId,
+  coverColor,
+  title,
+  pageCount,
+}: {
+  notebookId: string;
+  coverColor: string;
+  title: string;
+  pageCount: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [rendered, setRendered] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSlide1() {
+      try {
+        const res = await localRequest(`/api/notebooks/${notebookId}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { pages?: Page[] };
+        const page1 = data.pages?.[0];
+        if (!page1 || cancelled) return;
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Render at 320x180 resolution (16:9 ratio)
+        canvas.width = 320;
+        canvas.height = 180;
+        const scale = 320 / 1280;
+
+        let bgImg: HTMLImageElement | undefined;
+        if (page1.backgroundImage) {
+          try {
+            bgImg = await loadBackgroundImage(page1.backgroundImage);
+          } catch {}
+        }
+        if (cancelled) return;
+
+        // Draw slide background and tactile textures/grid
+        drawBackground(
+          ctx,
+          1280,
+          720,
+          page1.background || coverColor,
+          page1.pattern || 'none',
+          scale,
+          bgImg
+        );
+
+        // Draw slide 1 objects scaled
+        ctx.save();
+        ctx.scale(scale, scale);
+        for (const obj of page1.objects || []) {
+          drawObject(ctx, obj);
+        }
+        ctx.restore();
+
+        if (!cancelled) {
+          setRendered(true);
+        }
+      } catch {
+        // Fallback to stylized cover if anything fails
+      }
+    }
+
+    void loadSlide1();
+    return () => {
+      cancelled = true;
+    };
+  }, [notebookId, coverColor]);
+
+  return (
+    <div className={`kn-lesson-cover ${rendered ? 'has-thumbnail' : ''}`} style={{ background: coverColor }}>
+      {/* Background canvas for slide 1 */}
+      <canvas
+        ref={canvasRef}
+        width={320}
+        height={180}
+        className={`kn-lesson-thumbnail-canvas transition-opacity duration-300 ${rendered ? 'opacity-100' : 'opacity-0'}`}
+        aria-hidden="true"
+      />
+
+      {/* Fallback initial letter when thumbnail is not yet rendered */}
+      {!rendered && (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          <span className="absolute bottom-3 left-4 text-3xl font-bold text-white/90 drop-shadow">
+            {title.slice(0, 1).toUpperCase()}
+          </span>
+        </>
+      )}
+
+      {/* Top right page counter badge */}
+      <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-semibold text-white/95 backdrop-blur border border-white/10 shadow-sm">
+        {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+      </span>
+
+      {/* Slide 1 indicator pill */}
+      {rendered && (
+        <span className="absolute bottom-2.5 left-3 rounded-md bg-black/65 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase text-white/90 backdrop-blur border border-white/10 shadow-sm">
+          Slide 1
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Returns vibrant frosted subject pill badge styles with luminous colors.
+ */
+function getSubjectTagBadge(subject: string) {
+  const norm = subject.trim().toLowerCase();
+  if (norm.includes('math')) {
+    return 'text-cyan-300 bg-cyan-950/50 border-cyan-400/40 shadow-[0_0_12px_rgba(34,211,238,0.22)]';
+  }
+  if (norm.includes('chem')) {
+    return 'text-amber-300 bg-amber-950/50 border-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.22)]';
+  }
+  if (norm.includes('phys')) {
+    return 'text-emerald-300 bg-emerald-950/50 border-emerald-400/40 shadow-[0_0_12px_rgba(52,211,153,0.22)]';
+  }
+  if (norm.includes('bio')) {
+    return 'text-lime-300 bg-lime-950/50 border-lime-400/40 shadow-[0_0_12px_rgba(163,230,53,0.22)]';
+  }
+  if (norm.includes('eng') || norm.includes('lit')) {
+    return 'text-purple-300 bg-purple-950/50 border-purple-400/40 shadow-[0_0_12px_rgba(192,132,252,0.22)]';
+  }
+  if (norm.includes('hist') || norm.includes('soc')) {
+    return 'text-rose-300 bg-rose-950/50 border-rose-400/40 shadow-[0_0_12px_rgba(251,113,133,0.22)]';
+  }
+  return 'text-sky-300 bg-sky-950/50 border-sky-400/40 shadow-[0_0_12px_rgba(56,189,248,0.22)]';
+}
+
 function NotebookCard({
   notebook,
   onOpen,
@@ -208,40 +477,104 @@ function NotebookCard({
   onOpen: () => void;
   onDelete: () => void;
 }) {
-  const [confirmDelete,setConfirmDelete]=useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [tiltStyle, setTiltStyle] = useState<React.CSSProperties>({});
+  const [glarePos, setGlarePos] = useState({ x: 50, y: 50, opacity: 0 });
+
+  // Interactive 3D perspective hover cards
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    const rotX = (-y * 12).toFixed(2);
+    const rotY = (x * 12).toFixed(2);
+    setTiltStyle({
+      transform: `perspective(800px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale3d(1.025, 1.025, 1.025)`,
+      transition: 'transform 0.08s ease-out',
+    });
+    setGlarePos({
+      x: (x + 0.5) * 100,
+      y: (y + 0.5) * 100,
+      opacity: 0.16,
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTiltStyle({
+      transform: 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
+      transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease',
+    });
+    setGlarePos(g => ({ ...g, opacity: 0 }));
+  };
+
   return (
     <>
-    <div className="kn-lesson-card">
-      <button onClick={onOpen} className="kn-focus block w-full text-left">
-        <div className="kn-lesson-cover" style={{ background: notebook.coverColor }}>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          <span className="absolute bottom-3 left-4 text-3xl font-bold text-white/90 drop-shadow">
-            {notebook.title.slice(0, 1).toUpperCase()}
-          </span>
-          <span className="absolute right-3 top-3 rounded-full bg-black/30 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-            {notebook.pageCount} {notebook.pageCount === 1 ? "page" : "pages"}
-          </span>
-        </div>
-        <div className="kn-lesson-info p-4 pr-16">
-          <h3 className="truncate text-base font-semibold">{notebook.title}</h3>
-          <p className="mt-0.5 text-sm text-muted">{notebook.subject}</p>
-          <p className="mt-2 text-xs text-faint">
-            Updated {new Date(notebook.updatedAt).toLocaleDateString()}
-          </p>
-        </div>
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setConfirmDelete(true);
-        }}
-        className="kn-focus kn-lesson-delete grid h-11 w-11 place-items-center"
-        aria-label="Delete"
+      <div
+        className="kn-lesson-card"
+        style={tiltStyle}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
-        <Icon name="trash" className="h-4 w-4" />
-      </button>
-    </div>
-    {confirmDelete&&<Modal title="Delete lesson" onClose={()=>setConfirmDelete(false)}><p className="text-sm">Delete "{notebook.title}"? A recovery snapshot is saved before removal; keep an external backup for important lessons.</p><div className="mt-5 flex justify-end gap-2"><button className="rounded-lg border border-line px-4 py-2" onClick={()=>setConfirmDelete(false)}>Keep lesson</button><button className="rounded-lg bg-brand px-4 py-2 text-white" onClick={()=>{setConfirmDelete(false);onDelete();}}>Delete lesson</button></div></Modal>}
+        {/* Specular glare overlay */}
+        <div
+          className="kn-lesson-glare pointer-events-none absolute inset-0 z-10 transition-opacity duration-300"
+          style={{
+            background: `radial-gradient(circle at ${glarePos.x}% ${glarePos.y}%, rgba(255, 255, 255, ${glarePos.opacity}), transparent 65%)`,
+            opacity: glarePos.opacity,
+          }}
+        />
+
+        <button onClick={onOpen} className="kn-focus block w-full text-left">
+          <Slide1Thumbnail
+            notebookId={notebook.id}
+            coverColor={notebook.coverColor}
+            title={notebook.title}
+            pageCount={notebook.pageCount}
+          />
+          <div className="kn-lesson-info p-4 pr-16">
+            <div className="mb-2">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md border ${getSubjectTagBadge(notebook.subject)}`}>
+                #{notebook.subject}
+              </span>
+            </div>
+            <h3 className="truncate text-base font-semibold">{notebook.title}</h3>
+            <p className="mt-2 text-xs text-faint">
+              Updated {new Date(notebook.updatedAt).toLocaleDateString()}
+            </p>
+          </div>
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirmDelete(true);
+          }}
+          className="kn-focus kn-lesson-delete grid h-11 w-11 place-items-center z-20"
+          aria-label="Delete"
+        >
+          <Icon name="trash" className="h-4 w-4" />
+        </button>
+      </div>
+      {confirmDelete && (
+        <Modal title="Delete lesson" onClose={() => setConfirmDelete(false)}>
+          <p className="text-sm">
+            Delete "{notebook.title}"? A recovery snapshot is saved before removal; keep an external backup for important lessons.
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button className="rounded-lg border border-line px-4 py-2" onClick={() => setConfirmDelete(false)}>
+              Keep lesson
+            </button>
+            <button
+              className="rounded-lg bg-brand px-4 py-2 text-white"
+              onClick={() => {
+                setConfirmDelete(false);
+                onDelete();
+              }}
+            >
+              Delete lesson
+            </button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

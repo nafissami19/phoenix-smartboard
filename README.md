@@ -58,7 +58,7 @@ Phoenix Smartboard runs **100% locally and offline**:
 ### 🎓 Classroom Presentation Suite
 - **Engagement Tools**: Focus Spotlight, Reveal Curtain, Stopwatch, Countdown Timer, Dice Roller, and Random Student Name Picker.
 - **Scientific Calculator**: Built-in expression evaluation with trigonometric, logarithmic, and algebraic functions.
-- **Screen & Audio Recorder**: In-app WebRTC recorder to capture lessons and explanations directly to standard video files.
+
 - **Interactive Worksheets**: Embedded spreadsheets with formula calculations (`SUM`, `AVERAGE`, `IF`, etc.) and CSV/Excel import.
 
 ---

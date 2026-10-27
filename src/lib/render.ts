@@ -1,8 +1,8 @@
 import {drawSolid} from './render-solid';
 import {isSolid} from './solid-shapes';
 import {brushSettings} from './brush-presets';
-import {isEquipment} from './chemistry-equipment';
-import {drawChemistryEquipment} from './render-chemistry';
+
+
 import {penOutline,drawStamp,laserOpacity,brushTexture,paintBristles} from './pen-strokes';
 import type {
   BoardObject,
@@ -64,7 +64,7 @@ export function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeObject) 
       const kind=stroke.brush??'normal',grain=brushSettings(kind,stroke.brushSettings).grain;
       const textured=['paint','oil-paint','crayon','oil-pastel','chalk','pencil'].includes(kind);
       ctx.fillStyle=stroke.color;
-      const base=kind==='pencil'?.14:kind==='crayon'?.7:kind==='chalk'?.06:kind==='oil-pastel'?.84:kind==='paint'?.65:kind==='oil-paint'?.93:1;
+      const base=kind==='pencil'?.14:kind==='crayon'?.7:kind==='chalk'?.62:kind==='oil-pastel'?.84:kind==='paint'?.65:kind==='oil-paint'?.93:1;
       ctx.globalAlpha=inheritedAlpha*(textured?1-grain*(1-base):1);ctx.fill();
       if(textured&&grain>0&&!['paint','oil-paint'].includes(kind)){const pigment=brushTexture(ctx,kind,stroke.color);if(pigment){ctx.fillStyle=pigment;ctx.globalAlpha=inheritedAlpha*grain;ctx.fill();}}
       if(kind==='paint'||kind==='oil-paint'){ctx.globalAlpha=inheritedAlpha;paintBristles(ctx,stroke,grain);}
@@ -165,7 +165,7 @@ function hatchFill(ctx:CanvasRenderingContext2D,shape:ShapeObject){
 
 export function drawShape(ctx: CanvasRenderingContext2D, shape: ShapeObject) {
   if(isSolid(shape)){drawSolid(ctx,shape);return;}
-  if(isEquipment(shape)){drawChemistryEquipment(ctx,shape);return;}
+
   ctx.save();
   const {x,y,w,h}=shape;ctx.translate(x+w/2,y+h/2);ctx.rotate(shape.rotation);if(shape.mirrorX||shape.mirrorY)ctx.scale(shape.mirrorX?-1:1,shape.mirrorY?-1:1);ctx.translate(-(x+w/2),-(y+h/2));
   ctx.globalAlpha=1;ctx.strokeStyle=shape.color;ctx.fillStyle=shape.fillColor??shape.color;ctx.lineWidth=shape.width;
@@ -233,6 +233,58 @@ export function drawObject(ctx: CanvasRenderingContext2D, obj: BoardObject) {
   }
 }
 
+// Cached procedural surface textures for tactile school environments
+let chalkboardPattern: CanvasPattern | null = null;
+let moleskinePattern: CanvasPattern | null = null;
+
+function getChalkboardPattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  if (chalkboardPattern) return chalkboardPattern;
+  if (typeof document === 'undefined') return null;
+  const tile = document.createElement('canvas');
+  tile.width = tile.height = 256;
+  const c = tile.getContext('2d');
+  if (!c) return null;
+  let seed = 42891;
+  const rand = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < 40; i++) {
+    const rx = rand() * 256, ry = rand() * 256, r = 15 + rand() * 45;
+    const g = c.createRadialGradient(rx, ry, 0, rx, ry, r);
+    g.addColorStop(0, 'rgba(235, 255, 240, 0.035)');
+    g.addColorStop(1, 'rgba(235, 255, 240, 0)');
+    c.fillStyle = g;
+    c.beginPath(); c.arc(rx, ry, r, 0, Math.PI * 2); c.fill();
+  }
+  for (let i = 0; i < 900; i++) {
+    const x = rand() * 256, y = rand() * 256, s = 0.5 + rand() * 1.5;
+    c.fillStyle = `rgba(245, 255, 245, ${0.03 + rand() * 0.08})`;
+    c.fillRect(x, y, s, s);
+  }
+  chalkboardPattern = ctx.createPattern(tile, 'repeat');
+  return chalkboardPattern;
+}
+
+function getMoleskinePattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  if (moleskinePattern) return moleskinePattern;
+  if (typeof document === 'undefined') return null;
+  const tile = document.createElement('canvas');
+  tile.width = tile.height = 256;
+  const c = tile.getContext('2d');
+  if (!c) return null;
+  let seed = 81395;
+  const rand = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < 800; i++) {
+    const x = rand() * 256, y = rand() * 256, len = 1 + rand() * 3, angle = rand() * Math.PI;
+    c.strokeStyle = `rgba(140, 110, 70, ${0.02 + rand() * 0.035})`;
+    c.lineWidth = 0.6;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len);
+    c.stroke();
+  }
+  moleskinePattern = ctx.createPattern(tile, 'repeat');
+  return moleskinePattern;
+}
+
 // Fixed-to-screen background fill + optional grid/dots/lines pattern.
 export function drawBackground(
   ctx: CanvasRenderingContext2D,
@@ -249,7 +301,85 @@ export function drawBackground(
   ctx.fillRect(0, 0, w, h);
   if(image)ctx.drawImage(image,0,0,w,h);
 
-  if (pattern && pattern !== "none") {
+  const hex = color.toLowerCase();
+  const isChalk = hex === '#163d30' || hex === '#1e4a3c' || (hex.startsWith('#16') && isColorDark(color));
+  const isBlueprint = hex === '#193e61' || hex === '#102e4c' || hex === '#1a4168';
+  const isMoleskine = ['#faf1da', '#fffdf5', '#fffaf0', '#f5f1e6', '#fdfaf2'].includes(hex);
+
+  // 1. Dark Green Chalkboard: subtle dusty chalkboard grain
+  if (isChalk && !image) {
+    const pat = getChalkboardPattern(ctx);
+    if (pat) {
+      ctx.fillStyle = pat;
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+
+  // 2. Warm Moleskine Paper: subtle warm ivory texture with faint dotted margins
+  if (isMoleskine && !image) {
+    const pat = getMoleskinePattern(ctx);
+    if (pat) {
+      ctx.fillStyle = pat;
+      ctx.fillRect(0, 0, w, h);
+    }
+    ctx.save();
+    ctx.strokeStyle = 'rgba(215, 75, 75, 0.28)';
+    ctx.setLineDash([3, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(64, 0);
+    ctx.lineTo(64, h);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(120, 100, 70, 0.18)';
+    ctx.setLineDash([2, 5]);
+    ctx.beginPath();
+    ctx.moveTo(0, 56);
+    ctx.lineTo(w, 56);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 3. Blueprint Mode: Cyan grid with coordinate hashes for engineering & physics
+  if (isBlueprint && (pattern === 'grid' || pattern === 'none' || !pattern)) {
+    ctx.save();
+    const step = 32;
+    const majorStep = 160;
+    ctx.strokeStyle = 'rgba(0, 212, 255, 0.18)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += step) {
+      ctx.moveTo(x, 0); ctx.lineTo(x, h);
+    }
+    for (let y = 0; y <= h; y += step) {
+      ctx.moveTo(0, y); ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(0, 212, 255, 0.42)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += majorStep) {
+      ctx.moveTo(x, 0); ctx.lineTo(x, h);
+    }
+    for (let y = 0; y <= h; y += majorStep) {
+      ctx.moveTo(0, y); ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(0, 235, 255, 0.75)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += majorStep) {
+      for (let y = 0; y <= h; y += majorStep) {
+        ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y);
+        ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (pattern && pattern !== "none" && !(isBlueprint && pattern === 'grid')) {
     const step = 32;
     const isDark = isColorDark(color);
     ctx.strokeStyle = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { compileTeachingExpression, formatMathNumber, type AngleMode } from '@/lib/teaching-math';
+import { formatTime12 } from '@/lib/format-time';
 import './TeachingMath.css';
 
 // ------------------------------- Calculator --------------------------------
@@ -242,7 +243,7 @@ export function AnalogClock() {
         <circle cx="100" cy="100" r="5" fill="#e11d48" />
       </svg>
       <div className="mt-1 text-lg font-semibold tabular-nums">
-        {pad(now.getHours())}:{pad(m)}
+        {formatTime12(now)}
       </div>
     </div>
   );
@@ -262,31 +263,64 @@ export function RotatableGuide({
   if (kind === "ruler") {
     const ticks = [];
     for (let i = 0; i <= 40; i++) {
-      const x = 20 + i * 12;
+      const x = 20 + i * 11.5;
       const major = i % 5 === 0;
+      const yTop = major ? 8 : 18;
       ticks.push(
-        <line
-          key={i}
-          x1={x}
-          y1={major ? 8 : 20}
-          x2={x}
-          y2={52}
-          stroke="#e5e7eb"
-          strokeWidth={major ? 1.4 : 0.8}
-        />,
+        <g key={i}>
+          {/* Dark high-contrast backing */}
+          <line
+            x1={x}
+            y1={yTop}
+            x2={x}
+            y2={54}
+            stroke="rgba(10, 15, 25, 0.95)"
+            strokeWidth={major ? 3.2 : 2.2}
+            strokeLinecap="round"
+          />
+          {/* Vibrant neon cyan graduation */}
+          <line
+            x1={x}
+            y1={yTop}
+            x2={x}
+            y2={54}
+            stroke="#00f0ff"
+            strokeWidth={major ? 1.6 : 1.0}
+            strokeLinecap="round"
+          />
+          {major && (
+            <text
+              x={x}
+              y={66}
+              fill="#00f0ff"
+              stroke="rgba(10, 15, 25, 0.95)"
+              strokeWidth="2.8px"
+              paintOrder="stroke fill"
+              fontSize="10"
+              fontWeight="700"
+              textAnchor="middle"
+            >
+              {i}
+            </text>
+          )}
+        </g>,
       );
-      if (major) {
-        ticks.push(
-          <text key={`t${i}`} x={x} y={70} fill="#e5e7eb" fontSize="9" textAnchor="middle">
-            {i}
-          </text>,
-        );
-      }
     }
     return (
       <div className="w-[520px]">
         <svg width="500" height="76" viewBox="0 0 500 76">
-          <rect x="6" y="6" width="488" height="56" rx="6" fill="rgba(30,41,59,0.55)" stroke="#94a3b8" strokeWidth="2" />
+          <defs>
+            <linearGradient id="tool-ruler-acrylic" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(255, 255, 255, 0.45)" />
+              <stop offset="14%" stopColor="rgba(215, 235, 255, 0.22)" />
+              <stop offset="85%" stopColor="rgba(190, 220, 255, 0.15)" />
+              <stop offset="100%" stopColor="rgba(255, 255, 255, 0.38)" />
+            </linearGradient>
+          </defs>
+          {/* Frosted translucent acrylic ruler body */}
+          <rect x="6" y="6" width="488" height="60" rx="8" fill="url(#tool-ruler-acrylic)" stroke="rgba(255, 255, 255, 0.55)" strokeWidth="1.5" />
+          <rect x="7" y="7" width="486" height="58" rx="7" fill="none" stroke="rgba(0, 0, 0, 0.22)" strokeWidth="0.8" />
+          <line x1="20" y1="36" x2="480" y2="36" stroke="rgba(255, 255, 255, 0.28)" strokeWidth="1" strokeDasharray="4 6" />
           {ticks}
         </svg>
         <RotationControls rotation={rotation} setRotation={setRotation} />
@@ -298,40 +332,71 @@ export function RotatableGuide({
     for (let deg = 0; deg <= 180; deg += 10) {
       const a = (deg * Math.PI) / 180;
       const major = deg % 30 === 0;
-      const r1 = 110;
+      const r1 = 114;
       const r2 = major ? 92 : 102;
+      const x1 = 130 + Math.cos(a) * r1;
+      const y1 = 130 - Math.sin(a) * r1;
+      const x2 = 130 + Math.cos(a) * r2;
+      const y2 = 130 - Math.sin(a) * r2;
       lines.push(
-        <line
-          key={deg}
-          x1={130 + Math.cos(a) * r1}
-          y1={130 - Math.sin(a) * r1}
-          x2={130 + Math.cos(a) * r2}
-          y2={130 - Math.sin(a) * r2}
-          stroke="#e5e7eb"
-          strokeWidth={major ? 1.4 : 0.8}
-        />,
+        <g key={deg}>
+          {/* Dark high-contrast backing */}
+          <line
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="rgba(10, 15, 25, 0.95)"
+            strokeWidth={major ? 3.4 : 2.2}
+            strokeLinecap="round"
+          />
+          {/* Vibrant neon cyan degree graduation */}
+          <line
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="#00f0ff"
+            strokeWidth={major ? 1.6 : 1.0}
+            strokeLinecap="round"
+          />
+          {major && (
+            <text
+              x={130 + Math.cos(a) * 78}
+              y={134 - Math.sin(a) * 78}
+              fill="#00f0ff"
+              stroke="rgba(10, 15, 25, 0.95)"
+              strokeWidth="2.8px"
+              paintOrder="stroke fill"
+              fontSize="11"
+              fontWeight="700"
+              textAnchor="middle"
+            >
+              {deg}°
+            </text>
+          )}
+        </g>,
       );
-      if (major) {
-        lines.push(
-          <text
-            key={`t${deg}`}
-            x={130 + Math.cos(a) * 78}
-            y={134 - Math.sin(a) * 78}
-            fill="#e5e7eb"
-            fontSize="11"
-            textAnchor="middle"
-          >
-            {deg}
-          </text>,
-        );
-      }
     }
     return (
       <div className="w-[300px]">
         <svg width="280" height="150" viewBox="0 0 260 150">
-          <path d="M10 130 A120 120 0 0 1 250 130 Z" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" strokeWidth="2" />
+          <defs>
+            <radialGradient id="tool-protractor-acrylic" cx="50%" cy="100%" r="90%">
+              <stop offset="0%" stopColor="rgba(190, 220, 255, 0.14)" />
+              <stop offset="70%" stopColor="rgba(215, 235, 255, 0.25)" />
+              <stop offset="100%" stopColor="rgba(255, 255, 255, 0.50)" />
+            </radialGradient>
+          </defs>
+          {/* Frosted translucent acrylic protractor body */}
+          <path d="M10 130 A120 120 0 0 1 250 130 Z" fill="url(#tool-protractor-acrylic)" stroke="rgba(255, 255, 255, 0.55)" strokeWidth="1.5" />
+          <path d="M11 130 A119 119 0 0 1 249 130 Z" fill="none" stroke="rgba(0, 0, 0, 0.22)" strokeWidth="0.8" />
+          {/* Frosted inner viewing window */}
+          <path d="M70 130 A60 60 0 0 1 190 130 Z" fill="rgba(18, 20, 26, 0.18)" stroke="rgba(255, 255, 255, 0.4)" strokeWidth="1.2" />
           {lines}
-          <line x1="10" y1="130" x2="250" y2="130" stroke="#94a3b8" strokeWidth="2" />
+          {/* High-contrast neon baseline */}
+          <line x1="10" y1="130" x2="250" y2="130" stroke="rgba(10, 15, 25, 0.95)" strokeWidth="3.6" />
+          <line x1="10" y1="130" x2="250" y2="130" stroke="#00f0ff" strokeWidth="2" />
         </svg>
         <RotationControls rotation={rotation} setRotation={setRotation} />
       </div>
@@ -482,9 +547,11 @@ export function useNow() {
   }, []);
   return useMemo(
     () => ({
-      time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      time: formatTime12(now),
       date: now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }),
     }),
     [now],
   );
 }
+
+export { formatTime12 };

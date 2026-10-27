@@ -6,7 +6,7 @@
 > - **Package Identifier:** `phoenix-smartboard` (`com.phoenix.smartboard`)
 > - **Native File Extension:** `.ps` (`application/vnd.phoenix-smartboard+json`)
 > - **Target Platforms:** **Web App (PWA)**, **Windows Desktop (Electron)**, **Android Smartboard (Capacitor)**
-> - **Curriculum Suite:** **Full K-12 STEM Suite** (Interactive Chemistry Lab, 118-Element Periodic Table, Physics Ray Optics & Circuits, Virtual Geometry Instruments, Scientific Calculator, Presentation Aids, Audio/Screen Recorder)
+> - **Curriculum Suite:** **Full K-12 STEM Suite** (Interactive Chemistry Lab, 118-Element Periodic Table, Physics Ray Optics & Circuits, Virtual Geometry Instruments, Scientific Calculator, Presentation Aids)
 > - **Branding Philosophy:** 100% clean, independent codebase with zero legacy vendor leftovers.
 
 ---
@@ -43,7 +43,7 @@ graph TD
         Periodic["118-Element Offline Periodic Table Reference & Flashcards"]
         PhysicsSim["Physics Workbench (Ray Optics, DC Circuits, Buoyancy)"]
         PresentationTools["Screen Curtain, Spotlight, Magnifier, Slide-to-Erase"]
-        MediaRecorderEngine["WebRTC Audio & Screen Recorder"]
+
     end
 
     subgraph Storage_IO ["Offline Persistence & File System"]
@@ -153,7 +153,7 @@ The canvas operates in a continuous, double-precision Cartesian coordinate space
 3. **Screen Magnifier:** High-detail 2x/4x magnification loupe.
 4. **Slide to Erase:** Full board clear with accidental-press protection slider.
 5. **Classroom Timers:** Big-digit countdown timer with alert sound, precision stopwatch, and analog clock.
-6. **Class Recorder:** Direct WebRTC `MediaRecorder` capturing board canvas frames alongside teacher microphone audio, exporting directly to `.webm`.
+
 
 ---
 
@@ -253,7 +253,7 @@ timeline
     Phase 4 : Persistence & .ps Format : IndexedDB Migration : .ps File Specification : Auto-Recovery
     Phase 5 : K-12 STEM Suite : Geometry Instruments : Chemistry Lab : Physics Optics
     Phase 6 : Multi-Page & Media : PDF.js Annotations : Word & Excel Imports : Multi-Page PDF Export
-    Phase 7 : Modernized UI Shell : 4-Way Docking Toolbar : Classroom Timers : Class Recorder
+    Phase 7 : Modernized UI Shell : 4-Way Docking Toolbar : Classroom Timers
     Phase 8 : Triple-Platform Packaging : Web PWA : Windows Electron Installer : Android Smartboard APK
 ```
 
@@ -301,7 +301,7 @@ timeline
 - [ ] 4-way dockable toolbar (Top, Bottom, Left, Right).
 - [ ] Classroom presentation overlays: Screen Curtain, Spotlight, Magnifier, Slide-to-Erase.
 - [ ] Classroom Countdown Timer, Stopwatch, and Analog Clock.
-- [ ] WebRTC Screen and Audio Class Recorder.
+
 
 #### Phase 8: Triple-Platform Builds & Verification
 - [ ] **Web:** PWA configuration, offline Service Worker, Lighthouse performance audits.

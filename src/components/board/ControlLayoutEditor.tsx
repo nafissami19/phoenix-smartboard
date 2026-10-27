@@ -9,7 +9,7 @@ type Control={id:string;label:string;element:HTMLElement;rect:{x:number;y:number
 const idFor=(label:string)=>label.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80);
 const groups:[string,string,string][]=[
   ['drawing-toolbar','Drawing toolbar','.board-toolbar'],['menu-dock','Menu dock','.menu-dock'],
-  ['page-toolbar','Page controls','.page-toolbar'],['teaching-controls','Teaching controls','.teaching-controls'],
+  ['page-toolbar','Page controls','.page-toolbar'],
   ['fullscreen','Fullscreen controls','.kn-fullscreen-controls'],['lesson-details','Lesson details','.board-meta'],
   ['slides-panel','Slide panel','.kn-slides-panel'],['tools-panel','Tool library','.treasure-panel'],
   ['pen-options','Pen / eraser settings','.kn-tool-options'],['shape-options','Shape settings','.kn-shape-palette'],

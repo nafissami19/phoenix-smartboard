@@ -206,7 +206,7 @@ export function Toolbar({
         </div></ToolPopover>
       )}
 
-      <div data-toolbar-surface className="kn-main-tools pointer-events-auto flex max-w-[calc(100vw-24px)] flex-wrap items-center justify-center gap-1 rounded-2xl border border-line bg-panel/95 p-1.5 shadow-2xl backdrop-blur">
+      <div data-toolbar-surface style={{ '--active-ink': pen.color } as React.CSSProperties} className="kn-main-tools pointer-events-auto flex max-w-[calc(100vw-24px)] flex-wrap items-center justify-center gap-1 rounded-2xl border border-line bg-panel/95 p-1.5 shadow-2xl backdrop-blur">
         {MAIN_TOOLS.filter(t=>t.id!=="pan"&&t.id!=="text").map((t) => (
           <ToolButton
             key={t.id}
@@ -278,7 +278,7 @@ function ToolButton({
   return (
     <button
       type="button"
-      style={{minWidth:44,minHeight:44}}
+      style={{minWidth:44,minHeight:44,...(active&&color?{'--active-ink':color}:{})} as React.CSSProperties}
       onClick={onClick}
       disabled={disabled}
       aria-pressed={active}

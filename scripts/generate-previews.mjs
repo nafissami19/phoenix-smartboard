@@ -28,10 +28,10 @@ try{
  const dialog=page.getByRole('dialog');await dialog.getByLabel('Import right margin').fill('20');
  await dialog.screenshot({path:'docs/screenshots/import-panel.png'});
  await dialog.getByRole('button',{name:'Close',exact:true}).click();
- await page.getByRole('button',{name:'Tools',exact:true}).click();await page.getByRole('button',{name:'Periodic table',exact:true}).click();
- await page.getByRole('region',{name:'Interactive periodic table'}).waitFor();
- await page.getByRole('button',{name:'8 Oxygen O',exact:true}).click();
- await page.screenshot({path:'docs/screenshots/periodic-table.png'});
+
+
+
+
  await page.goto(base+'/#/onboarding');await page.getByLabel('Board preset name').waitFor();
  await page.getByRole('button',{name:'Apply preset Mathematics grid',exact:true}).click();
  await page.getByLabel('Board preset name').fill('My physics board');await page.getByRole('button',{name:'Save preset',exact:true}).click();

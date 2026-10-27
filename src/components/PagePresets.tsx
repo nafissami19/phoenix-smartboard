@@ -10,9 +10,55 @@ import {loadBackgroundImage} from '@/lib/background-image';
 import {themeImage} from '@/lib/theme-pack';
 const textures=new Map<string,string>();
 export function presetTexture(id:string){
-  if(id!=='chalk'&&id!=='paper')return undefined;let source=textures.get(id);if(source)return source;
-  const canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;const ctx=canvas.getContext('2d')!;ctx.fillStyle=id==='chalk'?'#163d30':'#fffdf5';ctx.fillRect(0,0,1280,720);
-  let seed=1729;for(let i=0;i<4500;i++){seed=(seed*1664525+1013904223)>>>0;const x=seed%1280;seed=(seed*1664525+1013904223)>>>0;ctx.fillStyle=id==='chalk'?'rgba(245,255,244,.035)':'rgba(124,94,43,.035)';ctx.fillRect(x,seed%720,i%3+1,1);}
+  if(id!=='chalk'&&id!=='paper'&&id!=='blueprint'&&id!=='cream'&&id!=='math')return undefined;
+  let source=textures.get(id);if(source)return source;
+  const canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;const ctx=canvas.getContext('2d')!;
+  let seed=1729;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+
+  if(id==='chalk'){
+    ctx.fillStyle='#163d30';ctx.fillRect(0,0,1280,720);
+    for(let i=0;i<50;i++){
+      const cx=rand()*1280,cy=rand()*720,r=25+rand()*70;
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+      g.addColorStop(0,'rgba(235,255,240,0.035)');g.addColorStop(1,'rgba(235,255,240,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+    }
+    for(let i=0;i<4500;i++){
+      const x=rand()*1280,y=rand()*720,s=0.5+rand()*1.5;
+      ctx.fillStyle=`rgba(245,255,244,${0.02+rand()*0.06})`;ctx.fillRect(x,y,s,s);
+    }
+  }else if(id==='blueprint'){
+    ctx.fillStyle='#193e61';ctx.fillRect(0,0,1280,720);
+    ctx.strokeStyle='rgba(0,212,255,0.18)';ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let x=0;x<=1280;x+=32){ctx.moveTo(x,0);ctx.lineTo(x,720);}
+    for(let y=0;y<=720;y+=32){ctx.moveTo(0,y);ctx.lineTo(1280,y);}
+    ctx.stroke();
+    ctx.strokeStyle='rgba(0,212,255,0.42)';ctx.lineWidth=1.4;
+    ctx.beginPath();
+    for(let x=0;x<=1280;x+=160){ctx.moveTo(x,0);ctx.lineTo(x,720);}
+    for(let y=0;y<=720;y+=160){ctx.moveTo(0,y);ctx.lineTo(1280,y);}
+    ctx.stroke();
+    ctx.strokeStyle='rgba(0,235,255,0.75)';ctx.lineWidth=1.5;
+    ctx.beginPath();
+    for(let x=0;x<=1280;x+=160){
+      for(let y=0;y<=720;y+=160){
+        ctx.moveTo(x-6,y);ctx.lineTo(x+6,y);ctx.moveTo(x,y-6);ctx.lineTo(x,y+6);
+      }
+    }
+    ctx.stroke();
+  }else{
+    ctx.fillStyle=id==='cream'?'#faf1da':id==='math'?'#e9f1f7':'#fffdf5';
+    ctx.fillRect(0,0,1280,720);
+    for(let i=0;i<3500;i++){
+      const x=rand()*1280,y=rand()*720;
+      ctx.fillStyle='rgba(130,95,45,0.025)';ctx.fillRect(x,y,rand()*2+1,1);
+    }
+    ctx.strokeStyle='rgba(215,75,75,0.3)';ctx.setLineDash([4,4]);ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(72,0);ctx.lineTo(72,720);ctx.stroke();
+    ctx.strokeStyle='rgba(120,100,70,0.18)';ctx.beginPath();ctx.moveTo(0,64);ctx.lineTo(1280,64);ctx.stroke();
+    ctx.setLineDash([]);
+  }
   source=canvas.toDataURL('image/png');textures.set(id,source);return source;
 }
 function PresetPreview({preset}:{preset:BoardPreset}){

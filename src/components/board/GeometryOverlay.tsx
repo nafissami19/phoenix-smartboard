@@ -4,6 +4,7 @@ import {arcEdges, angleDelta, type GuideEdge} from '@/lib/guide-geometry';
 import type {Point} from '@/db/schema';
 import './geometry.css';
 import {fitInstrument} from '@/lib/instrument-bounds';
+
 type Kind='ruler'|'protractor'|'setsquare'|'compass';
 type Action='move'|'rotate'|'resize'|'ray'|'sweep';
 type Drag={action:Action;pointer:number;start:Point;origin:Point;angle:number;size:number;last:number;sweep:number};
@@ -42,14 +43,131 @@ export function GeometryOverlay({kind,onClose,onEdges,onDraw,pxPerMm}:{pxPerMm?:
  </g>;}
  const closeAt=kind==='protractor'?{x:35,y:32}:kind==='setsquare'?{x:28,y:-height+24}:kind==='compass'?{x:-30,y:32}:{x:27,y:24};
  const arc=sweep?arcEdges(pos,radius,sweep.start,sweep.amount):[];
- return <div className="geometry-overlay direct-instrument" aria-label={`${label} on board`}><svg className="geometry-surface" width="100%" height="100%">
-  {arc.length>0&&<path className="instrument-arc-preview" d={`M${arc[0].a.x} ${arc[0].a.y} ${arc.map(e=>`L${e.b.x} ${e.b.y}`).join(' ')}`}/>}
-  <g transform={`translate(${pos.x} ${pos.y}) rotate(${angle})`} fill="none" stroke={INK} strokeWidth="1.5">
-  {kind==='ruler'&&<><rect width={size} height="48" rx="4" fill="#79bed918"/>{Array.from({length:Math.floor(size/(pxPerMm?pxPerMm*2:10))+1},(_,i)=><g key={i}><path d={`M${i*(pxPerMm?pxPerMm*2:10)} 0v${i%5===0?17:9}M${i*(pxPerMm?pxPerMm*2:10)} 48v${i%5===0?-10:-6}`}/>{i%5===0&&<text x={i*(pxPerMm?pxPerMm*2:10)+3} y="29" fontSize="10" stroke="none" fill={INK}>{i*(pxPerMm?2:10)}{pxPerMm?'mm':''}</text>}</g>)}{grip('move',size/2,24,'Move ruler')}{grip('resize',size,24,'Resize ruler')}{grip('rotate',size-55,24,'Rotate ruler')}</>}
-  {kind==='setsquare'&&<><path d={`M0 0H${size}L0 ${-height}Z M28 -28H${Math.max(32,size-100)}L28 ${Math.min(-32,-height+65)}Z`} fill="#79bed918" fillRule="evenodd"/><path d="M0 -24h24v24"/>{Array.from({length:Math.floor(size/20)},(_,i)=><path key={i} d={`M${i*20} 0v-9`}/>)}{grip('move',30,-35,'Move set square')}{grip('resize',size-22,-10,'Resize set square')}{grip('rotate',20,-height+65,'Rotate set square')}</>}
-  {kind==='protractor'&&<><path d={`M${-size} 0A${size} ${size} 0 0 1 ${size} 0Z`} fill="#79bed90c"/><path d={`M${-size*.55} 0A${size*.55} ${size*.55} 0 0 1 ${size*.55} 0`} strokeOpacity=".35"/>{Array.from({length:37},(_,i)=>{const a=i*5*RAD,r=size-(i%2===0?18:9);return <g key={i}><path d={`M${size*Math.cos(a)} ${-size*Math.sin(a)}L${r*Math.cos(a)} ${-r*Math.sin(a)}`}/>{i%6===0&&<text x={(size-33)*Math.cos(a)} y={-(size-33)*Math.sin(a)+4} fontSize="12" textAnchor="middle" stroke="none" fill={INK}>{i*5}°</text>}</g>;})}<path d={`M0 0H${size}M0 0L${size*Math.cos(-included*RAD)} ${size*Math.sin(-included*RAD)}`} strokeWidth="2"/><text x="0" y="-18" stroke="none" fill={INK} fontSize="15" textAnchor="middle">{included}°</text>{grip('move',0,32,'Move protractor')}{grip('rotate',size,0,'Rotate protractor')}{grip('resize',-size,0,'Resize protractor')}{grip('ray',(size-18)*Math.cos(-included*RAD),(size-18)*Math.sin(-included*RAD),'Adjust protractor angle')}</>}
-  {kind==='compass'&&<><circle r={radius} strokeDasharray="4 7" strokeOpacity=".35"/><path d={`M0 0L${radius*.5} -${Math.min(85,radius*.5)}L${radius} 0`} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" stroke="#667582"/><path d={`M0 0L${radius*.5} -${Math.min(85,radius*.5)}L${radius} 0`} strokeWidth="2" stroke="#cdd7df"/><path d={`M0 0H${radius}`} strokeDasharray="3 4"/><text x={radius/2} y="22" textAnchor="middle" fill={INK} stroke="none" fontSize="12">r {Math.round(radius)} px</text>{grip('move',0,0,'Move compass')}{grip('resize',radius/2,-Math.min(85,radius*.5),'Resize compass radius')}{grip('sweep',radius,0,'Draw compass arc')}</>}
-  <g className="instrument-grip instrument-close" transform={`translate(${closeAt.x} ${closeAt.y})`} role="button" tabIndex={0} aria-label={`Close ${label.toLowerCase()}`} onClick={onClose} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onClose();}}}><title>Close {label.toLowerCase()}</title><circle className="instrument-hit" r="18"/><circle className="instrument-grip-disc" r="11"/><path d="M-4-4L4 4M-4 4L4-4"/></g>
-  <text className="instrument-measure" x={kind==='protractor'?0:kind==='compass'?size/4:size/2} y={kind==='protractor'?64:kind==='setsquare'?24:kind==='compass'?44:70} stroke="none" fill={INK} fontSize="11" textAnchor="middle">{label} · {Math.round(angle)}°</text>
-  </g></svg></div>;
+
+ return <div className="geometry-overlay direct-instrument" aria-label={`${label} on board`}>
+  <svg className="geometry-surface" width="100%" height="100%">
+   <defs>
+    {/* Frosted Translucent Acrylic Gradients */}
+    <linearGradient id="kn-overlay-ruler-acrylic" x1="0" y1="0" x2="0" y2="1">
+     <stop offset="0%" stopColor="#ffffff" stopOpacity="0.48"/>
+     <stop offset="12%" stopColor="#c5e4f3" stopOpacity="0.26"/>
+     <stop offset="85%" stopColor="#9fcde5" stopOpacity="0.18"/>
+     <stop offset="100%" stopColor="#ffffff" stopOpacity="0.4"/>
+    </linearGradient>
+
+    <radialGradient id="kn-overlay-protractor-acrylic" cx="50%" cy="100%" r="100%">
+     <stop offset="0%" stopColor="#9fcde5" stopOpacity="0.16"/>
+     <stop offset="55%" stopColor="#c5e4f3" stopOpacity="0.25"/>
+     <stop offset="90%" stopColor="#e0f2fe" stopOpacity="0.34"/>
+     <stop offset="100%" stopColor="#ffffff" stopOpacity="0.52"/>
+    </radialGradient>
+
+    <linearGradient id="kn-overlay-setsquare-acrylic" x1="0" y1="0" x2="1" y2="1">
+     <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45"/>
+     <stop offset="45%" stopColor="#c5e4f3" stopOpacity="0.22"/>
+     <stop offset="100%" stopColor="#9fcde5" stopOpacity="0.16"/>
+    </linearGradient>
+   </defs>
+
+   {arc.length>0&&<path className="instrument-arc-preview" d={`M${arc[0].a.x} ${arc[0].a.y} ${arc.map(e=>`L${e.b.x} ${e.b.y}`).join(' ')}`}/>}
+   
+   <g transform={`translate(${pos.x} ${pos.y}) rotate(${angle})`} fill="none" stroke={INK} strokeWidth="1.5">
+   
+   {/* Virtual Ruler with frosted translucent acrylic effect and dual-stroke neon millimeter graduations */}
+   {kind==='ruler'&&<>
+    <rect width={size} height="48" rx="4" fill="url(#kn-overlay-ruler-acrylic)" stroke="rgba(255, 255, 255, 0.65)" strokeWidth="1.2"/>
+    <line x1="2" y1="1" x2={size-2} y2="1" stroke="rgba(255, 255, 255, 0.85)" strokeWidth="1" strokeLinecap="round"/>
+    {Array.from({length:Math.floor(size/(pxPerMm?pxPerMm*2:10))+1},(_,i)=>{
+     const x=i*(pxPerMm?pxPerMm*2:10);
+     const isMajor=i%5===0;
+     const tickH=isMajor?18:10;
+     return (
+      <g key={i}>
+       {/* Dark backing line for high contrast against light/whiteboard backgrounds */}
+       <line x1={x} y1="0" x2={x} y2={tickH} stroke="rgba(15, 23, 42, 0.92)" strokeWidth="2.5" strokeLinecap="round"/>
+       <line x1={x} y1="48" x2={x} y2={48-(isMajor?11:7)} stroke="rgba(15, 23, 42, 0.92)" strokeWidth="2.5" strokeLinecap="round"/>
+       {/* Neon cyan center line for high contrast and vibrant glow against dark boards */}
+       <line x1={x} y1="0" x2={x} y2={tickH} stroke="#00f0ff" strokeWidth="1.2" strokeLinecap="round"/>
+       <line x1={x} y1="48" x2={x} y2={48-(isMajor?11:7)} stroke="#00f0ff" strokeWidth="1.2" strokeLinecap="round"/>
+       {isMajor&&<text x={x+3} y="29" fontSize="10" fontWeight="bold" paintOrder="stroke fill" stroke="rgba(15, 23, 42, 0.95)" strokeWidth="2.5px" fill="#00f0ff">{i*(pxPerMm?2:10)}{pxPerMm?'mm':''}</text>}
+      </g>
+     );
+    })}
+    {grip('move',size/2,24,'Move ruler')}
+    {grip('resize',size,24,'Resize ruler')}
+    {grip('rotate',size-55,24,'Rotate ruler')}
+   </>}
+
+   {/* Set square with frosted translucent acrylic effect and high-contrast markings */}
+   {kind==='setsquare'&&<>
+    <path d={`M0 0H${size}L0 ${-height}Z M28 -28H${Math.max(32,size-100)}L28 ${Math.min(-32,-height+65)}Z`} fill="url(#kn-overlay-setsquare-acrylic)" fillRule="evenodd" stroke="rgba(255, 255, 255, 0.6)" strokeWidth="1.2"/>
+    <path d="M0 -24h24v24" stroke="rgba(255, 255, 255, 0.75)" strokeWidth="1"/>
+    {Array.from({length:Math.floor(size/20)},(_,i)=>{
+     const x=i*20;
+     return (
+      <g key={i}>
+       <line x1={x} y1="0" x2={x} y2="-10" stroke="rgba(15, 23, 42, 0.92)" strokeWidth="2.5" strokeLinecap="round"/>
+       <line x1={x} y1="0" x2={x} y2="-10" stroke="#00f0ff" strokeWidth="1.2" strokeLinecap="round"/>
+      </g>
+     );
+    })}
+    {grip('move',30,-35,'Move set square')}
+    {grip('resize',size-22,-10,'Resize set square')}
+    {grip('rotate',20,-height+65,'Rotate set square')}
+   </>}
+
+   {/* Virtual Protractor with frosted translucent acrylic effect and neon degree graduations */}
+   {kind==='protractor'&&<>
+    <path d={`M${-size} 0A${size} ${size} 0 0 1 ${size} 0Z`} fill="url(#kn-overlay-protractor-acrylic)" stroke="rgba(255, 255, 255, 0.65)" strokeWidth="1.2"/>
+    <path d={`M${-size*.5} 0A${size*.5} ${size*.5} 0 0 1 ${size*.5} 0Z`} fill="rgba(255, 255, 255, 0.08)" stroke="rgba(255, 255, 255, 0.45)" strokeWidth="1"/>
+    {Array.from({length:37},(_,i)=>{
+     const a=i*5*RAD;
+     const isMajor=i%2===0;
+     const r=size-(isMajor?19:10);
+     const cos=Math.cos(a), sin=-Math.sin(a);
+     return (
+      <g key={i}>
+       <line x1={size*cos} y1={size*sin} x2={r*cos} y2={r*sin} stroke="rgba(15, 23, 42, 0.92)" strokeWidth="2.5" strokeLinecap="round"/>
+       <line x1={size*cos} y1={size*sin} x2={r*cos} y2={r*sin} stroke="#00f0ff" strokeWidth="1.2" strokeLinecap="round"/>
+       {i%6===0&&<text x={(size-32)*cos} y={(size-32)*sin+4} fontSize="11" fontWeight="bold" textAnchor="middle" paintOrder="stroke fill" stroke="rgba(15, 23, 42, 0.95)" strokeWidth="2.5px" fill="#00f0ff">{i*5}°</text>}
+      </g>
+     );
+    })}
+    {/* Angle baseline and ray line */}
+    <path d={`M0 0H${size}`} stroke="rgba(15, 23, 42, 0.85)" strokeWidth="3"/>
+    <path d={`M0 0H${size}`} stroke="#00f0ff" strokeWidth="1.6"/>
+    <path d={`M0 0L${size*Math.cos(-included*RAD)} ${size*Math.sin(-included*RAD)}`} stroke="rgba(15, 23, 42, 0.9)" strokeWidth="3.6"/>
+    <path d={`M0 0L${size*Math.cos(-included*RAD)} ${size*Math.sin(-included*RAD)}`} stroke="#ffaa00" strokeWidth="2"/>
+    {/* Angle badge */}
+    <rect x="-24" y="-30" width="48" height="20" rx="10" fill="rgba(15, 23, 42, 0.85)" stroke="rgba(0, 240, 255, 0.6)" strokeWidth="1.2"/>
+    <text x="0" y="-16" stroke="none" fill="#00f0ff" fontSize="13" fontWeight="bold" textAnchor="middle">{included}°</text>
+    {grip('move',0,32,'Move protractor')}
+    {grip('rotate',size,0,'Rotate protractor')}
+    {grip('resize',-size,0,'Resize protractor')}
+    {grip('ray',(size-18)*Math.cos(-included*RAD),(size-18)*Math.sin(-included*RAD),'Adjust protractor angle')}
+   </>}
+
+   {/* Virtual Compass */}
+   {kind==='compass'&&<>
+    <circle r={radius} stroke="#00f0ff" strokeDasharray="4 7" strokeOpacity=".5" strokeWidth="1.5"/>
+    <path d={`M0 0L${radius*.5} -${Math.min(85,radius*.5)}L${radius} 0`} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" stroke="#1e293b"/>
+    <path d={`M0 0L${radius*.5} -${Math.min(85,radius*.5)}L${radius} 0`} strokeWidth="3" stroke="#00f0ff"/>
+    <path d={`M0 0H${radius}`} stroke="#00f0ff" strokeDasharray="3 4" strokeWidth="1.2"/>
+    <text x={radius/2} y="22" textAnchor="middle" fill="#00f0ff" paintOrder="stroke fill" stroke="rgba(15, 23, 42, 0.95)" strokeWidth="2.5px" fontWeight="bold" fontSize="12">r {Math.round(radius)} px</text>
+    {grip('move',0,0,'Move compass')}
+    {grip('resize',radius/2,-Math.min(85,radius*.5),'Resize compass radius')}
+    {grip('sweep',radius,0,'Draw compass arc')}
+   </>}
+
+   <g className="instrument-grip instrument-close" transform={`translate(${closeAt.x} ${closeAt.y})`} role="button" tabIndex={0} aria-label={`Close ${label.toLowerCase()}`} onClick={onClose} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onClose();}}}>
+    <title>Close {label.toLowerCase()}</title>
+    <circle className="instrument-hit" r="18"/>
+    <circle className="instrument-grip-disc" r="11"/>
+    <path d="M-4-4L4 4M-4 4L4-4"/>
+   </g>
+   
+   <text className="instrument-measure" x={kind==='protractor'?0:kind==='compass'?size/4:size/2} y={kind==='protractor'?64:kind==='setsquare'?24:kind==='compass'?44:70} textAnchor="middle">{label} · {Math.round(angle)}°</text>
+   </g>
+  </svg>
+ </div>;
 }
