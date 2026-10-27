@@ -175,29 +175,54 @@ function LibraryInner() {
         {interrupted.length > 0 && (
           <section className="mb-5 rounded-xl border border-line bg-panel p-4" aria-label="Interrupted lessons">
             <strong>Continue interrupted work</strong>
-            <p className="mb-3 text-sm text-muted">Your last lesson and any unfinished drawing are available to review.</p>
-            {interrupted.slice(0, 3).map(session => (
-              <div key={session.lessonId} className="flex items-center justify-between gap-3">
-                <span>
-                  {notebooks.find(n => n.id === session.lessonId)?.title ?? session.title}
-                  {session.activity && <small className="ml-3 text-muted">{session.activity}</small>}
-                </span>
-                <div className="flex gap-2">
-                  <button className="kn-focus rounded-lg bg-brand p-3 text-white" onClick={() => router.push(`/board/${session.lessonId}`)}>
-                    Open last lesson
-                  </button>
-                  <button
-                    aria-label="Dismiss interrupted lesson"
-                    className="kn-focus p-3"
-                    onClick={() => {
-                      void finishSession(session.lessonId).then(() => setInterrupted(list => list.filter(s => s.lessonId !== session.lessonId)));
-                    }}
-                  >
-                    <Icon name="close" className="h-4 w-4" />
-                  </button>
+            <p className="mb-3 text-sm text-muted">
+              {interrupted.length > 1
+                ? 'Your recent lessons and unfinished drawings are available to review.'
+                : 'Your last lesson and any unfinished drawing are available to review.'}
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {interrupted.slice(0, 3).map((session, index) => (
+                <div
+                  key={session.lessonId}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-line/60 bg-panel-2/70 px-3.5 py-2.5 transition-colors hover:border-line"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-ink truncate">
+                        {notebooks.find(n => n.id === session.lessonId)?.title ?? session.title}
+                      </span>
+                      {index === 0 && interrupted.length > 1 && (
+                        <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-semibold text-brand">
+                          Latest
+                        </span>
+                      )}
+                    </div>
+                    {session.activity && (
+                      <small className="block text-xs text-muted truncate mt-0.5">{session.activity}</small>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      className="kn-focus rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-dark transition-colors"
+                      onClick={() => router.push(`/board/${session.lessonId}`)}
+                    >
+                      {index === 0 ? 'Open last lesson' : 'Open lesson'}
+                    </button>
+                    <button
+                      aria-label="Dismiss interrupted lesson"
+                      className="kn-focus grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink transition-colors"
+                      onClick={() => {
+                        void finishSession(session.lessonId).then(() =>
+                          setInterrupted(list => list.filter(s => s.lessonId !== session.lessonId))
+                        );
+                      }}
+                    >
+                      <Icon name="close" className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </section>
         )}
 

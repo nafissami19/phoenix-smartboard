@@ -82,33 +82,47 @@ body {
   scrollbar-width: none;
 }
 
-/* Range slider (pen thickness etc.) */
+/* Range slider (pen thickness etc.) with tactile knurled thumb & track */
 .kn-range {
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
+  height: 8px;
   border-radius: 999px;
-  background: var(--color-line-2);
+  background: linear-gradient(90deg, var(--color-base-2) 0%, var(--color-line-2) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
   outline: none;
+  transition: all 0.15s ease;
 }
 .kn-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
-  background: var(--color-brand);
-  border: 2px solid #fff2;
-  cursor: pointer;
-  box-shadow: 0 0 0 3px #0062ff33;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #d4d4d8 55%, #71717a 100%);
+  border: 2px solid #ffffff;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(0, 98, 255, 0.3);
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease;
+}
+.kn-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(0, 98, 255, 0.45);
+}
+.kn-range::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.22);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 0 5px rgba(0, 98, 255, 0.55);
 }
 .kn-range::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
-  background: var(--color-brand);
-  border: 2px solid #fff2;
-  cursor: pointer;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #d4d4d8 55%, #71717a 100%);
+  border: 2px solid #ffffff;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(0, 98, 255, 0.3);
 }
 
 /* The whiteboard surface: never show a text caret / selection while drawing */
@@ -194,61 +208,102 @@ summary::-webkit-details-marker{display:none;}
    Modern Glassmorphism & Depth Hierarchy (Luminous Frosted HUD Surfaces)
    --------------------------------------------------------------------------- */
 .kn-main-tools, .kn-dock, .treasure-panel {
-  background: rgba(18, 20, 26, 0.82) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(18, 20, 28, 0.76) !important;
+  backdrop-filter: blur(28px) saturate(210%) brightness(1.05) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 20px !important;
   box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.12),
-    0 12px 32px -4px rgba(0, 0, 0, 0.65),
-    0 4px 12px 0 rgba(0, 0, 0, 0.4) !important;
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.35),
+    0 16px 40px -8px rgba(0, 0, 0, 0.7),
+    0 4px 16px 0 rgba(0, 0, 0, 0.45) !important;
 }
 
-.kn-tool-options, .kn-shape-palette, .kn-file-menu, .kn-slides-panel, .page-toolbar > nav {
-  background: rgba(18, 20, 26, 0.85) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+.kn-tool-options, .kn-shape-palette, .kn-file-menu, .kn-slides-panel {
+  background: rgba(18, 20, 28, 0.82) !important;
+  backdrop-filter: blur(28px) saturate(210%) brightness(1.05) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 20px !important;
   box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.12),
-    0 12px 32px -4px rgba(0, 0, 0, 0.65),
-    0 4px 12px 0 rgba(0, 0, 0, 0.4) !important;
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
+    0 24px 54px -10px rgba(0, 0, 0, 0.8),
+    0 8px 20px 0 rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Modal Scrim and Floating Windows */
+.kn-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: blur(10px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(160%) !important;
+}
+
+.kn-modal-card {
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    0 32px 72px -12px rgba(0, 0, 0, 0.85) !important;
+}
+
+/* Ensure page navigation ancestor NEVER creates a containing block for fixed side paddles */
+.page-toolbar, .page-toolbar > nav, .kn-page-navigation {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* ---------------------------------------------------------------------------
    Sleek Active Tool Indicators & Micro-Interactions (Spring-Physics)
    --------------------------------------------------------------------------- */
 .kn-main-tools button {
+  position: relative;
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease, box-shadow 0.15s ease;
 }
 .kn-main-tools button:hover:not(:disabled) {
-  transform: translateY(-2px) scale(1.05);
+  transform: translateY(-3px) scale(1.06);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 14px -2px rgba(0, 0, 0, 0.4);
 }
 .kn-main-tools button:active:not(:disabled) {
-  transform: translateY(0) scale(0.95);
+  transform: translateY(1px) scale(0.95);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-.kn-dock button, .page-toolbar button {
+.kn-dock button, .page-toolbar button:not(.kn-page-side) {
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease, box-shadow 0.15s ease;
 }
-.kn-dock button:hover:not(:disabled), .page-toolbar button:hover:not(:disabled) {
+.kn-dock button:hover:not(:disabled), .page-toolbar button:not(.kn-page-side):hover:not(:disabled) {
   transform: translateY(-2px) scale(1.05);
 }
-.kn-dock button:active:not(:disabled), .page-toolbar button:active:not(:disabled) {
+.kn-dock button:active:not(:disabled), .page-toolbar button:not(.kn-page-side):active:not(:disabled) {
   transform: translateY(0) scale(0.95);
 }
 
-/* Laser & Active Tool Neon Aura */
+/* Laser & Active Tool Neon Aura with Glowing LED Dot */
 button[aria-pressed="true"] {
-  box-shadow: 0 0 16px -2px var(--active-ink, var(--color-brand, #0062ff)), 0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+  box-shadow: 0 0 18px -2px var(--active-ink, var(--color-brand, #0062ff)), 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+}
+
+.kn-main-tools button[aria-pressed="true"]::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background-color: var(--active-ink, #ffffff);
+  box-shadow: 0 0 8px var(--active-ink, #0062ff);
+  pointer-events: none;
 }
 
 @keyframes kn-neon-glow-ring {
   0%, 100% {
-    box-shadow: 0 0 14px -2px var(--active-ink, var(--color-brand, #0062ff)), 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+    box-shadow: 0 0 16px -2px var(--active-ink, var(--color-brand, #0062ff)), 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
   }
   50% {
-    box-shadow: 0 0 24px 2px var(--active-ink, var(--color-brand, #0062ff)), 0 0 0 1.5px rgba(255, 255, 255, 0.6) inset;
+    box-shadow: 0 0 26px 2px var(--active-ink, var(--color-brand, #0062ff)), 0 0 0 1.5px rgba(255, 255, 255, 0.6) inset;
   }
 }
 
@@ -257,8 +312,146 @@ button[aria-pressed="true"] {
   animation: kn-neon-glow-ring 2.4s ease-in-out infinite;
 }
 
+/* ---------------------------------------------------------------------------
+   Tactile Ceramic Ink Swatches
+   --------------------------------------------------------------------------- */
+.kn-ink-swatch {
+  border-radius: 999px !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.38),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.35) !important;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease !important;
+}
+
+.kn-ink-swatch:hover {
+  transform: scale(1.15) translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5) !important;
+}
+
+.kn-ink-swatch.border-white {
+  transform: scale(1.18) !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 
+    0 0 0 3px rgba(255, 255, 255, 0.35),
+    0 4px 16px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Cockpit Slide-to-Erase Bar
+   --------------------------------------------------------------------------- */
+.kn-slide-erase {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  margin: 12px 0;
+  border-radius: 999px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(225, 29, 72, 0.12),
+    rgba(225, 29, 72, 0.12) 10px,
+    rgba(225, 29, 72, 0.24) 10px,
+    rgba(225, 29, 72, 0.24) 20px
+  ) !important;
+  border: 1px solid rgba(244, 63, 94, 0.38) !important;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45);
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.kn-slide-erase-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+
+.kn-slide-erase-thumb {
+  position: absolute;
+  top: 4px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f43f5e, #be123c) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.75), 0 2px 6px rgba(0, 0, 0, 0.45) !important;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  transform: translateX(-50%);
+  transition: transform 0.08s ease;
+}
+
+/* ---------------------------------------------------------------------------
+   Tactile Squircle Selection Handles & Resize Badge
+   --------------------------------------------------------------------------- */
+.selection-handle {
+  width: 15px !important;
+  height: 15px !important;
+  border: 2px solid #ffffff !important;
+  background: var(--color-brand, #0062ff) !important;
+  border-radius: 5px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 98, 255, 0.3) !important;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease, box-shadow 0.15s ease !important;
+}
+.selection-handle:hover {
+  transform: scale(1.3) !important;
+  background: var(--color-brand-light, #3385ff) !important;
+  box-shadow: 0 0 0 3px rgba(0, 98, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+.selection-handle.is-active {
+  transform: scale(1.42) !important;
+  background: var(--color-brand, #0062ff) !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 4px rgba(0, 98, 255, 0.55), 0 6px 16px rgba(0, 0, 0, 0.6) !important;
+  cursor: grabbing !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Floating Windows & Treasure Box Tools
+   --------------------------------------------------------------------------- */
+div[data-layout-panel] {
+  background: rgba(18, 20, 28, 0.82) !important;
+  backdrop-filter: blur(28px) saturate(210%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 24px 60px -12px rgba(0, 0, 0, 0.8) !important;
+}
+div[data-layout-panel] > div:first-child {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.kn-board .treasure-panel .kn-library-tool {
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.kn-board .treasure-panel .kn-library-tool:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
+}
+.kn-board .treasure-panel .kn-library-tool.is-active {
+  background: linear-gradient(135deg, rgba(0, 98, 255, 0.2), rgba(0, 98, 255, 0.05)) !important;
+  border-color: var(--color-brand) !important;
+  box-shadow: 0 0 16px -2px var(--color-brand), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
 @media(prefers-reduced-motion:reduce){
-  .kn-main-tools button, .kn-dock button, .page-toolbar button {
+  .kn-main-tools button, .kn-dock button, .page-toolbar button:not(.kn-page-side) {
     transition: none !important;
   }
   .kn-main-tools button:hover:not(:disabled),

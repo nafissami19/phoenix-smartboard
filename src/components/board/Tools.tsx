@@ -73,6 +73,7 @@ export function CountdownTimer() {
   const [minutes, setMinutes] = useState(5);
   const [seconds, setSeconds] = useState(0);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [initialDuration, setInitialDuration] = useState(300);
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
@@ -89,38 +90,68 @@ export function CountdownTimer() {
   const total = remaining ?? minutes * 60 + seconds;
   const mm = pad(total / 60);
   const ss = pad(total % 60);
+  const maxSec = Math.max(1, remaining == null ? minutes * 60 + seconds : initialDuration);
+  const fraction = Math.min(1, Math.max(0, total / maxSec));
+  const radius = 62;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - fraction);
+  const isUrgent = total <= 10 && total > 0 && running;
+  const ringColor = total === 0 ? '#ef4444' : isUrgent ? '#ef4444' : fraction < 0.25 ? '#f59e0b' : '#38bdf8';
 
   return (
     <div className="w-[236px] text-center">
-      <div className="mb-3 rounded-lg bg-base-2 px-3 py-4 font-mono text-4xl font-bold tabular-nums text-brand-light">
-        {mm}:{ss}
+      <div className="relative mb-3 flex items-center justify-center">
+        <svg width="150" height="150" viewBox="0 0 150 150" className="rotate-[-90deg]">
+          <circle cx="75" cy="75" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
+          <circle
+            cx="75"
+            cy="75"
+            r={radius}
+            fill="none"
+            stroke={ringColor}
+            strokeWidth="7"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            className="transition-all duration-300"
+            style={{ filter: `drop-shadow(0 0 6px ${ringColor})` }}
+          />
+        </svg>
+        <div className={`absolute inset-0 flex flex-col items-center justify-center font-mono text-3xl font-bold tabular-nums ${isUrgent ? 'animate-pulse text-red-400' : 'text-brand-light'}`}>
+          <span>{mm}:{ss}</span>
+          <span className="text-[10px] font-medium uppercase tracking-wider text-muted">{running ? 'Timer' : total === 0 ? 'Done' : 'Set'}</span>
+        </div>
       </div>
       {remaining == null && (
-        <div className="mb-3 flex items-center justify-center gap-2 text-sm">
+        <div className="mb-3 flex items-center justify-center gap-2 text-xs font-semibold text-muted">
           <input
             type="number"
             min={0}
             max={180}
             value={minutes}
             onChange={(e) => setMinutes(Math.max(0, Math.min(180, +e.target.value || 0)))}
-            className="kn-focus w-16 rounded-lg bg-panel-2 px-2 py-1 text-center"
+            className="kn-focus w-14 rounded-lg border border-line bg-base px-2 py-1 text-center font-mono text-sm text-ink"
           />
-          <span className="text-muted">min</span>
+          <span>min</span>
           <input
             type="number"
             min={0}
             max={59}
             value={seconds}
             onChange={(e) => setSeconds(Math.max(0, Math.min(59, +e.target.value || 0)))}
-            className="kn-focus w-16 rounded-lg bg-panel-2 px-2 py-1 text-center"
+            className="kn-focus w-14 rounded-lg border border-line bg-base px-2 py-1 text-center font-mono text-sm text-ink"
           />
-          <span className="text-muted">sec</span>
+          <span>sec</span>
         </div>
       )}
       <div className="flex items-center justify-center gap-2">
         <button
           onClick={() => {
-            if (remaining == null) setRemaining(minutes * 60 + seconds);
+            if (remaining == null) {
+              const dur = minutes * 60 + seconds;
+              setInitialDuration(dur);
+              setRemaining(dur);
+            }
             setRunning((r) => !r);
           }}
           className="kn-focus flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
@@ -158,10 +189,33 @@ export function Stopwatch() {
   const s = Math.floor(ms / 1000) % 60;
   const m = Math.floor(ms / 60000);
 
+  const radius = 62;
+  const circumference = 2 * Math.PI * radius;
+  const fraction = ((ms % 60000) / 60000);
+  const strokeDashoffset = circumference * (1 - fraction);
+
   return (
     <div className="w-[236px] text-center">
-      <div className="mb-3 rounded-lg bg-base-2 px-3 py-4 font-mono text-4xl font-bold tabular-nums text-brand-light">
-        {pad(m)}:{pad(s)}.{cs}
+      <div className="relative mb-3 flex items-center justify-center">
+        <svg width="150" height="150" viewBox="0 0 150 150" className="rotate-[-90deg]">
+          <circle cx="75" cy="75" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
+          <circle
+            cx="75"
+            cy="75"
+            r={radius}
+            fill="none"
+            stroke="#38bdf8"
+            strokeWidth="7"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            style={{ filter: 'drop-shadow(0 0 6px #38bdf8)' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center font-mono text-2xl font-bold tabular-nums text-brand-light">
+          <span>{pad(m)}:{pad(s)}</span>
+          <span className="text-xs font-semibold text-muted">.{cs}0s</span>
+        </div>
       </div>
       <div className="flex items-center justify-center gap-2">
         <button
@@ -203,46 +257,87 @@ export function AnalogClock() {
 
   return (
     <div className="grid place-items-center">
-      <svg width="180" height="180" viewBox="0 0 200 200">
-        <circle cx="100" cy="100" r="92" fill="#17171c" stroke="#3d3d47" strokeWidth="4" />
+      <svg width="180" height="180" viewBox="0 0 200 200" className="drop-shadow-lg">
+        <defs>
+          <radialGradient id="clock-dial" cx="45%" cy="40%" r="65%">
+            <stop offset="0%" stopColor="#22252e" />
+            <stop offset="100%" stopColor="#14161b" />
+          </radialGradient>
+          <linearGradient id="clock-bezel" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#4f5666" />
+            <stop offset="50%" stopColor="#2d313b" />
+            <stop offset="100%" stopColor="#636b7d" />
+          </linearGradient>
+        </defs>
+        <circle cx="100" cy="100" r="95" fill="none" stroke="url(#clock-bezel)" strokeWidth="4.5" />
+        <circle cx="100" cy="100" r="92" fill="url(#clock-dial)" />
+        {Array.from({ length: 60 }).map((_, i) => {
+          if (i % 5 === 0) return null;
+          const a = (i * 6 * Math.PI) / 180;
+          return (
+            <line
+              key={`min-${i}`}
+              x1={100 + Math.sin(a) * 82}
+              y1={100 - Math.cos(a) * 82}
+              x2={100 + Math.sin(a) * 78}
+              y2={100 - Math.cos(a) * 78}
+              stroke="rgba(255,255,255,0.2)"
+              strokeWidth="1.5"
+            />
+          );
+        })}
         {Array.from({ length: 12 }).map((_, i) => {
           const a = (i * 30 * Math.PI) / 180;
-          const x1 = 100 + Math.sin(a) * 78;
-          const y1 = 100 - Math.cos(a) * 78;
-          const x2 = 100 + Math.sin(a) * 68;
-          const y2 = 100 - Math.cos(a) * 68;
-          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#a1a1ab" strokeWidth="3" />;
+          const isMajor = i % 3 === 0;
+          return (
+            <line
+              key={`hr-${i}`}
+              x1={100 + Math.sin(a) * 82}
+              y1={100 - Math.cos(a) * 82}
+              x2={100 + Math.sin(a) * (isMajor ? 66 : 72)}
+              y2={100 - Math.cos(a) * (isMajor ? 66 : 72)}
+              stroke={isMajor ? "#ffffff" : "rgba(255,255,255,0.55)"}
+              strokeWidth={isMajor ? "4.5" : "3"}
+              strokeLinecap="round"
+            />
+          );
         })}
         <line
-          x1="100"
-          y1="100"
-          x2={100 + Math.sin((hourAngle * Math.PI) / 180) * 45}
-          y2={100 - Math.cos((hourAngle * Math.PI) / 180) * 45}
+          x1={100 - Math.sin((hourAngle * Math.PI) / 180) * 10}
+          y1={100 + Math.cos((hourAngle * Math.PI) / 180) * 10}
+          x2={100 + Math.sin((hourAngle * Math.PI) / 180) * 48}
+          y2={100 - Math.cos((hourAngle * Math.PI) / 180) * 48}
           stroke="#f4f4f5"
-          strokeWidth="7"
+          strokeWidth="6"
           strokeLinecap="round"
         />
         <line
-          x1="100"
-          y1="100"
-          x2={100 + Math.sin((minAngle * Math.PI) / 180) * 66}
-          y2={100 - Math.cos((minAngle * Math.PI) / 180) * 66}
-          stroke="#f4f4f5"
-          strokeWidth="5"
+          x1={100 - Math.sin((minAngle * Math.PI) / 180) * 12}
+          y1={100 + Math.cos((minAngle * Math.PI) / 180) * 12}
+          x2={100 + Math.sin((minAngle * Math.PI) / 180) * 70}
+          y2={100 - Math.cos((minAngle * Math.PI) / 180) * 70}
+          stroke="#ffffff"
+          strokeWidth="4"
           strokeLinecap="round"
         />
         <line
-          x1="100"
-          y1="100"
-          x2={100 + Math.sin((secAngle * Math.PI) / 180) * 70}
-          y2={100 - Math.cos((secAngle * Math.PI) / 180) * 70}
-          stroke="#e11d48"
+          x1={100 - Math.sin((secAngle * Math.PI) / 180) * 18}
+          y1={100 + Math.cos((secAngle * Math.PI) / 180) * 18}
+          x2={100 + Math.sin((secAngle * Math.PI) / 180) * 75}
+          y2={100 - Math.cos((secAngle * Math.PI) / 180) * 75}
+          stroke="#ef4444"
           strokeWidth="2"
           strokeLinecap="round"
         />
-        <circle cx="100" cy="100" r="5" fill="#e11d48" />
+        <circle
+          cx={100 + Math.sin((secAngle * Math.PI) / 180) * 56}
+          cy={100 - Math.cos((secAngle * Math.PI) / 180) * 56}
+          r="5.5"
+          fill="#ef4444"
+        />
+        <circle cx="100" cy="100" r="5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
       </svg>
-      <div className="mt-1 text-lg font-semibold tabular-nums">
+      <div className="mt-2 text-sm font-semibold tracking-wider tabular-nums text-muted">
         {formatTime12(now)}
       </div>
     </div>

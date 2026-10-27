@@ -20,6 +20,7 @@ import "./ShapePalette.css";
 import { Icon, type IconName } from "@/components/Icon";
 import {
   HIGHLIGHTER_COLORS,
+  LASER_COLORS,
   INK_COLORS,
   type ActiveTool,
   type Pen,
@@ -87,10 +88,11 @@ export function Toolbar({
   const chooseBrush=(id:string,nextTool:ActiveTool)=>{
     const old=tool==='pen'?(pen.brush??'normal'):tool;
     brushSizes.current[old]=pen.size;
-    const defaults:Record<string,number>={normal:4,pencil:3,paint:16,chinese:12,crayon:12,chalk:14,'oil-pastel':16,'oil-paint':20,highlighter:20,laser:5,stamp:24};
+    const defaults:Record<string,number>={normal:4,pencil:3,paint:16,chinese:12,crayon:12,chalk:14,'oil-pastel':16,'oil-paint':20,highlighter:20,laser:5,stamp:24,calligraphy:8,marker:14,charcoal:16,watercolor:18,airbrush:24,gel:3};
     const saved=brushSizes.current[id];const size=Number.isFinite(saved)?Math.min(40,Math.max(1,saved)):defaults[id]??4;
     try{localStorage.setItem('phoenix-brush-sizes',JSON.stringify(brushSizes.current));}catch{}
-    setTool(nextTool);setPen({...pen,size,customPenId:undefined,opacity:1,...(nextTool==='pen'?{brush:id as Pen['brush'],brushSettings:brushSettings(id as Pen['brush']),customPenId:undefined,opacity:1}:{})});
+    const nextColor = nextTool === 'laser' && (!pen.color || ['#1f2937','#1e1e1e','#000000','#94a3b8'].includes(pen.color.toLowerCase())) ? '#ff1744' : pen.color;
+    setTool(nextTool);setPen({...pen,color:nextColor,size,customPenId:undefined,opacity:1,...(nextTool==='pen'?{brush:id as Pen['brush'],brushSettings:brushSettings(id as Pen['brush']),customPenId:undefined,opacity:1}:{})});
   };
   useEffect(()=>{if(tool==='pen'||tool==='highlighter'||tool==='laser'){brushSizes.current[tool==='pen'?(pen.brush??'normal'):tool]=pen.size;try{localStorage.setItem('phoenix-brush-sizes',JSON.stringify(brushSizes.current));}catch{}}},[tool,pen.brush,pen.size]);
   useEffect(()=>{if(tool!=='pen')return;const available=pen.customPenId?customPens.some(p=>p.id===pen.customPenId&&p.enabled!==false):penMenu.includes(pen.brush??'normal');if(!available)setPen({...pen,brush:'normal',brushSettings:brushSettings('normal'),customPenId:undefined,size:4,opacity:1});},[penMenu,customPens,tool,pen.customPenId,pen.brush]);
@@ -121,9 +123,9 @@ export function Toolbar({
         <div data-toolbar-surface aria-label="Pen options" className="kn-tool-options kn-pop kn-scroll absolute bottom-24 left-1/2 max-h-[calc(100dvh-168px)] w-[330px] max-w-[calc(100vw-24px)] -translate-x-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur">
           <div className="kn-options-heading mb-2 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-muted">
-              {tool === "highlighter" ? "Highlighter" : "Pen"}
+              {tool === "highlighter" ? "Highlighter" : tool === "laser" ? "Laser pointer" : "Pen"}
             </span>
-            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted">
+            {tool !== "laser" && (<label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted">
               <input
                 type="checkbox"
                 checked={pen.smartShapes}
@@ -131,12 +133,12 @@ export function Toolbar({
                 className="accent-brand"
               />
               Smart shapes
-            </label>
+            </label>)}
           </div>
           <div className="kn-pen-family" aria-label="Pen type">{PEN_STORE_ITEMS.filter(item=>penMenu.includes(item.id)).map(item=><button key={item.id} type="button" aria-label={item.label.toLowerCase()==='crayon'?'crayon':item.label} aria-pressed={item.tool==='pen'?tool==='pen'&&!pen.customPenId&&(pen.brush??'normal')===item.id:tool===item.tool} onClick={()=>{chooseBrush(item.id,item.tool as ActiveTool);}}><ToolArtwork id={item.id} icon="pen" color={pen.color} palette/><span>{item.label}</span></button>)}</div>
           {tool==='pen'&&pen.brush==='stamp'&&<div className="kn-stamp-options">{(['smile','star','heart','sun'] as const).map(stamp=><button type="button" key={stamp} aria-label={`Stamp ${stamp}`} aria-pressed={(pen.stamp??'smile')===stamp} onClick={()=>setPen({...pen,stamp,size:Math.max(20,pen.size)})}><StampGlyph kind={stamp}/><span>{stamp}</span></button>)}</div>}
-          <div className="mb-3 grid grid-cols-5 gap-1.5">
-            {(tool === "highlighter" ? HIGHLIGHTER_COLORS : INK_COLORS).map((c) => (
+          <div className={`mb-3 grid ${tool === "laser" ? "grid-cols-6" : "grid-cols-5"} gap-1.5`}>
+            {(tool === "laser" ? LASER_COLORS : tool === "highlighter" ? HIGHLIGHTER_COLORS : INK_COLORS).map((c) => (
               <button
                 key={c}
                 onClick={() => setPen({ ...pen, color: c })}
@@ -144,14 +146,14 @@ export function Toolbar({
                 className={`kn-ink-swatch h-11 w-full rounded-md border-2 transition ${
                   pen.color === c ? "scale-110 border-white" : "border-line"
                 }`}
-                style={{ background: c,minWidth:44,minHeight:44,width:'100%' }}
+                style={{ background: c,minWidth:tool==='laser'?38:44,minHeight:44,width:'100%',boxShadow:tool==='laser'&&pen.color===c?`0 0 14px ${c}`:undefined }}
                 aria-label={`color ${c}`}
               />
             ))}
           </div>
 <BrushSizePreview size={pen.size} color={pen.color} eraser={false} toolKey={`${tool}-${pen.brush}`}/>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted">Size: {pen.size}px</span>
+            <span className="text-xs text-muted">{tool === 'laser' ? 'Beam: ' : 'Size: '}{pen.size}px</span>
             <input
               type="range"
               min={1}
@@ -167,7 +169,7 @@ export function Toolbar({
               <span className="block rounded-full bg-black/0" style={{ width: pen.size, height: pen.size }} />
             </span>
           </div>
-<label className="mt-3 grid gap-2 text-sm">Opacity: {Math.round(pen.opacity*100)}%<input className="kn-range" type="range" aria-label="Pen opacity" min={.05} max={1} step={.05} value={pen.opacity} onChange={e=>setPen({...pen,opacity:+e.target.value})}/></label><div className="custom-pen-menu" aria-label="Saved pens">{customPens.filter(p=>p.enabled!==false).map(p=><button key={p.id} type="button" aria-label={`Use pen ${p.name}`} aria-pressed={pen.customPenId===p.id} onClick={()=>{setTool('pen');setPen({...pen,brush:p.brush,brushSettings:{...p.settings},customPenId:p.id,color:p.color,size:p.size,opacity:p.opacity,pressure:p.pressure,smartShapes:false});}}><PenIllustration kind={p.brush} color={p.color}/>{p.name}</button>)}</div>
+{tool !== 'laser' && <label className="mt-3 grid gap-2 text-sm">Opacity: {Math.round(pen.opacity*100)}%<input className="kn-range" type="range" aria-label="Pen opacity" min={.05} max={1} step={.05} value={pen.opacity} onChange={e=>setPen({...pen,opacity:+e.target.value})}/></label>}<div className="custom-pen-menu" aria-label="Saved pens">{customPens.filter(p=>p.enabled!==false).map(p=><button key={p.id} type="button" aria-label={`Use pen ${p.name}`} aria-pressed={pen.customPenId===p.id} onClick={()=>{setTool('pen');setPen({...pen,brush:p.brush,brushSettings:{...p.settings},customPenId:p.id,color:p.color,size:p.size,opacity:p.opacity,pressure:p.pressure,smartShapes:false});}}><PenIllustration kind={p.brush} color={p.color}/>{p.name}</button>)}</div>
 <label className="mt-3 flex min-h-11 items-center justify-between text-sm">Custom color<input style={{width:44,height:44}} aria-label="Custom ink color" type="color" value={pen.color} onChange={e=>setPen({...pen,color:e.target.value})}/></label><button data-touch-settings className="kn-touch-settings" aria-label="Writing and touch settings" aria-expanded={touchOpen} onClick={()=>setTouchOpen(v=>!v)}>Writing &amp; touch<Icon name="chevronRight"/></button>{touchOpen&&<ToolPopover anchor="Writing and touch settings" selector="[data-touch-settings]"><section data-toolbar-surface className="kn-more-tools" aria-label="Writing and touch"><header><strong>Writing &amp; touch</strong><button aria-label="Close writing and touch" onClick={()=>setTouchOpen(false)}><Icon name="close"/></button></header>          <div className="mb-4 grid gap-3 text-sm">
             <label className="flex min-h-11 items-center gap-2"><input type="checkbox" aria-label="Enable palm eraser" checked={palmEraser} onChange={e=>onPalmEraser(e.target.checked)}/>Palm eraser</label>
             <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={pen.pressure !== false} onChange={e=>setPen({...pen,pressure:e.target.checked})}/> Pen pressure</label>
@@ -293,7 +295,7 @@ function ToolButton({
   );
 }
 
-function ToolArtwork({id,icon,color,palette=false}:{id:string;icon:IconName;color?:string;palette?:boolean}){const {profile}=useApp();const key=id==='normal'?'pen':id;const source=(palette?themeIconSource(profile.theme,`${key}Preview` as ThemeIconId):undefined)??themeIconSource(profile.theme,key as ThemeIconId);if(source)return <img alt="" className="kn-theme-tool-image" src={source}/>;if(profile.theme?.appearance==='org-note3'&&!['chalk','oil-pastel','oil-paint'].includes(id))return <Note3Artwork name={key}/>;if(['normal','pen','pencil','paint','chinese','crayon','chalk','oil-pastel','oil-paint','highlighter','laser','stamp'].includes(id))return <PenIllustration kind={id==='chinese'?'paint':id} color={color}/>;return <Icon name={icon} className="h-5 w-5"/>;}
+function ToolArtwork({id,icon,color,palette=false}:{id:string;icon:IconName;color?:string;palette?:boolean}){const {profile}=useApp();const key=id==='normal'?'pen':id;const source=(palette?themeIconSource(profile.theme,`${key}Preview` as ThemeIconId):undefined)??themeIconSource(profile.theme,key as ThemeIconId);if(source)return <img alt="" className="kn-theme-tool-image" src={source}/>;if(profile.theme?.appearance==='org-note3'&&!['chalk','oil-pastel','oil-paint','calligraphy','marker','charcoal','watercolor','airbrush','gel'].includes(id))return <Note3Artwork name={key}/>;if(['normal','pen','pencil','paint','chinese','crayon','chalk','oil-pastel','oil-paint','highlighter','laser','stamp','calligraphy','marker','charcoal','watercolor','airbrush','gel'].includes(id))return <PenIllustration kind={id} color={color}/>;return <Icon name={icon} className="h-5 w-5"/>;}
 function StampGlyph({kind}:{kind:string}){return <svg aria-hidden="true" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.6">{kind==='star'?<path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/>:kind==='heart'?<path d="M12 21C-5 10 5-1 12 7c7-8 17 3 0 14z"/>:<><circle cx="12" cy="12" r="8"/>{kind==='smile'?<><path d="M8 10h1m6 0h1M8 14q4 5 8 0"/></>:<path d="M12 0v3m0 18v3M0 12h3m18 0h3M3 3l2 2m14 14 2 2M3 21l2-2M19 5l2-2"/>}</>}</svg>;}
 
 function SolidIcon({kind}:{kind:SolidKind}){const {vertices,faces}=projectedSolid({kind,yaw:30,pitch:-20,roll:0,wireframe:false});return <svg viewBox="-2 -2 4 4" fill="none" stroke="currentColor" strokeWidth=".06" aria-hidden="true">{faces.map((face,i)=><polygon key={i} points={face.indices.map(j=>`${vertices[j].x},${vertices[j].y}`).join(' ')} fill="var(--color-panel)"/>)}</svg>;}

@@ -72,6 +72,15 @@ export const INK_COLORS = [
   "#1f2937",
 ];
 
+export const LASER_COLORS = [
+  "#ff1744",
+  "#00e676",
+  "#00e5ff",
+  "#ffea00",
+  "#e040fb",
+  "#ff6d00",
+];
+
 export const HIGHLIGHTER_COLORS = [
   "#fde047",
   "#fb7185",

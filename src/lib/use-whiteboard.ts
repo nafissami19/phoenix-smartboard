@@ -148,7 +148,7 @@ export function useWhiteboard(options: {
   const mediaErrors=useRef(new Map<string,{message:string;attempts:number}>());
 
   const rafRef = useRef<number | null>(null);
-  const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationTimer = useRef<number | null>(null);
   const mediaRevision = useRef(0);
   const performanceProfile=useRef(getPerformanceProfile());
   const sceneCache = useRef<{canvas:HTMLCanvasElement;objects:BoardObject[];media:MediaItem[];view:string;background:string;pattern:string;image:HTMLImageElement|null;watermark:unknown;revision:number}|null>(null);
@@ -333,9 +333,21 @@ export function useWhiteboard(options: {
 
     const now = performance.now();
     const head=laserHead.current;
-    if(head&&(now-head.last<1200||(modeRef.current==='draw'&&toolRef.current==='laser'))){
-      ctx.save();ctx.globalAlpha=(modeRef.current==='draw'&&toolRef.current==='laser'?1:Math.min(1,(1200-(now-head.last))/300));ctx.shadowColor='#ff244b';ctx.shadowBlur=18;
-      ctx.fillStyle='#ff244b';ctx.beginPath();ctx.arc(head.point.x,head.point.y,7/viewRef.current.scale,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#fff3db';ctx.beginPath();ctx.arc(head.point.x,head.point.y,2.5/viewRef.current.scale,0,Math.PI*2);ctx.fill();ctx.restore();
+    if(head&&(now-head.last<1400||(modeRef.current==='draw'&&toolRef.current==='laser'))){
+      const scale=viewRef.current.scale;
+      const headColor=penRef.current.color&&!['#1f2937','#000000','#1e1e1e'].includes(penRef.current.color.toLowerCase())?penRef.current.color:'#ff1744';
+      const isDrawing=modeRef.current==='draw'&&toolRef.current==='laser';
+      const headAlpha=isDrawing?1:Math.max(0,Math.min(1,(1400-(now-head.last))/350));
+      const baseR=Math.max(5.5,penRef.current.size*0.9)/scale;
+      const coreR=Math.max(2,penRef.current.size*0.35)/scale;
+      ctx.save();
+      ctx.globalAlpha=headAlpha*0.45;ctx.shadowColor=headColor;ctx.shadowBlur=Math.max(18,baseR*3*scale);ctx.fillStyle=headColor;ctx.beginPath();ctx.arc(head.point.x,head.point.y,baseR*1.8,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=headAlpha*0.92;ctx.shadowBlur=Math.max(8,baseR*1.4*scale);ctx.beginPath();ctx.arc(head.point.x,head.point.y,baseR,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=headAlpha;ctx.shadowBlur=4;ctx.shadowColor='#ffffff';ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(head.point.x,head.point.y,coreR,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=headAlpha*0.65;ctx.strokeStyle='#ffffff';ctx.lineWidth=1.2/scale;ctx.beginPath();
+      ctx.moveTo(head.point.x-baseR*1.5,head.point.y);ctx.lineTo(head.point.x+baseR*1.5,head.point.y);ctx.moveTo(head.point.x,head.point.y-baseR*1.5);ctx.lineTo(head.point.x,head.point.y+baseR*1.5);ctx.stroke();
+      ctx.restore();
+
     }
     if(marquee.current){const {a,b}=marquee.current;ctx.strokeStyle=modeRef.current==='erase-marquee'?'#e15a66':'#217cb8';ctx.lineWidth=1.5/v.scale;ctx.setLineDash([6/v.scale,4/v.scale]);if(marquee.current.points){ctx.beginPath();marquee.current.points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.stroke();}else ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.setLineDash([]);}
     // selection outline
@@ -365,9 +377,9 @@ export function useWhiteboard(options: {
     ctx.restore();
 
     if(performance.now()-started>100){setProcessing(true);if(processingTimer.current)clearTimeout(processingTimer.current);processingTimer.current=setTimeout(()=>setProcessing(false),700);}
-    if (animationTimer.current===null&&(laserObjects.current.length>0||(laserHead.current&&(performance.now()-laserHead.current.last<1200||(modeRef.current==='draw'&&toolRef.current==='laser'))))) {
+    if (animationTimer.current===null&&(laserObjects.current.length>0||(laserHead.current&&(performance.now()-laserHead.current.last<1400||(modeRef.current==='draw'&&toolRef.current==='laser'))))) {
       // Blinking/fading needs only 20fps; pen input still paints at display cadence.
-      animationTimer.current=setTimeout(()=>{animationTimer.current=null;scheduleRender();},50);
+      animationTimer.current=requestAnimationFrame(()=>{animationTimer.current=null;scheduleRender();});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paintScene, scheduleRender]);
@@ -1205,7 +1217,7 @@ export function useWhiteboard(options: {
   useEffect(()=>{
     const release=()=>{const cache=sceneCache.current;sceneCache.current=null;if(cache){cache.canvas.width=0;cache.canvas.height=0;}};
     const refresh=()=>{release();performanceProfile.current=getPerformanceProfile();const budget=performanceProfile.current.undoSteps;past.current=past.current.slice(-budget);future.current=future.current.slice(-budget);scheduleRender();};
-    const visibility=()=>{if(document.hidden){if(rafRef.current!==null){cancelAnimationFrame(rafRef.current);rafRef.current=null;}if(animationTimer.current!==null){clearTimeout(animationTimer.current);animationTimer.current=null;}release();}else scheduleRender();};
+    const visibility=()=>{if(document.hidden){if(rafRef.current!==null){cancelAnimationFrame(rafRef.current);rafRef.current=null;}if(animationTimer.current!==null){cancelAnimationFrame(animationTimer.current);animationTimer.current=null;}release();}else scheduleRender();};
     const unsubscribe=subscribePerformance(refresh);
     document.addEventListener('visibilitychange',visibility);
     window.addEventListener('phoenix-memory-pressure',refresh);
@@ -1217,7 +1229,7 @@ export function useWhiteboard(options: {
       document.fonts?.removeEventListener('loadingdone',refresh);
       canvasObserver.current?.disconnect();
       if(rafRef.current!==null)cancelAnimationFrame(rafRef.current);
-      if(animationTimer.current!==null)clearTimeout(animationTimer.current);
+      if(animationTimer.current!==null)cancelAnimationFrame(animationTimer.current);
       release();
     };
   },[scheduleRender]);

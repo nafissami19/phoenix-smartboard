@@ -1,4 +1,4 @@
-export const BRUSH_KINDS=['normal','pencil','paint','chinese','crayon','chalk','oil-pastel','oil-paint','stamp'] as const;
+export const BRUSH_KINDS=['normal','pencil','paint','chinese','crayon','chalk','oil-pastel','oil-paint','stamp','calligraphy','marker','charcoal','watercolor','airbrush','gel'] as const;
 export type BrushKind=typeof BRUSH_KINDS[number];
 export type BrushSettings={smoothing:number;streamline:number;thinning:number;grain:number};
 export type CustomPen={enabled?:boolean;id:string;name:string;brush:BrushKind;color:string;size:number;opacity:number;pressure:boolean;settings:BrushSettings};
@@ -11,7 +11,13 @@ export const BRUSH_DEFAULTS:Record<BrushKind,BrushSettings>={
  chalk:{smoothing:.5,streamline:.15,thinning:.2,grain:.9},
  'oil-pastel':{smoothing:.6,streamline:.2,thinning:.25,grain:.55},
  'oil-paint':{smoothing:.7,streamline:.25,thinning:.55,grain:.7},
- stamp:{smoothing:.65,streamline:.25,thinning:0,grain:0}
+ stamp:{smoothing:.65,streamline:.25,thinning:0,grain:0},
+ calligraphy:{smoothing:.65,streamline:.35,thinning:.85,grain:0},
+ marker:{smoothing:.6,streamline:.2,thinning:.15,grain:.08},
+ charcoal:{smoothing:.45,streamline:.1,thinning:.35,grain:.92},
+ watercolor:{smoothing:.75,streamline:.3,thinning:.6,grain:.5},
+ airbrush:{smoothing:.8,streamline:.3,thinning:.1,grain:.8},
+ gel:{smoothing:.7,streamline:.35,thinning:.25,grain:0}
 };
 export function isBrushKind(value:unknown):value is BrushKind{return BRUSH_KINDS.includes(value as BrushKind);}
 export function validBrushSettings(value:unknown):value is BrushSettings{
@@ -42,7 +48,13 @@ export const PEN_STORE_ITEMS=[
  {id:'crayon',label:'Crayon',tool:'pen'},{id:'highlighter',label:'Highlighter',tool:'highlighter'},
  {id:'laser',label:'Laser pointer',tool:'laser'},{id:'stamp',label:'Stamp pen',tool:'pen'},
  {id:'chalk',label:'Chalk',tool:'pen',extra:true},{id:'oil-pastel',label:'Oil pastel',tool:'pen',extra:true},
- {id:'oil-paint',label:'Oil paint',tool:'pen',extra:true}
+ {id:'oil-paint',label:'Oil paint',tool:'pen',extra:true},
+ {id:'calligraphy',label:'Calligraphy',tool:'pen',extra:true},
+ {id:'marker',label:'Marker',tool:'pen',extra:true},
+ {id:'charcoal',label:'Charcoal',tool:'pen',extra:true},
+ {id:'watercolor',label:'Watercolor',tool:'pen',extra:true},
+ {id:'airbrush',label:'Airbrush',tool:'pen',extra:true},
+ {id:'gel',label:'Gel pen',tool:'pen',extra:true}
 ];
 export function loadPenMenu():string[]{try{const v=JSON.parse(localStorage.getItem('phoenix-pen-menu')??'null');return Array.isArray(v)?['normal',...v.filter((id:unknown)=>typeof id==='string'&&id!=='normal'&&PEN_STORE_ITEMS.some(i=>i.id===id))]:[...PEN_MENU_DEFAULTS];}catch{return [...PEN_MENU_DEFAULTS];}}
 export function savePenMenu(ids:string[]){const valid=PEN_STORE_ITEMS.map(p=>p.id).filter(id=>id==='normal'||ids.includes(id));localStorage.setItem('phoenix-pen-menu',JSON.stringify(valid));window.dispatchEvent(new Event('phoenix-pen-store-updated'));}

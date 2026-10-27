@@ -22,14 +22,36 @@ const PIPS: Record<number, [number,number][]> = {
   1:[[50,50]],2:[[25,25],[75,75]],3:[[25,25],[50,50],[75,75]],
   4:[[25,25],[75,25],[25,75],[75,75]],5:[[25,25],[75,25],[50,50],[25,75],[75,75]],6:[[25,25],[75,25],[25,50],[75,50],[25,75],[75,75]],
 };
-function Die({value}:{value:number}) {
-  return <svg viewBox="0 0 100 100" role="img" aria-label={`Die showing ${value}`} className="classroom-die"><rect x="4" y="4" width="92" height="92" rx="17" fill="var(--color-panel-2)" stroke="currentColor" strokeWidth="3"/>{PIPS[value].map(([x,y],index)=><circle key={index} cx={x} cy={y} r="7" fill="currentColor"/>)}</svg>;
+function Die({value, rolling}:{value:number; rolling?:boolean}) {
+  return (
+    <svg viewBox="0 0 100 100" role="img" aria-label={`Die showing ${value}`} className={`classroom-die ${rolling ? 'is-rolling' : ''}`}>
+      <defs>
+        <radialGradient id={`die-grad-${value}`} cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0.35" />
+        </radialGradient>
+        <filter id="die-shadow" x="-10%" y="-10%" width="130%" height="130%">
+          <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.4" />
+        </filter>
+      </defs>
+      <rect x="6" y="6" width="88" height="88" rx="18" fill="var(--color-elevated, #26262e)" stroke="rgba(255,255,255,0.2)" strokeWidth="2.5" filter="url(#die-shadow)"/>
+      <rect x="6" y="6" width="88" height="88" rx="18" fill={`url(#die-grad-${value})`}/>
+      {PIPS[value].map(([x,y],index)=>(
+        <g key={index}>
+          <circle cx={x} cy={y+1} r="7.5" fill="rgba(0,0,0,0.5)"/>
+          <circle cx={x} cy={y} r="7.5" fill="var(--color-brand-light, #3385ff)"/>
+          <circle cx={x-2} cy={y-2} r="2.5" fill="#ffffff" fillOpacity="0.65"/>
+        </g>
+      ))}
+    </svg>
+  );
 }
 export function ClassroomTools({onClose}:{onClose:()=>void}) {
   const [text,setText] = useState('');
   const [repeat,setRepeat] = useState(false), [picked,setPicked] = useState<string[]>([]);
   const [winner,setWinner] = useState(''), [error,setError] = useState('');
   const [diceCount,setDiceCount] = useState(1), [dice,setDice] = useState<number[]>([]);
+  const [rolling,setRolling] = useState(false);
   const names = namesFromText(text);
   const available = repeat ? names : names.filter(name=>!picked.includes(name));
   function pick() {
@@ -39,8 +61,15 @@ export function ClassroomTools({onClose}:{onClose:()=>void}) {
   }
   function resetRound() {setPicked([]);setWinner('');setError('');}
   function roll() {
-    try {setDice(Array.from({length:diceCount},()=>randomIndex(6)+1));setError('');}
-    catch {setError('Dice are unavailable in this browser. Please try again.');}
+    try {
+      setRolling(true);
+      setTimeout(() => {
+        setDice(Array.from({length:diceCount},()=>randomIndex(6)+1));
+        setRolling(false);
+      }, 360);
+      setError('');
+    }
+    catch {setError('Dice are unavailable in this browser. Please try again.');setRolling(false);}
   }
   return <FloatingWindow title="Classroom tools" initialX={180} initialY={70} width={400} onClose={onClose}><div className="classroom-tools">
     <section aria-label="Random name picker">
@@ -51,7 +80,7 @@ export function ClassroomTools({onClose}:{onClose:()=>void}) {
       <p className="classroom-hint">{names.length} {names.length===1?'name':'names'} · {repeat?'Repeats allowed':`${available.length} remaining`}</p>
       <div className="classroom-winner" role="status" aria-live="polite">{winner || 'Add names, then pick'}{!repeat && names.length>0 && !available.length && <small>Everyone has been picked. Reset the round to start again.</small>}</div>
     </section>
-    <section aria-label="Classroom dice"><h3>Dice</h3><div className="classroom-dice-controls"><label>Number of dice<CustomSelect aria-label="Number of dice" className="kn-focus" value={diceCount} onChange={event=>{setDiceCount(Number(event.target.value));setDice([]);}}><option value={1}>One</option><option value={2}>Two</option><option value={3}>Three</option></CustomSelect></label><button className="kn-focus classroom-primary" onClick={roll}>Roll dice</button></div><div className="classroom-dice" aria-live="polite">{dice.length ? <><div>{dice.map((value,index)=><Die key={index} value={value}/>)}</div><p role="status">{dice.join(' + ')}{dice.length>1?` = ${dice.reduce((sum,value)=>sum+value,0)}`:''}</p></>:<p className="classroom-hint">Roll to show the result.</p>}</div></section>
+    <section aria-label="Classroom dice"><h3>Dice</h3><div className="classroom-dice-controls"><label>Number of dice<CustomSelect aria-label="Number of dice" className="kn-focus" value={diceCount} onChange={event=>{setDiceCount(Number(event.target.value));setDice([]);}}><option value={1}>One</option><option value={2}>Two</option><option value={3}>Three</option></CustomSelect></label><button className="kn-focus classroom-primary" onClick={roll} disabled={rolling}>{rolling ? 'Rolling…' : 'Roll dice'}</button></div><div className="classroom-dice" aria-live="polite">{dice.length ? <><div>{dice.map((value,index)=><Die key={index} value={value} rolling={rolling}/>)}</div><p role="status">{dice.join(' + ')}{dice.length>1?` = ${dice.reduce((sum,value)=>sum+value,0)}`:''}</p></>:<p className="classroom-hint">Roll to show the result.</p>}</div></section>
     {error && <p role="alert" className="classroom-error">{error}</p>}
   </div></FloatingWindow>;
 }

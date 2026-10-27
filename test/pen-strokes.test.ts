@@ -9,9 +9,9 @@ test('pressure handwriting and brush tapers produce finite outlines without alte
   assert.equal(JSON.stringify(stroke.points),before);
   assert.ok(penOutline({...stroke,points:[{x:1,y:1,p:.5}]}).length>4);
 });
-test('laser strokes blink faster, fade at expiry and never enter persistent lesson data',()=>{
+test('laser strokes pulse smoothly, fade at expiry and never enter persistent lesson data',()=>{
   const laser:StrokeObject={id:'laser',kind:'stroke',tool:'laser',color:'#ff244b',width:5,points:[{x:1,y:2}],laserExpiresAt:6000};
-  assert.equal(laserOpacity(laser,100),1);assert.equal(laserOpacity(laser,300),.04);
+  assert.ok(laserOpacity(laser,100)>0.5);assert.ok(laserOpacity(laser,300)>0.4);
   assert.equal(laserOpacity(laser,300,true),1);assert.equal(laserOpacity(laser,6000),0);
   assert.ok(laserOpacity(laser,5500,true)<1);
   const pen={...laser,id:'pen',tool:'pen' as const};assert.deepEqual(persistentObjects([laser,pen]),[pen]);

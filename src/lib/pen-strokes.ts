@@ -7,8 +7,9 @@ export function penOutline(stroke:StrokeObject){
   const last=stroke.points.at(-1);if(!last)return [];
   const key=[stroke.points.length,last.x,last.y,last.p,stroke.width,stroke.brush,JSON.stringify(stroke.brushSettings)].join(':');
   const cached=outlines.get(stroke);if(cached?.key===key)return cached.outline;
-  const chinese=stroke.brush==='chinese',pressure=stroke.points.some(p=>p.p!==undefined),settings=brushSettings(stroke.brush,stroke.brushSettings);
-  const outline=getStroke(stroke.points.map(p=>[p.x,p.y,p.p??.5]),{size:stroke.width,thinning:pressure||chinese?settings.thinning:0,smoothing:settings.smoothing,streamline:settings.streamline,simulatePressure:!pressure&&chinese,start:{cap:true,taper:chinese?stroke.width:0},end:{cap:true,taper:chinese?stroke.width*2:0},last:true});
+  const chinese=stroke.brush==='chinese',calligraphy=stroke.brush==='calligraphy',dynamic=chinese||calligraphy,pressure=stroke.points.some(p=>p.p!==undefined),settings=brushSettings(stroke.brush,stroke.brushSettings);
+  const taperStart=chinese?stroke.width:calligraphy?stroke.width*.3:0,taperEnd=chinese?stroke.width*2:calligraphy?stroke.width*.7:0;
+  const outline=getStroke(stroke.points.map(p=>[p.x,p.y,p.p??.5]),{size:stroke.width,thinning:pressure||dynamic?settings.thinning:0,smoothing:settings.smoothing,streamline:settings.streamline,simulatePressure:!pressure&&dynamic,start:{cap:true,taper:taperStart},end:{cap:true,taper:taperEnd},last:true});
   outlines.set(stroke,{key,outline});return outline;
 }
 // Small reusable pigment tiles, fixed in board coordinates: texture does not
@@ -31,6 +32,22 @@ export function brushTexture(ctx:CanvasRenderingContext2D,brush:string,color:str
         pixels.data[i+3]=Math.round(brush==='oil-pastel'?210+noise*45:groove>.6&&noise>.35?45+noise*60:185+noise*70);
       }
       ink.putImageData(pixels,0,0);
+    }else if(brush==='charcoal'){
+      const rgb=color.slice(1).match(/../g)?.map(v=>parseInt(v,16))??[0,0,0],pixels=ink.createImageData(64,64);
+      for(let y=0;y<64;y++)for(let x=0;x<64;x++){
+        const i=(y*64+x)*4,noise=random(),paper=Math.sin(x*.45)*Math.cos(y*.45)+noise*.7;
+        pixels.data[i]=rgb[0];pixels.data[i+1]=rgb[1];pixels.data[i+2]=rgb[2];
+        pixels.data[i+3]=Math.round(paper>.4?195+noise*60:noise>.6?75+noise*80:20+noise*35);
+      }
+      ink.putImageData(pixels,0,0);
+    }else if(brush==='airbrush'){
+      const rgb=color.slice(1).match(/../g)?.map(v=>parseInt(v,16))??[0,0,0],pixels=ink.createImageData(64,64);
+      for(let y=0;y<64;y++)for(let x=0;x<64;x++){
+        const i=(y*64+x)*4,noise=random();
+        pixels.data[i]=rgb[0];pixels.data[i+1]=rgb[1];pixels.data[i+2]=rgb[2];
+        pixels.data[i+3]=Math.round(noise>.7?140+noise*95:Math.round(noise*25));
+      }
+      ink.putImageData(pixels,0,0);
     }else{
       const chalk=brush==='chalk',count=chalk?1800:1400;
       for(let i=0;i<count;i++){const x=random()*64,y=random()*64,size=chalk?.3+random()*1.7:.3+random()*.7;ink.globalAlpha=chalk?.15+random()*.5:.2+random()*.75;ink.fillRect(x,y,size,size);}
@@ -44,7 +61,7 @@ export function paintBristles(ctx:CanvasRenderingContext2D,stroke:StrokeObject,g
  const points=stroke.points;if(points.length<2||grain<=0)return;
  const last=points.at(-1)!,key=[points.length,last.x,last.y,last.p,stroke.color,stroke.width,stroke.brush,JSON.stringify(stroke.brushSettings)].join(':');
  let cached=bristlePaths.get(stroke);
- const oil=stroke.brush==='oil-paint',count=oil?34:22,settings=brushSettings(stroke.brush,stroke.brushSettings);
+ const oil=stroke.brush==='oil-paint',count=oil?34:stroke.brush==='watercolor'?16:22,settings=brushSettings(stroke.brush,stroke.brushSettings);
  if(!cached||cached.key!==key){
   const groups=new Map<string,{path:Path2D;color:string;width:number}>();
   const stride=Math.max(1,Math.ceil(points.length/280));
@@ -78,7 +95,7 @@ export function paintBristles(ctx:CanvasRenderingContext2D,stroke:StrokeObject,g
  ctx.restore();
 }
 export function persistentObjects(objects:BoardObject[]){return objects.filter(o=>o.kind!=='stroke'||o.tool!=='laser');}
-export function laserOpacity(stroke:StrokeObject,now:number,reduced=false){if(stroke.tool!=='laser')return 1;return Math.max(0,Math.min(1,((stroke.laserExpiresAt??now+6000)-now)/1000))*(reduced?1:now%400<200?1:.04);}
+export function laserOpacity(stroke:StrokeObject,now:number,reduced=false){if(stroke.tool!=='laser')return 1;const remaining=(stroke.laserExpiresAt??now+6000)-now;if(remaining<=0)return 0;const fade=Math.max(0,Math.min(1,remaining/1600));const smoothFade=fade*fade*(3-2*fade);if(reduced)return smoothFade;const cycle=(now%450)/450;const pulse=0.74+0.26*Math.cos(cycle*Math.PI*2);return Math.max(0,Math.min(1,smoothFade*pulse));}
 export function drawStamp(ctx:CanvasRenderingContext2D,kind:string,x:number,y:number,size:number,color:string){
   ctx.save();ctx.translate(x,y);ctx.scale(size/24,size/24);ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.8;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
   if(kind==='star'){for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?5:11;const px=Math.cos(a)*r,py=Math.sin(a)*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.closePath();ctx.fill();}

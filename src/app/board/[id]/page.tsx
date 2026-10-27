@@ -713,26 +713,32 @@ export default function BoardPage() {
       {/* ---------------------------- Top bar ---------------------------- */}
       {!presenting && (
         <details className="board-meta"><summary aria-label="Lesson details">{ui.showTime?<BoardTime/>:<Icon name="doc"/>}</summary>
-        <header className="board-header z-30 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-panel px-3">
+        <header className="board-header z-30 flex h-14 shrink-0 items-center gap-3 border-b border-line/60 bg-panel/90 backdrop-blur-md px-3 shadow-sm">
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-white shadow-sm">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-black/5">
               <BrandMark className="h-5 w-5" />
             </span>
-            <span className="hidden text-sm font-semibold sm:block">{profile.appName}</span>
+            <span className="hidden text-sm font-semibold tracking-tight sm:block">{profile.appName}</span>
           </div>
-          <div className="mx-2 h-6 w-px bg-line" />
-          <input
-            value={notebook.title}
-            onChange={(e) => setNotebook({ ...notebook, title: e.target.value })}
-            onBlur={() =>
-              localRequest(`/api/notebooks/${id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title: notebook.title, subject: notebook.subject }),
-              })
-            }
-            className="kn-focus min-w-0 flex-1 rounded-lg bg-transparent px-2 py-1 text-sm font-medium text-ink hover:bg-base-2"
-          />
+          <div className="mx-2 h-6 w-px bg-line/60" />
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <input
+              value={notebook.title}
+              onChange={(e) => setNotebook({ ...notebook, title: e.target.value })}
+              onBlur={() =>
+                localRequest(`/api/notebooks/${id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ title: notebook.title, subject: notebook.subject }),
+                })
+              }
+              title="Click to rename lesson"
+              className="kn-focus min-w-0 max-w-sm rounded-lg border border-transparent bg-transparent px-2.5 py-1 text-sm font-medium text-ink transition-colors hover:border-line hover:bg-base-2 focus:border-brand"
+            />
+            <span className="hidden rounded-md bg-panel-2 px-2 py-0.5 text-[11px] font-semibold text-muted md:inline-block">
+              {notebook.subject}
+            </span>
+          </div>
           <div className="flex items-center gap-1">
             <SaveBadge state={saveState} />
             <div className="mx-1 h-6 w-px bg-line" />
@@ -1083,12 +1089,17 @@ export default function BoardPage() {
 
 function SaveBadge({ state }: { state: "saved" | "saving" | "dirty" }) {
   const map = {
-    saved: { text: "Saved", cls: "text-emerald-400" },
-    saving: { text: "Saving…", cls: "text-muted" },
-    dirty: { text: "Unsaved", cls: "text-amber-400" },
+    saved: { text: "Saved", dotCls: "bg-emerald-400 shadow-[0_0_10px_#10b981]", textCls: "text-emerald-400 font-semibold" },
+    saving: { text: "Saving…", dotCls: "bg-amber-400 animate-pulse shadow-[0_0_10px_#f59e0b]", textCls: "text-amber-400 font-semibold" },
+    dirty: { text: "Unsaved", dotCls: "bg-rose-400 shadow-[0_0_8px_#f43f5e]", textCls: "text-rose-400 font-semibold" },
   } as const;
   const s = map[state];
-  return <span className={`hidden text-xs sm:block ${s.cls}`}>{s.text}</span>;
+  return (
+    <span className="hidden items-center gap-1.5 rounded-full border border-white/10 bg-panel/80 px-3 py-1 text-xs backdrop-blur shadow-sm sm:flex">
+      <span className={`h-2 w-2 rounded-full transition-all duration-300 ${s.dotCls}`} />
+      <span className={s.textCls}>{s.text}</span>
+    </span>
+  );
 }
 
 function BoardTime(){return <>{useNow().time}</>;}

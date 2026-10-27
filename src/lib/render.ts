@@ -41,6 +41,104 @@ export function applyToolStyle(ctx: CanvasRenderingContext2D, tool: string) {
   }
 }
 
+export function drawLaserStroke(ctx: CanvasRenderingContext2D, stroke: StrokeObject, baseAlpha = 1) {
+  const pts = stroke.points;
+  if (!pts.length) return;
+  const reducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const opacity = laserOpacity(stroke, performance.now(), reducedMotion);
+  if (opacity <= 0.001) return;
+
+  const laserColor = stroke.color && !['#1f2937','#000000','#1e1e1e'].includes(stroke.color.toLowerCase())
+    ? stroke.color
+    : '#ff1744';
+  const width = Math.max(2, stroke.width);
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (pts.length === 1) {
+    const p = pts[0];
+    const r = Math.max(width / 2, 2.5);
+    ctx.save();
+    ctx.globalAlpha = baseAlpha * opacity * 0.45;
+    ctx.shadowColor = laserColor;
+    ctx.shadowBlur = Math.max(22, width * 4.5);
+    ctx.fillStyle = laserColor;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = baseAlpha * opacity * 0.92;
+    ctx.shadowColor = laserColor;
+    ctx.shadowBlur = Math.max(10, width * 2);
+    ctx.fillStyle = laserColor;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * 1.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = baseAlpha * opacity;
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(1.2, r * 0.45), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+    return;
+  }
+
+  const path = new Path2D();
+  path.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const cx = pts[i].x;
+    const cy = pts[i].y;
+    const mx = (cx + pts[i + 1].x) / 2;
+    const my = (cy + pts[i + 1].y) / 2;
+    path.quadraticCurveTo(cx, cy, mx, my);
+  }
+  const last = pts[pts.length - 1];
+  path.lineTo(last.x, last.y);
+
+  // Layer 1: Wide radiant glow aura (Bloom)
+  ctx.save();
+  ctx.globalAlpha = baseAlpha * opacity * 0.42;
+  ctx.strokeStyle = laserColor;
+  ctx.lineWidth = Math.max(14, width * 2.8);
+  ctx.shadowColor = laserColor;
+  ctx.shadowBlur = Math.max(22, width * 4.5);
+  ctx.stroke(path);
+  ctx.restore();
+
+  // Layer 2: Vibrant energetic sheath
+  ctx.save();
+  ctx.globalAlpha = baseAlpha * opacity * 0.92;
+  ctx.strokeStyle = laserColor;
+  ctx.lineWidth = Math.max(3.5, width * 1.2);
+  ctx.shadowColor = laserColor;
+  ctx.shadowBlur = Math.max(9, width * 1.8);
+  ctx.stroke(path);
+  ctx.restore();
+
+  // Layer 3: Scorching white-hot plasma core
+  ctx.save();
+  ctx.globalAlpha = baseAlpha * opacity * 0.98;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = Math.max(1.6, width * 0.36);
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 4;
+  ctx.stroke(path);
+  ctx.restore();
+
+  ctx.restore();
+}
+
 // Draws a smoothed freehand stroke using mid-point quadratic curves.
 export function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeObject) {
   const pts = stroke.points;
@@ -53,7 +151,7 @@ export function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeObject) 
   ctx.strokeStyle = stroke.color;
   ctx.lineWidth = stroke.width;
 
-  if(stroke.tool==='laser'){ctx.globalAlpha*=laserOpacity(stroke,performance.now(),typeof window!=='undefined'&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);ctx.shadowColor=stroke.color;ctx.shadowBlur=Math.max(12,stroke.width*4);}
+  if(stroke.tool==='laser'){drawLaserStroke(ctx,stroke,inheritedAlpha);ctx.restore();return;}
   if(stroke.brush==='stamp'){
     let previous:{x:number;y:number}|undefined;for(const p of pts){if(previous&&dist(previous,p)<Math.max(12,stroke.width*1.4))continue;drawStamp(ctx,stroke.stamp??'smile',p.x,p.y,Math.max(12,stroke.width),stroke.color);previous=p;}ctx.restore();return;
   }
@@ -62,12 +160,12 @@ export function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeObject) 
     if(outline.length){
       ctx.beginPath();ctx.moveTo(outline[0][0],outline[0][1]);for(let i=1;i<outline.length;i++)ctx.lineTo(outline[i][0],outline[i][1]);ctx.closePath();
       const kind=stroke.brush??'normal',grain=brushSettings(kind,stroke.brushSettings).grain;
-      const textured=['paint','oil-paint','crayon','oil-pastel','chalk','pencil'].includes(kind);
+      const textured=['paint','oil-paint','crayon','oil-pastel','chalk','pencil','charcoal','watercolor','airbrush'].includes(kind);
       ctx.fillStyle=stroke.color;
-      const base=kind==='pencil'?.14:kind==='crayon'?.7:kind==='chalk'?.62:kind==='oil-pastel'?.84:kind==='paint'?.65:kind==='oil-paint'?.93:1;
+      const base=kind==='pencil'?.14:kind==='crayon'?.7:kind==='chalk'?.62:kind==='oil-pastel'?.84:kind==='paint'?.65:kind==='oil-paint'?.93:kind==='charcoal'?.82:kind==='watercolor'?.55:kind==='airbrush'?.4:1;
       ctx.globalAlpha=inheritedAlpha*(textured?1-grain*(1-base):1);ctx.fill();
-      if(textured&&grain>0&&!['paint','oil-paint'].includes(kind)){const pigment=brushTexture(ctx,kind,stroke.color);if(pigment){ctx.fillStyle=pigment;ctx.globalAlpha=inheritedAlpha*grain;ctx.fill();}}
-      if(kind==='paint'||kind==='oil-paint'){ctx.globalAlpha=inheritedAlpha;paintBristles(ctx,stroke,grain);}
+      if(textured&&grain>0&&!['paint','oil-paint','watercolor'].includes(kind)){const pigment=brushTexture(ctx,kind,stroke.color);if(pigment){ctx.fillStyle=pigment;ctx.globalAlpha=inheritedAlpha*grain;ctx.fill();}}
+      if(kind==='paint'||kind==='oil-paint'||kind==='watercolor'){ctx.globalAlpha=inheritedAlpha;paintBristles(ctx,stroke,grain);}
 
     }
     ctx.restore();return;
@@ -95,7 +193,7 @@ export function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeObject) 
   const last = pts[pts.length - 1];
   ctx.lineTo(last.x, last.y);
   ctx.stroke();
-  if(stroke.tool==='laser'){ctx.shadowBlur=0;ctx.strokeStyle='#fff7df';ctx.lineWidth=Math.max(.8,stroke.width*.35);ctx.stroke();}
+
   ctx.restore();
 }
 
@@ -419,6 +517,15 @@ export function drawBackground(
       ctx.stroke();
     }
   }
+
+  // Subtle canvas perimeter vignette for physical smartboard depth
+  const isDarkCanvas = isColorDark(color);
+  const vignette = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.45, w / 2, h / 2, Math.hypot(w, h) * 0.72);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, isDarkCanvas ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.05)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, w, h);
+
   ctx.restore();
 }
 

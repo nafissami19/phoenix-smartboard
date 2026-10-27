@@ -5,7 +5,7 @@ import {BRUSH_KINDS,brushSettings,exportCustomPen,importCustomPen,loadCustomPens
 import type {StrokeObject} from '@/db/schema';
 import './CustomPens.css';
 
-const labels:Record<string,string>={normal:'Pen',pencil:'Pencil',paint:'Paint',chinese:'Chinese brush',crayon:'Crayon',chalk:'Chalk','oil-pastel':'Oil pastel','oil-paint':'Oil paint',stamp:'Stamp'};
+const labels:Record<string,string>={normal:'Pen',pencil:'Pencil',paint:'Paint',chinese:'Chinese brush',crayon:'Crayon',chalk:'Chalk','oil-pastel':'Oil pastel','oil-paint':'Oil paint',stamp:'Stamp',calligraphy:'Calligraphy',marker:'Marker',charcoal:'Charcoal',watercolor:'Watercolor',airbrush:'Airbrush',gel:'Gel pen'};
 export function CustomPens(){
  const [pens,setPens]=useState(loadCustomPens),[draft,setDraft]=useState<CustomPen|null>(null),[error,setError]=useState('');
  const file=useRef<HTMLInputElement>(null);
