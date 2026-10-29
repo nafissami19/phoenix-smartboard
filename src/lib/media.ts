@@ -229,12 +229,16 @@ async function renderDocxSurface(
     const res = await fetch(await assetUrl(assetId));
     const arrayBuffer = await res.arrayBuffer();
     const converted = await mammoth.convertToHtml({ arrayBuffer });
-    const html = DOMPurify.sanitize(converted.value);
+    const html = DOMPurify.sanitize(converted.value, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur']
+    });
 
     // Render in an isolated document so board stacking, themes and dialogs
     // cannot make an imported document invisible in its raster output.
     const frame=document.createElement('iframe');
-    frame.setAttribute('aria-hidden','true');frame.tabIndex=-1;
+    frame.setAttribute('aria-hidden','true');frame.tabIndex=-1;frame.setAttribute('sandbox', 'allow-same-origin');
     Object.assign(frame.style,{position:'fixed',left:'0',top:'0',width:`${targetW}px`,height:'400px',border:'0',zIndex:'-1',pointerEvents:'none'});
     document.body.appendChild(frame);
     let canvas:HTMLCanvasElement;

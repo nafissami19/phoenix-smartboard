@@ -1247,11 +1247,11 @@ export function useWhiteboard(options: {
       e.preventDefault();
       zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015));
     };
-    window.addEventListener("wheel", onWheelNative, { passive: false });
+    canvas?.addEventListener("wheel", onWheelNative, { passive: false });
 
     return () => {
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("wheel", onWheelNative);
+      canvas?.removeEventListener("wheel", onWheelNative);
     };
   }, [scheduleRender, zoomAt]);
 

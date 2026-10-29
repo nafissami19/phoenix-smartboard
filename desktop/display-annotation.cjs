@@ -40,6 +40,6 @@ function install({app,BrowserWindow,ipcMain,getMain,getFolder}){
  ipcMain.handle('phoenix-display-command',handleCommand);
  const reframe=()=>{if(!active)return;const next=screen.getAllDisplays().find(d=>d.id===display.id)||screen.getPrimaryDisplay();display=next;overlay.setBounds(next.bounds);controls.setPosition(next.workArea.x+Math.max(0,Math.round((next.workArea.width-controls.getBounds().width)/2)),next.workArea.y+next.workArea.height-controls.getBounds().height-8);};
  screen.on('display-metrics-changed',reframe);screen.on('display-removed',reframe);
- return {close:()=>close(false)};
+ return {close:()=>{clearTimeout(saveTimer);screen.removeListener('display-metrics-changed',reframe);screen.removeListener('display-removed',reframe);close(false);}};
 }
 module.exports={install};
