@@ -3,6 +3,7 @@ import type {Page,StrokeObject} from '@/db/schema';
 import {inspectEnbArchive} from './enb-archive';
 import {importLesson,exportLesson} from './lesson-bundle';
 import {renderExportPage,type ExportProgress} from './lesson-export';
+import {toArrayBuffer} from './buffer';
 const id=()=>crypto.randomUUID();
 const expandedBytes=new WeakMap<JSZip,number>();
 async function readEntry(zip:JSZip,path:string,max=8*1024*1024):Promise<Uint8Array>{
@@ -42,7 +43,7 @@ async function png(zip:JSZip,path:string){
 }
 export async function prepareEnb(file:Blob,title='Imported Note3 lesson'){
  if(file.size>100*1024*1024)throw new Error('ENB files must be under 100 MB.');
- const buffer=await file.arrayBuffer();inspectEnbArchive(buffer);const zip=await JSZip.loadAsync(buffer);
+ const buffer=await toArrayBuffer(file);inspectEnbArchive(buffer);const zip=await JSZip.loadAsync(buffer);
  const boardFile=zip.file('Board.xml');if(!boardFile)throw new Error('Missing Note3 board.');const boardSource=await readText(zip,'Board.xml'),board=xml(boardSource),count=number(field(board,'SlideCount'));
  if(count<1||count>500||!Number.isInteger(count))throw new Error('ENB documents must contain 1–500 pages.');
  const sources:string[]=[];for(let i=0;i<count;i++){const f=zip.file(`Slides/Slide_${i}.xml`);if(!f)throw new Error(`Missing ENB page ${i+1}.`);sources.push(await readText(zip,`Slides/Slide_${i}.xml`));}
@@ -75,7 +76,7 @@ export async function exportEnb(notebookId:string,pages:readonly Page[],onProgre
   onProgress?.({page:i+1,total:pages.length});const canvas=await renderExportPage(pages[i]);
   try{
    const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Could not encode ENB page.')),'image/png'));total+=blob.size*2;if(total>90*1024*1024)throw new Error('ENB export exceeds 90 MB. Split this lesson.');
-   const resource=id()+'.png',bytes=await blob.arrayBuffer();zip.file('Resources/'+resource,bytes);zip.file(`Slides/Slide_${i}.png`,bytes);
+   const resource=id()+'.png',bytes=await toArrayBuffer(blob);zip.file('Resources/'+resource,bytes);zip.file(`Slides/Slide_${i}.png`,bytes);
    const picture=`<Package Type="Picture"><Data><Res_SourcePath>${resource}</Res_SourcePath><Transform>1,0,0,1,0,0</Transform><BitmapWidth>${canvas.width}</BitmapWidth><BitmapHeight>${canvas.height}</BitmapHeight><BitmapBright>0</BitmapBright><BitmapContrast>0</BitmapContrast></Data></Package>`;
    const source=pack('Slide',`<Id>${ids[i]}</Id><ElementCount>1</ElementCount><Width>${canvas.width}</Width><Height>${canvas.height}</Height><BackgroundType>SolidColorBrush</BackgroundType><BackgroundValue>#FF${pages[i].background.slice(1)}</BackgroundValue>`,picture+'<Package Type="SlideExtension" Key="Extension_0"><Data><Scale>NaN</Scale><Translation>0,0</Translation></Data></Package>');
    zip.file(`Slides/Slide_${i}.xml`,source);sources.push(source);

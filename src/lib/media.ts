@@ -2,6 +2,7 @@
 import { database, localAssetURL } from "@/lib/local-store";
 import DOMPurify from "dompurify";
 import {getPerformanceProfile,subscribePerformance} from "./performance";
+import { toArrayBuffer, toUint8Array } from "./buffer";
 
 // ---------------------------------------------------------------------------
 // Media loading + caching. Everything is defensive: if a format can't be
@@ -141,7 +142,7 @@ export function loadPdf(assetId: string, directBlob?: Blob): Promise<PdfDoc> {
         blob = asset.blob;
     }
 
-    const task = pdfjsLib.getDocument({data:new Uint8Array(await blob!.arrayBuffer())});
+    const task = pdfjsLib.getDocument({data: await toUint8Array(blob)});
     return task.promise;
   })();
   pdfCache.set(assetId, promise);
@@ -227,13 +228,18 @@ async function renderDocxSurface(
   try {
     const mammoth = await getMammoth();
     const res = await fetch(await assetUrl(assetId));
-    const arrayBuffer = await res.arrayBuffer();
+    const arrayBuffer = await toArrayBuffer(res);
     const converted = await mammoth.convertToHtml({ arrayBuffer });
-    const html = DOMPurify.sanitize(converted.value);
+    const html = DOMPurify.sanitize(converted.value, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover']
+    });
 
     // Render in an isolated document so board stacking, themes and dialogs
     // cannot make an imported document invisible in its raster output.
     const frame=document.createElement('iframe');
+    frame.setAttribute('sandbox', 'allow-same-origin');
     frame.setAttribute('aria-hidden','true');frame.tabIndex=-1;
     Object.assign(frame.style,{position:'fixed',left:'0',top:'0',width:`${targetW}px`,height:'400px',border:'0',zIndex:'-1',pointerEvents:'none'});
     document.body.appendChild(frame);

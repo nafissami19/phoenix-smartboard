@@ -47,7 +47,19 @@ public class DisplayAnnotationService extends Service {
   Intent back=getPackageManager().getLaunchIntentForPackage(getPackageName());if(back==null)back=new Intent(this,MainActivity.class);back.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);PendingIntent action=PendingIntent.getActivity(this,0,back,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
   Notification.Builder builder=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,CHANNEL):new Notification.Builder(this);return builder.setSmallIcon(android.R.drawable.ic_menu_edit).setContentTitle("Phoenix Smartboard display annotation").setContentText("Tap to return to your lesson").setContentIntent(action).setOngoing(true).setCategory(Notification.CATEGORY_SERVICE).setOnlyAlertOnce(true).addAction(new Notification.Action.Builder(null,"Return to lesson",action).build()).build();
  }
- private void foreground(boolean capture){int types=0;if(Build.VERSION.SDK_INT>=34)types=ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE;if(capture&&Build.VERSION.SDK_INT>=29)types|=ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;if(Build.VERSION.SDK_INT>=29)startForeground(NOTICE,notification(),types);else startForeground(NOTICE,notification());}
+ private void foreground(boolean capture){
+  int types=0;
+  if(Build.VERSION.SDK_INT>=34)types=ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE;
+  if(capture&&Build.VERSION.SDK_INT>=29)types|=ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
+  try{
+   if(Build.VERSION.SDK_INT>=29)startForeground(NOTICE,notification(),types);
+   else startForeground(NOTICE,notification());
+  }catch(Exception e){
+   if(Build.VERSION.SDK_INT>=29){
+    try{startForeground(NOTICE,notification(),capture?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION:0);}catch(Exception ignored){startForeground(NOTICE,notification());}
+   }else startForeground(NOTICE,notification());
+  }
+ }
  @Override public int onStartCommand(Intent intent,int flags,int startId){if(intent==null){stopSelf();return START_NOT_STICKY;}String action=intent.getAction();if("return".equals(action)){returnToNotes();return START_NOT_STICKY;}
   try{if(!Settings.canDrawOverlays(this))throw new SecurityException("Allow Display over other apps for Phoenix Smartboard.");foreground("capture".equals(action));if(!attached){attach();restore();}if("capture".equals(action)){Intent consent=Build.VERSION.SDK_INT>=33?intent.getParcelableExtra("resultData",Intent.class):intent.getParcelableExtra("resultData");int code=intent.getIntExtra("resultCode",Activity.RESULT_CANCELED);main.postDelayed(()->{if(attached)capture(code,consent);},350);}}
   catch(Exception error){Toast.makeText(this,error.getMessage()==null?"Could not start annotation.":error.getMessage(),Toast.LENGTH_LONG).show();stopSelf();}return START_NOT_STICKY;
@@ -85,7 +97,21 @@ public class DisplayAnnotationService extends Service {
  private String encode(){JSONObject root=new JSONObject();JSONArray entries=new JSONArray();try{root.put("format","phoenix-android-display");root.put("version",1);for(Mark mark:marks)if(!mark.tool.equals("laser")){JSONObject entry=new JSONObject();entry.put("tool",mark.tool);entry.put("color",mark.color);entry.put("width",mark.width);JSONArray points=new JSONArray();for(Sample sample:mark.points){JSONArray point=new JSONArray();point.put(sample.x);point.put(sample.y);point.put(sample.pressure);points.put(point);}entry.put("points",points);entries.put(entry);}root.put("marks",entries);}catch(JSONException ignored){}return root.toString();}
  private void restore(){files.execute(()->{String data=null;try{data=annotationFiles.restore();persistedToFolder=data!=null;}catch(Exception ignored){}if(data==null)try{File source=new File(getFilesDir(),"display-annotation.json");if(source.length()<8*1024*1024)try(InputStream input=new FileInputStream(source);ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] buffer=new byte[8192];int n;while((n=input.read(buffer))!=-1)out.write(buffer,0,n);data=out.toString("UTF-8");}}catch(Exception ignored){}
   ArrayList<Mark> restored=new ArrayList<>();try{if(data!=null){JSONObject root=new JSONObject(data);String fmt=root.getString("format");if(!"phoenix-android-display".equals(fmt)||root.getInt("version")!=1)throw new IOException("Invalid annotations");JSONArray entries=root.getJSONArray("marks");int count=0;if(entries.length()>2000)throw new IOException("Too many annotations");for(int i=0;i<entries.length();i++){JSONObject entry=entries.getJSONObject(i);String kind=entry.getString("tool");if(!Arrays.asList("pen","marker","line","rect","circle").contains(kind))throw new IOException("Invalid annotation tool");float w=(float)entry.getDouble("width");if(!Float.isFinite(w)||w<1||w>40)throw new IOException("Invalid ink width");Mark mark=new Mark(kind,entry.getInt("color"),w);JSONArray points=entry.getJSONArray("points");count+=points.length();if(count>150000)throw new IOException("Too many points");for(int j=0;j<points.length();j++){JSONArray point=points.getJSONArray(j);float x=(float)point.getDouble(0),y=(float)point.getDouble(1),p=(float)point.optDouble(2,1);if(!Float.isFinite(x)||!Float.isFinite(y)||!Float.isFinite(p)||Math.abs(x)>2||Math.abs(y)>2)throw new IOException("Invalid annotation position");mark.points.add(new Sample(x,y,Math.max(.1f,Math.min(1,p))));}if(!mark.points.isEmpty())restored.add(mark);}}}catch(Exception invalid){restored.clear();}
-  main.post(()->{if(!destroyed){restoring=false;if(attached&&marks.isEmpty()&&draft==null){marks.addAll(restored);ink.invalidate();if(!persistedToFolder)message("Choose a device folder in Phoenix Smartboard settings for uninstall-safe annotation copies.");}}});
+  main.post(()->{
+    if(!destroyed){
+     restoring=false;
+     if(attached){
+      if(marks.isEmpty()&&draft==null){
+       marks.addAll(restored);
+       ink.invalidate();
+      }else if(!restored.isEmpty()){
+       marks.addAll(0,restored);
+       ink.invalidate();
+      }
+      if(!persistedToFolder)message("Choose a device folder in Phoenix Smartboard settings for uninstall-safe annotation copies.");
+     }
+    }
+   });
  });}
  private void returnToNotes(){finishStroke();if(pendingSave!=null){main.removeCallbacks(pendingSave);pendingSave.run();pendingSave=null;}getSharedPreferences("phoenix-display",0).edit().putBoolean("returnPending",true).apply();Intent launch=getPackageManager().getLaunchIntentForPackage(getPackageName());if(launch!=null){launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(launch);}stopSelf();}
  private void capture(int result,Intent consent){if(consent==null){captureCancelled("Screenshot permission was not granted.");return;}capturing=true;toolbar.setVisibility(View.GONE);try{

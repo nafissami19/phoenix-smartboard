@@ -1,3 +1,4 @@
+import { toArrayBuffer } from './buffer';
 export type SnapshotRecords={profile:unknown;notebooks:unknown[];pages:unknown[];assets:{blob:Blob;[key:string]:unknown}[];preferences:Record<string,string>};
 export const SNAPSHOT_LIMIT=160*1024*1024;
 export function snapshotLimitError(limit:number){return new Error(`Device copy exceeds ${Math.round(limit/1024/1024)} MB for this device. Export large lessons separately. Your in-app lessons are still saved.`);}
@@ -16,6 +17,6 @@ export async function preflightDeviceSnapshot(records:SnapshotRecords,requestedL
 }
 export async function encodeDeviceSnapshot(records:SnapshotRecords,requestedLimit=SNAPSHOT_LIMIT):Promise<string>{
  const limit=checkedLimit(requestedLimit);await preflightDeviceSnapshot(records,limit);
- const assets=[];for(const {blob,...asset} of records.assets){const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768){binary+=String.fromCharCode(...bytes.subarray(i,i+32768));if(i>0&&i%1048576===0)await new Promise<void>(resolve=>setTimeout(resolve,0));}assets.push({...asset,dataBase64:btoa(binary)});}
+ const assets=[];for(const {blob,...asset} of records.assets){const bytes=new Uint8Array(await toArrayBuffer(blob));let binary='';for(let i=0;i<bytes.length;i+=32768){binary+=String.fromCharCode(...bytes.subarray(i,i+32768));if(i>0&&i%1048576===0)await new Promise<void>(resolve=>setTimeout(resolve,0));}assets.push({...asset,dataBase64:btoa(binary)});}
  const data=JSON.stringify({format:'phoenix-device-library',version:1,...records,assets});if(new Blob([data]).size>limit)throw snapshotLimitError(limit);return data;
 }

@@ -1,5 +1,6 @@
 export type SheetTab={name:string;cells:string[][];cached?:Record<string,string>};
 export type Spreadsheet={version:1;tabs:SheetTab[]};
+import { toArrayBuffer } from './buffer';
 export const SHEET_ROWS=200,SHEET_COLS=40,SHEET_TABS=12;
 export function validateSpreadsheet(value:unknown):Spreadsheet{
  const v=value as Spreadsheet;if(!v||v.version!==1||!Array.isArray(v.tabs)||!v.tabs.length||v.tabs.length>SHEET_TABS||JSON.stringify(v).length>2_000_000)throw new Error('This worksheet exceeds the supported size.');
@@ -31,8 +32,8 @@ export function parseCSV(text:string):Spreadsheet{
 }
 export function exportCSV(tab:SheetTab){return tab.cells.map(row=>row.map(value=>'"'+value.replace(/"/g,'""')+'"').join(',')).join('\r\n');}
 export function blankSpreadsheet():Spreadsheet{return {version:1,tabs:[{name:'Sheet 1',cells:Array.from({length:12},()=>Array(6).fill(''))}]};}
-export async function importXLSX(file:Blob):Promise<Spreadsheet>{
- if(file.size>10*1024*1024)throw new Error('Excel files must be under 10 MB.');const bytes=await file.arrayBuffer();const {default:JSZip}=await import('jszip');const zip=await JSZip.loadAsync(bytes);let size=0;
+export async function importXLSX(file:Blob|unknown):Promise<Spreadsheet>{
+ const bytes=await toArrayBuffer(file);if(bytes.byteLength>10*1024*1024)throw new Error('Excel files must be under 10 MB.');const {default:JSZip}=await import('jszip');const zip=await JSZip.loadAsync(bytes);let size=0;
  for(const entry of Object.values(zip.files)){const declared=(entry as unknown as {_data?:{uncompressedSize?:number}})._data?.uncompressedSize;if(typeof declared==='number')size+=declared;if(size>25*1024*1024)throw new Error('The expanded workbook is too large for this board.');}
  const {default:ExcelJS}=await import('exceljs');const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(bytes as Parameters<typeof workbook.xlsx.load>[0]);if(workbook.worksheets.length>SHEET_TABS)throw new Error('Use at most 12 worksheets.');const tabs:SheetTab[]=[];
  for(const sheet of workbook.worksheets){if(sheet.rowCount>SHEET_ROWS||sheet.columnCount>SHEET_COLS)throw new Error('Use at most 200 rows and 40 columns per worksheet.');const cells:string[][]=[],cached:Record<string,string>={};for(let r=1;r<=sheet.rowCount;r++){const row:string[]=[];for(let c=1;c<=sheet.columnCount;c++){const cell=sheet.getCell(r,c),value=cell.value;if(value&&typeof value==='object'&&('formula'in value||'sharedFormula'in value)){row.push('='+cell.formula);if('result'in value&&value.result!==undefined)cached[`${r-1}:${c-1}`]=String(value.result);}else row.push(cell.text??'');}cells.push(row);}tabs.push({name:sheet.name,cells:cells.length?cells:[['']],cached});}return validateSpreadsheet({version:1,tabs});

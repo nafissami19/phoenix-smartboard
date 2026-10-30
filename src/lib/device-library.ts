@@ -48,10 +48,13 @@ export async function initializeDeviceLibrary(){
  try{status=await bridge.status();if(status.folder){const db=await database();const count=await db.count('notebooks');db.close();if(!count){const copy=await bridge.read();if(copy.data){await restoreDeviceSnapshot(copy.data);status={...status,restored:true};}}}publish(status);}catch(error){publish({...status,available:true,error:error instanceof Error?error.message:'Device recovery failed. Your device files were kept.'});}finally{initialized=true;}
  if(status.folder&&!status.error)scheduleDeviceSave();
  window.addEventListener('phoenix-preferences-changed',scheduleDeviceSave);
- const originalSet=Storage.prototype.setItem,originalRemove=Storage.prototype.removeItem;
  const isPrefKey=(k:string)=>k.startsWith('phoenix-')&&!k.includes('-view:')&&!k.includes('-last-page:');
- Storage.prototype.setItem=function(key,value){originalSet.call(this,key,value);if(this===localStorage&&isPrefKey(key))scheduleDeviceSave();};
- Storage.prototype.removeItem=function(key){originalRemove.call(this,key);if(this===localStorage&&isPrefKey(key))scheduleDeviceSave();};
+ if(!(Storage.prototype as any).__phoenixPatched){
+  (Storage.prototype as any).__phoenixPatched=true;
+  const originalSet=Storage.prototype.setItem,originalRemove=Storage.prototype.removeItem;
+  Storage.prototype.setItem=function(key,value){originalSet.call(this,key,value);if(this===localStorage&&isPrefKey(key))scheduleDeviceSave();};
+  Storage.prototype.removeItem=function(key){originalRemove.call(this,key);if(this===localStorage&&isPrefKey(key))scheduleDeviceSave();};
+ }
  bridge.onFlush?.(async()=>{const detail:{pending:Promise<unknown>[]}={pending:[]};window.dispatchEvent(new CustomEvent('phoenix-flush-board',{detail}));await Promise.all(detail.pending);scheduleDeviceSave();await flushDeviceSave();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)void flushDeviceSave();});
  window.addEventListener('pagehide',()=>{void flushDeviceSave();});

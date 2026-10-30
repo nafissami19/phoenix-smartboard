@@ -6,6 +6,7 @@ import JSZip from 'jszip';
 import {database} from './local-store';
 import type {BoardObject,MediaItem,Page} from '../db/schema';
 import {placeImportedMedia,type ImportLayout} from './import-layout';
+import {toArrayBuffer} from './buffer';
 
 const uid=()=>crypto.randomUUID();
 const children=(node:Element|Document,name:string)=>Array.from(node.getElementsByTagNameNS('*',name));
@@ -17,10 +18,12 @@ function path(base:string,target:string){const parts=base.split('/');parts.pop()
 function unit(value:string){const match=/^(-?[\d.]+)(cm|mm|in|pt|px)?$/.exec(value);if(!match||!Number.isFinite(Number(match[1])))return 0;const factor={cm:96/2.54,mm:96/25.4,in:96,pt:96/72,px:1}[match[2]||'px']!;return Number(match[1])*factor;}
 type Slide={objects:BoardObject[];media:MediaItem[];width:number;height:number;background:string};
 const imageTypes:Record<string,string>={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp'};
-export async function importOfficeSlides(notebookId:string,file:File,replaceEmptyFirst=false,placement?:{layout:ImportLayout;center:{x:number;y:number}},mode:'editable'|'flattened'='editable'):Promise<{count:number;warnings:string[]}>{
-  if(file.size>25*1024*1024)throw new Error('Choose a presentation under 25 MB.');
-  const extension=file.name.split('.').pop()?.toLowerCase();if(extension!=='pptx'&&extension!=='odp')throw new Error('Use PPTX or LibreOffice ODP. Export old PPT presentations to PDF.');
-  const zip=await JSZip.loadAsync(await file.arrayBuffer());
+export async function importOfficeSlides(notebookId:string,file:File|unknown,replaceEmptyFirst=false,placement?:{layout:ImportLayout;center:{x:number;y:number}},mode:'editable'|'flattened'='editable'):Promise<{count:number;warnings:string[]}>{
+  const buffer=await toArrayBuffer(file);
+  if(buffer.byteLength>25*1024*1024)throw new Error('Choose a presentation under 25 MB.');
+  const fileName=(file as any)?.name||'presentation.pptx';
+  const extension=fileName.split('.').pop()?.toLowerCase();if(extension!=='pptx'&&extension!=='odp')throw new Error('Use PPTX or LibreOffice ODP. Export old PPT presentations to PDF.');
+  const zip=await JSZip.loadAsync(buffer);
   let expanded=0;for(const entry of Object.values(zip.files)){const size=(entry as unknown as {_data?:{uncompressedSize?:number}})._data?.uncompressedSize||0;expanded+=size;if(size>25*1024*1024||expanded>100*1024*1024)throw new Error('Expanded presentation exceeds the safety limit.');}
   const warnings=new Set<string>();warnings.add('Basic slide text, shapes and embedded images are editable. Complex layouts, fonts, charts, transitions and animations may differ; use PDF for exact appearance.');
   const read=async(name:string)=>{const member=zip.file(name);if(!member)throw new Error(`Presentation is missing ${name}`);return xml(await member.async('string'));};

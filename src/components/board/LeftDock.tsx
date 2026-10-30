@@ -1,4 +1,3 @@
-import {useToast} from '@/lib/toast';
 import {useI18n, LanguageToggle} from '@/lib/i18n';
 import {BoardFullscreen} from './BoardFullscreen';
 import {ThemeIcon} from './ThemeIcon';
@@ -19,13 +18,11 @@ export type DockId =
   | "library";
 
 export function LeftDock({active,onOpen,onSave,onSwap}:{active:DockId|null;onOpen:(id:DockId)=>void;onSave:()=>void;onSwap:()=>void}){
-  const {push}=useToast();const [startingDisplay,setStartingDisplay]=useState(false);
   const {t}=useI18n();
   return <div className="kn-dock pointer-events-auto flex items-center gap-1 rounded-xl border border-line bg-panel p-1 shadow-xl">
     <button type="button" className="kn-side-switch kn-focus" aria-label={t("swap_sides")} title={t("swap_sides")} onClick={onSwap}><ThemeIcon name="flipHorizontal"/></button>
     <button type="button" data-dock-action="file" aria-label={t("menu")} title={t("menu")} aria-expanded={active==='file'} onClick={()=>onOpen('file')} className="kn-focus"><ThemeIcon name="menu"/></button>
     <BoardFullscreen dock/>
-    {window.phoenixDisplay&&<button type="button" data-dock-action="display" aria-label={t("display_annotation")} disabled={startingDisplay} onClick={()=>{setStartingDisplay(true);const detail:{pending:Promise<unknown>[]}={pending:[]};window.dispatchEvent(new CustomEvent('phoenix-flush-board',{detail}));void Promise.all(detail.pending).then(()=>window.phoenixDisplay!.start()).catch(error=>push(error instanceof Error?error.message:'Could not start display annotation.','error')).finally(()=>setStartingDisplay(false));}} className="kn-focus"><Icon name="board"/></button>}
     <button type="button" data-dock-action="treasure" aria-label={t("treasure_box")} title={t("treasure_box")} aria-expanded={active==='treasure'} onClick={()=>onOpen('treasure')} className="kn-focus"><ThemeIcon name="toolbox"/></button>
     <button type="button" data-dock-action="import" aria-label={t("import_file")} title={t("import_file")} onClick={()=>onOpen('import')} className="kn-focus"><ThemeIcon name="import"/></button>
     <button type="button" data-dock-action="save" aria-label={t("save_lesson")} title={t("save_lesson")} onClick={onSave} className="kn-focus"><ThemeIcon name="save"/></button>

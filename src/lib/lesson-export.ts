@@ -2,6 +2,7 @@ import {isSpecial,drawSpecialPreview} from './special-objects';
 import {loadBackgroundImage} from './background-image';
 import type {MediaItem, Page, Watermark} from '@/db/schema';
 import {drawBackground, drawObject, isColorDark, objectBounds, type Bounds} from './render';
+import {toArrayBuffer} from './buffer';
 
 export type PDFScope = 'current' | 'all';
 export type ExportProgress = {page: number; total: number};
@@ -163,7 +164,7 @@ export async function renderExportPage(page: Page, watermark?: Watermark): Promi
 
 async function pngBytes(canvas: HTMLCanvasElement) {
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Could not encode this page.')), 'image/png'));
-  return new Uint8Array(await blob.arrayBuffer());
+  return new Uint8Array(await toArrayBuffer(blob));
 }
 
 export async function exportLessonPDF(pages: readonly Page[], options: {

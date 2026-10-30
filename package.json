@@ -22,7 +22,7 @@
   "dependencies": {
     "@capacitor/android": "8.5.2",
     "@capacitor/core": "8.5.2",
-    "dompurify": "3.4.16",
+    "dompurify": "^3.4.17",
     "exceljs": "^4.4.0",
     "html2canvas": "1.4.1",
     "idb": "8.0.3",

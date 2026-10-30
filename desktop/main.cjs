@@ -1,5 +1,6 @@
 const { app, BrowserWindow, session, ipcMain, dialog, shell } = require('electron');
 const path = require('node:path');
+const { fileURLToPath } = require('node:url');
 if(process.argv.includes('--smoke-test'))app.setPath('userData',path.join(app.getPath('temp'),'phoenix-smartboard-smoke-'+process.pid));
 app.whenReady().then(async () => {
   const fs=require('node:fs/promises'),{DeviceLibrary}=require('./device-library.cjs');
@@ -20,9 +21,18 @@ app.whenReady().then(async () => {
   const display=require('./display-annotation.cjs').install({app,BrowserWindow,ipcMain,getMain:()=>mainWindow,getFolder:()=>folder});
 
   session.defaultSession.on('will-download',(_event,item)=>{const name=path.basename(item.getFilename()).replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,180)||'export';const folder=path.join(library.root,'Exports');try{require('node:fs').mkdirSync(folder,{recursive:true});item.setSavePath(path.join(folder,`${Date.now()}-${name}`));}catch{/* Let Electron offer the normal save dialog if the device folder is unavailable. */}});
+  const appDistDir = path.resolve(__dirname, '../dist');
+  const desktopDir = path.resolve(__dirname);
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => {
     const url = contents.getURL();
-    callback(url.startsWith('file://') && ['media', 'fullscreen'].includes(permission));
+    if (!url.startsWith('file://')) return callback(false);
+    try {
+      const resolved = path.resolve(fileURLToPath(url));
+      const allowed = resolved.startsWith(appDistDir) || resolved.startsWith(desktopDir);
+      callback(allowed && ['media', 'fullscreen'].includes(permission));
+    } catch {
+      callback(false);
+    }
   });
   function open() {
     const preferences={contextIsolation:true,nodeIntegration:false,sandbox:true,preload:path.join(__dirname,'preload.cjs')};
@@ -60,14 +70,21 @@ app.whenReady().then(async () => {
       ipcMain.removeListener('phoenix-device-close-ready',saved);
     });
     window.center(); window.setMenuBarVisibility(false);
+    const appDistFile = path.resolve(__dirname, '../dist/index.html');
     window.webContents.setWindowOpenHandler(({ url }) => {
-      if (url.startsWith('blob:') || url.startsWith('data:')) return { action: 'allow' };
       if (url.startsWith('https://') || url.startsWith('http://')) {
         void shell.openExternal(url);
       }
       return { action: 'deny' };
     });
-    window.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('file://')) event.preventDefault(); });
+    window.webContents.on('will-navigate', (event, url) => {
+      try {
+        if (url.startsWith('file://') && path.resolve(fileURLToPath(url)) === appDistFile) {
+          return;
+        }
+      } catch {}
+      event.preventDefault();
+    });
     window.webContents.on('did-fail-load',(_event,_code,_description,_url,isMainFrame)=>{if(isMainFrame)failed();});
     void window.loadFile(path.join(__dirname, '../dist/index.html')).catch(failed);
     window.once('ready-to-show', () => {painted=true;reveal();});

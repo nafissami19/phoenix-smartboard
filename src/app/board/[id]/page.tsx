@@ -99,6 +99,7 @@ export default function BoardPage() {
 
   const pageIdRef = useRef<string | null>(null);
   const addingPage=useRef(false);
+  const navigatingPage=useRef(false);
   const frameRef=useRef<Page['importFrame']>(undefined);
   const bgRef = useRef(background);
   const patternRef = useRef(pattern);
@@ -430,7 +431,7 @@ export default function BoardPage() {
     return () => {
       alive = false;
       void finishSession(id).catch(()=>{});
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+      if (saveTimer.current) { window.clearTimeout(saveTimer.current); void flushSave().catch(()=>{}); }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -468,14 +469,21 @@ export default function BoardPage() {
 
   const goTo = useCallback(
     async (i: number) => {
-      if (i < 0 || i >= pages.length || i === index) return;
-      window.dispatchEvent(new Event('phoenix-pause-media'));
-      await flushSave();
-      const response = await localRequest(`/api/pages/${pages[i].id}`);
-      if (!response.ok) return;
-      const { page } = await response.json();
-      const refreshed = pages.map(p => p.id === page.id ? page : p);
-      setPages(refreshed); loadPageIntoBoard(i, refreshed);
+      if (i < 0 || i >= pages.length || i === index || navigatingPage.current) return;
+      navigatingPage.current = true;
+      try {
+        window.dispatchEvent(new Event('phoenix-pause-media'));
+        await flushSave();
+        const target = pages[i];
+        if (!target) return;
+        const response = await localRequest(`/api/pages/${target.id}`);
+        if (!response.ok) return;
+        const { page } = await response.json();
+        const refreshed = pages.map(p => p.id === page.id ? page : p);
+        setPages(refreshed); loadPageIntoBoard(i, refreshed);
+      } finally {
+        navigatingPage.current = false;
+      }
     },
     [pages, index, flushSave, loadPageIntoBoard],
   );

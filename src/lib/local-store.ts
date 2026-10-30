@@ -210,7 +210,7 @@ export async function localAssetURL(id: string): Promise<string> {
     urls.set(id, existing);
     return existing;
   }
-  const db=await database(); const asset=await db.get('assets',id); db.close();
+  const db=await database(); let asset; try { asset=await db.get('assets',id); } finally { db.close(); }
   if (!asset) throw new Error('Local file is missing');
   const url=URL.createObjectURL(asset.blob);
   if (urls.size >= MAX_CACHED_URLS) {

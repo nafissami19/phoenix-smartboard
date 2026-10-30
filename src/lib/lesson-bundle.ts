@@ -7,6 +7,12 @@ import JSZip from 'jszip';
 import { database } from './local-store';
 import type { Notebook, Page } from '../db/schema';
 import { BRANDING } from '@/config/branding';
+import { toArrayBuffer } from './buffer';
+const safeParse = (source: string) => JSON.parse(source, (key, value) => {
+  if (key === '__proto__' || key === 'constructor' || key === 'prototype') return undefined;
+  return value;
+});
+
 
 export async function exportLesson(id: string): Promise<Blob> {
   const db=await database();
@@ -16,7 +22,7 @@ export async function exportLesson(id: string): Promise<Blob> {
     const pages=(await tx.objectStore('pages').index('notebookId').getAll(id)).sort((a,b)=>a.position-b.position);
     const assets=await tx.objectStore('assets').index('notebookId').getAll(id);await tx.done;
     const files=[];
-    for(const {blob,...asset} of assets){const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));files.push({...asset,dataBase64:btoa(binary)});}
+    for(const {blob,...asset} of assets){const bytes=new Uint8Array(await toArrayBuffer(blob));let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));files.push({...asset,dataBase64:btoa(binary)});}
     const file=new Blob([JSON.stringify({
       format: 'phoenix-smartboard',
       version: 1,
@@ -32,19 +38,20 @@ export async function exportLesson(id: string): Promise<Blob> {
 }
 // Size checks apply before and after decompression. External path references
 // are never extracted to disk, and imports remap every object/file identifier.
-export async function importLesson(file: Blob): Promise<string> {
-  if(file.size>100*1024*1024)throw new Error('Lesson file exceeds 100 MB');
+export async function importLesson(file: Blob | unknown): Promise<string> {
+  const fileBuffer = await toArrayBuffer(file);
+  if(fileBuffer.byteLength>100*1024*1024)throw new Error('Lesson file exceeds 100 MB');
   type Manifest={format:string;version:number;generator?:string;exportedAt?:string;notebook:Notebook;pages:Page[];assets:{id:string;name:string;mimeType:string;dataBase64?:string}[]};
-  const head=new Uint8Array(await file.slice(0,2).arrayBuffer());
+  const head=new Uint8Array(fileBuffer.slice(0,2));
   let data:Manifest;let readAsset:(asset:Manifest['assets'][number])=>Promise<Uint8Array>;
   if(head[0]===80&&head[1]===75){
-    if(file.size>50*1024*1024)throw new Error('Legacy compressed lesson exceeds 50 MB');
-    const zip=await JSZip.loadAsync(await file.arrayBuffer()),manifest=zip.file('lesson.json');if(!manifest)throw new Error('Unrecognized lesson archive');
+    if(fileBuffer.byteLength>50*1024*1024)throw new Error('Legacy compressed lesson exceeds 50 MB');
+    const zip=await JSZip.loadAsync(fileBuffer),manifest=zip.file('lesson.json');if(!manifest)throw new Error('Unrecognized lesson archive');
     const json=await manifest.async('string');if(json.length>20*1024*1024)throw new Error('Lesson metadata exceeds 20 MB');
-    data=JSON.parse(json);if(data.version!==1)throw new Error('Unsupported legacy lesson version');
+    data=safeParse(json);if(data.version!==1)throw new Error('Unsupported legacy lesson version');
     readAsset=async asset=>{const member=zip.file(`assets/${asset.id}`);if(!member)throw new Error('Lesson has missing files');return member.async('uint8array');};
   }else{
-    data=JSON.parse(await file.text());
+    data=safeParse(new TextDecoder().decode(fileBuffer));
     const validVersion = data.version === 1 || data.version === 2;
     if(!validVersion)throw new Error('Unsupported lesson version');
     readAsset=async asset=>{const encoded=asset.dataBase64;if(typeof encoded!=='string'||encoded.length>36*1024*1024||!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded))throw new Error('Invalid attachment data');return Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));};
@@ -69,7 +76,47 @@ export async function importLesson(file: Blob): Promise<string> {
       if(object.kind==='stroke'&&((object.brush!==undefined&&!isBrushKind(object.brush))||(object.brushSettings!==undefined&&!validBrushSettings(object.brushSettings))||(object.opacity!==undefined&&(!Number.isFinite(object.opacity)||object.opacity<0||object.opacity>1))))throw new Error('Invalid brush settings');
       if(object.kind==='stroke'&&(!Array.isArray(object.points)||object.points.length>100000||object.points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y))))throw new Error('Invalid pen stroke');
     }
-    return {...page,id:crypto.randomUUID(),notebookId,position:index,createdAt:now,updatedAt:now,objects:page.objects.map(object=>({...object,id:crypto.randomUUID()})),media:page.media.map(item=>{const assetId=assetIds.get(item.assetId);if(!assetId||!['image','pdf','docx','audio','video','youtube','link','spreadsheet'].includes(item.kind)||![item.x,item.y,item.width,item.height].every(Number.isFinite))throw new Error('Invalid page attachment');validateSpecial(item);return {...item,id:crypto.randomUUID(),assetId};})};
+    return {
+      id: crypto.randomUUID(),
+      notebookId,
+      position: index,
+      background: page.background,
+      pattern: page.pattern,
+      backgroundImage: page.backgroundImage,
+      importFrame: frame,
+      createdAt: now,
+      updatedAt: now,
+      objects: page.objects.map(object => ({ ...object, id: crypto.randomUUID() })),
+      media: page.media.map(item => {
+        const assetId = assetIds.get(item.assetId);
+        if (!assetId || !['image','pdf','docx','audio','video','youtube','link','spreadsheet'].includes(item.kind) || ![item.x, item.y, item.width, item.height].every(Number.isFinite)) {
+          throw new Error('Invalid page attachment');
+        }
+        validateSpecial(item);
+        const pageNumber = Number.isInteger(item.pageNumber) && item.pageNumber! >= 1 && item.pageNumber! <= 100000 ? item.pageNumber : 1;
+        const numPages = Number.isInteger(item.numPages) && item.numPages! >= 1 && item.numPages! <= 100000 ? item.numPages : 1;
+        return {
+          id: crypto.randomUUID(),
+          kind: item.kind,
+          assetId,
+          x: item.x,
+          y: item.y,
+          width: item.width,
+          height: item.height,
+          rotation: Number.isFinite(item.rotation) ? item.rotation : 0,
+          locked: Boolean(item.locked),
+          pageNumber,
+          numPages,
+          ...(item.title !== undefined ? { title: String(item.title).slice(0, 160) } : {}),
+          ...(item.sourceUrl !== undefined ? { sourceUrl: item.sourceUrl } : {}),
+          ...(item.videoId !== undefined ? { videoId: item.videoId } : {}),
+          ...(item.sheet !== undefined ? { sheet: item.sheet } : {}),
+          ...(item.playback !== undefined ? { playback: item.playback } : {}),
+          ...(item.mirrorX ? { mirrorX: true } : {}),
+          ...(item.mirrorY ? { mirrorY: true } : {}),
+        };
+      })
+    };
   });
   const db=await database();try{
     const tx=db.transaction(['notebooks','pages','assets'],'readwrite');
