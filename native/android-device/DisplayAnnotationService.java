@@ -26,6 +26,7 @@ public class DisplayAnnotationService extends Service {
  private static DisplayAnnotationService current;
  private final Handler main=new Handler(Looper.getMainLooper());
  private final ExecutorService files=Executors.newSingleThreadExecutor();
+ private volatile boolean destroyed=false;
  private WindowManager manager;private InkView ink;private LinearLayout toolbar,options;private TextView status;
  private WindowManager.LayoutParams inkParams,toolParams;
  private final Map<String,IconButton> buttons=new HashMap<>();
@@ -38,10 +39,10 @@ public class DisplayAnnotationService extends Service {
  private static final String CHANNEL="phoenix-display-annotation";
  private static final int NOTICE=7421;
  public static boolean active(){return current!=null&&current.attached;}
- public static void captureCancelled(String message){if(current!=null)current.main.post(()->{current.capturing=false;current.toolbar.setVisibility(View.VISIBLE);current.message(message);});}
+ public static void captureCancelled(String message){if(current!=null)current.main.post(()->{if(current!=null&&!current.destroyed){current.capturing=false;current.toolbar.setVisibility(View.VISIBLE);current.message(message);}});}
  private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
- private void message(String text){if(status!=null)status.setText(text);}
- @Override public void onCreate(){super.onCreate();current=this;manager=(WindowManager)getSystemService(WINDOW_SERVICE);annotationFiles=new AnnotationFiles(this);}
+ private void message(String text){if(!destroyed&&status!=null)status.setText(text);}
+ @Override public void onCreate(){super.onCreate();current=this;destroyed=false;manager=(WindowManager)getSystemService(WINDOW_SERVICE);annotationFiles=new AnnotationFiles(this);}
  private Notification notification(){NotificationManager nm=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(Build.VERSION.SDK_INT>=26)nm.createNotificationChannel(new NotificationChannel(CHANNEL,"Display annotation",NotificationManager.IMPORTANCE_LOW));
   Intent back=getPackageManager().getLaunchIntentForPackage(getPackageName());if(back==null)back=new Intent(this,MainActivity.class);back.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);PendingIntent action=PendingIntent.getActivity(this,0,back,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
   Notification.Builder builder=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,CHANNEL):new Notification.Builder(this);return builder.setSmallIcon(android.R.drawable.ic_menu_edit).setContentTitle("Phoenix Smartboard display annotation").setContentText("Tap to return to your lesson").setContentIntent(action).setOngoing(true).setCategory(Notification.CATEGORY_SERVICE).setOnlyAlertOnce(true).addAction(new Notification.Action.Builder(null,"Return to lesson",action).build()).build();
@@ -80,22 +81,88 @@ public class DisplayAnnotationService extends Service {
  private void replace(ArrayList<Mark> next){marks.clear();marks.addAll(next);ink.invalidate();}
  private int pointCount(){int count=0;for(Mark mark:marks)count+=mark.points.size();return count;}
  private void finishStroke(){if(draft!=null&&!draft.points.isEmpty()){remember();marks.add(draft);draft=null;ink.invalidate();save();}activePointer=-1;}
- private void save(){if(pendingSave!=null)main.removeCallbacks(pendingSave);pendingSave=()->{String data=encode();files.execute(()->{try{annotationFiles.save(data);persistedToFolder=true;main.post(()->message(drawing?label(tool):"Mouse mode"));}catch(Exception error){main.post(()->message("Saved in app; choose/re-enable your device folder to keep annotations after uninstall."));}try{android.util.AtomicFile file=new android.util.AtomicFile(new File(getFilesDir(),"display-annotation.json"));FileOutputStream output=file.startWrite();try{output.write(data.getBytes(java.nio.charset.StandardCharsets.UTF_8));file.finishWrite(output);}catch(Exception error){file.failWrite(output);}}catch(Exception ignored){}});};main.postDelayed(pendingSave,600);}
+ private void save(){if(pendingSave!=null)main.removeCallbacks(pendingSave);pendingSave=()->{String data=encode();files.execute(()->{try{annotationFiles.save(data);persistedToFolder=true;main.post(()->{if(!destroyed)message(drawing?label(tool):"Mouse mode");});}catch(Exception error){main.post(()->{if(!destroyed)message("Saved in app; choose/re-enable your device folder to keep annotations after uninstall.");});}try{android.util.AtomicFile file=new android.util.AtomicFile(new File(getFilesDir(),"display-annotation.json"));FileOutputStream output=file.startWrite();try{output.write(data.getBytes(java.nio.charset.StandardCharsets.UTF_8));file.finishWrite(output);}catch(Exception error){file.failWrite(output);}}catch(Exception ignored){}});};main.postDelayed(pendingSave,600);}
  private String encode(){JSONObject root=new JSONObject();JSONArray entries=new JSONArray();try{root.put("format","phoenix-android-display");root.put("version",1);for(Mark mark:marks)if(!mark.tool.equals("laser")){JSONObject entry=new JSONObject();entry.put("tool",mark.tool);entry.put("color",mark.color);entry.put("width",mark.width);JSONArray points=new JSONArray();for(Sample sample:mark.points){JSONArray point=new JSONArray();point.put(sample.x);point.put(sample.y);point.put(sample.pressure);points.put(point);}entry.put("points",points);entries.put(entry);}root.put("marks",entries);}catch(JSONException ignored){}return root.toString();}
  private void restore(){files.execute(()->{String data=null;try{data=annotationFiles.restore();persistedToFolder=data!=null;}catch(Exception ignored){}if(data==null)try{File source=new File(getFilesDir(),"display-annotation.json");if(source.length()<8*1024*1024)try(InputStream input=new FileInputStream(source);ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] buffer=new byte[8192];int n;while((n=input.read(buffer))!=-1)out.write(buffer,0,n);data=out.toString("UTF-8");}}catch(Exception ignored){}
   ArrayList<Mark> restored=new ArrayList<>();try{if(data!=null){JSONObject root=new JSONObject(data);String fmt=root.getString("format");if(!"phoenix-android-display".equals(fmt)||root.getInt("version")!=1)throw new IOException("Invalid annotations");JSONArray entries=root.getJSONArray("marks");int count=0;if(entries.length()>2000)throw new IOException("Too many annotations");for(int i=0;i<entries.length();i++){JSONObject entry=entries.getJSONObject(i);String kind=entry.getString("tool");if(!Arrays.asList("pen","marker","line","rect","circle").contains(kind))throw new IOException("Invalid annotation tool");float w=(float)entry.getDouble("width");if(!Float.isFinite(w)||w<1||w>40)throw new IOException("Invalid ink width");Mark mark=new Mark(kind,entry.getInt("color"),w);JSONArray points=entry.getJSONArray("points");count+=points.length();if(count>150000)throw new IOException("Too many points");for(int j=0;j<points.length();j++){JSONArray point=points.getJSONArray(j);float x=(float)point.getDouble(0),y=(float)point.getDouble(1),p=(float)point.optDouble(2,1);if(!Float.isFinite(x)||!Float.isFinite(y)||!Float.isFinite(p)||Math.abs(x)>2||Math.abs(y)>2)throw new IOException("Invalid annotation position");mark.points.add(new Sample(x,y,Math.max(.1f,Math.min(1,p))));}if(!mark.points.isEmpty())restored.add(mark);}}}catch(Exception invalid){restored.clear();}
-  main.post(()->{restoring=false;if(attached&&marks.isEmpty()&&draft==null){marks.addAll(restored);ink.invalidate();if(!persistedToFolder)message("Choose a device folder in Phoenix Smartboard settings for uninstall-safe annotation copies.");}});
+  main.post(()->{if(!destroyed){restoring=false;if(attached&&marks.isEmpty()&&draft==null){marks.addAll(restored);ink.invalidate();if(!persistedToFolder)message("Choose a device folder in Phoenix Smartboard settings for uninstall-safe annotation copies.");}}});
  });}
  private void returnToNotes(){finishStroke();if(pendingSave!=null){main.removeCallbacks(pendingSave);pendingSave.run();pendingSave=null;}getSharedPreferences("phoenix-display",0).edit().putBoolean("returnPending",true).apply();Intent launch=getPackageManager().getLaunchIntentForPackage(getPackageName());if(launch!=null){launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(launch);}stopSelf();}
  private void capture(int result,Intent consent){if(consent==null){captureCancelled("Screenshot permission was not granted.");return;}capturing=true;toolbar.setVisibility(View.GONE);try{
   DisplayMetrics display=new DisplayMetrics();manager.getDefaultDisplay().getRealMetrics(display);float scale=Math.min(1,1920f/Math.max(display.widthPixels,display.heightPixels));int w=Math.max(1,Math.round(display.widthPixels*scale)),h=Math.max(1,Math.round(display.heightPixels*scale));
   MediaProjectionManager projectionManager=(MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);projection=projectionManager.getMediaProjection(result,consent);if(projection==null)throw new IOException("Screenshot consent expired.");MediaProjection owner=projection;projection.registerCallback(new MediaProjection.Callback(){@Override public void onStop(){main.post(()->{if(projection==owner)endCapture("Screen capture ended.");});}},main);
-  reader=ImageReader.newInstance(w,h,PixelFormat.RGBA_8888,2);reader.setOnImageAvailableListener(source->{Image image=null;Bitmap padded=null,cropped=null;try{image=source.acquireLatestImage();if(image==null)return;Image.Plane plane=image.getPlanes()[0];ByteBuffer pixels=plane.getBuffer();int stride=plane.getPixelStride(),padding=plane.getRowStride()-stride*w;padded=Bitmap.createBitmap(w+padding/stride,h,Bitmap.Config.ARGB_8888);padded.copyPixelsFromBuffer(pixels);cropped=Bitmap.createBitmap(padded,0,0,w,h);ByteArrayOutputStream output=new ByteArrayOutputStream();cropped.compress(Bitmap.CompressFormat.PNG,100,output);byte[] png=output.toByteArray();files.execute(()->{try{annotationFiles.screenshot(png);main.post(()->message("Screenshot saved in device folder / Annotations"));}catch(Exception error){main.post(()->message("Screenshot not saved: "+error.getMessage()));}});endCapture(null);}catch(Exception error){endCapture("Could not capture this screen.");}finally{if(image!=null)image.close();if(cropped!=null&&cropped!=padded)cropped.recycle();if(padded!=null)padded.recycle();}},main);
+  reader=ImageReader.newInstance(w,h,PixelFormat.RGBA_8888,2);
+  reader.setOnImageAvailableListener(source->{
+   Image image=null;
+   Bitmap cropped=null;
+   try{
+    image=source.acquireLatestImage();
+    if(image==null)return;
+    Image.Plane plane=image.getPlanes()[0];
+    ByteBuffer pixels=plane.getBuffer();
+    int pixelStride=plane.getPixelStride();
+    int rowStride=plane.getRowStride();
+    int padding=rowStride-pixelStride*w;
+    if(pixelStride==4&&padding%pixelStride==0&&pixels.remaining()>=(w+padding/pixelStride)*h*4){
+     Bitmap padded=Bitmap.createBitmap(w+padding/pixelStride,h,Bitmap.Config.ARGB_8888);
+     padded.copyPixelsFromBuffer(pixels);
+     cropped=Bitmap.createBitmap(padded,0,0,w,h);
+     if(padded!=cropped)padded.recycle();
+    }else{
+     cropped=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888);
+     int[] rowPixels=new int[w];
+     for(int row=0;row<h;row++){
+      pixels.position(row*rowStride);
+      for(int col=0;col<w;col++){
+       int r=pixels.get()&0xff,g=pixels.get()&0xff,b=pixels.get()&0xff,a=pixelStride==4?(pixels.get()&0xff):0xff;
+       rowPixels[col]=(a<<24)|(r<<16)|(g<<8)|b;
+      }
+      cropped.setPixels(rowPixels,0,w,0,row,w,1);
+     }
+    }
+    endCapture(null);
+   }catch(Exception error){
+    if(cropped!=null)cropped.recycle();
+    cropped=null;
+    endCapture("Could not capture this screen.");
+   }finally{
+    if(image!=null)image.close();
+   }
+   if(cropped!=null){
+    final Bitmap target=cropped;
+    files.execute(()->{
+     try{
+      ByteArrayOutputStream output=new ByteArrayOutputStream();
+      target.compress(Bitmap.CompressFormat.PNG,100,output);
+      byte[] png=output.toByteArray();
+      annotationFiles.screenshot(png);
+      main.post(()->{if(!destroyed)message("Screenshot saved in device folder / Annotations");});
+     }catch(Exception error){
+      main.post(()->{if(!destroyed)message("Screenshot not saved: "+error.getMessage());});
+     }finally{
+      target.recycle();
+     }
+    });
+   }
+  },main);
   virtualDisplay=projection.createVirtualDisplay("Phoenix Smartboard screenshot",w,h,display.densityDpi,DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,reader.getSurface(),null,main);captureTimeout=()->endCapture("Screenshot timed out. Try again.");main.postDelayed(captureTimeout,8000);
  }catch(Exception error){endCapture("Could not capture this screen: "+error.getMessage());}}
  private void endCapture(String text){if(captureTimeout!=null){main.removeCallbacks(captureTimeout);captureTimeout=null;}if(virtualDisplay!=null){virtualDisplay.release();virtualDisplay=null;}if(reader!=null){reader.close();reader=null;}if(projection!=null){MediaProjection old=projection;projection=null;old.stop();}capturing=false;if(toolbar!=null)toolbar.setVisibility(View.VISIBLE);if(attached){foreground(false);if(text!=null)message(text);wake();}}
  @Override public void onConfigurationChanged(Configuration next){super.onConfigurationChanged(next);main.postDelayed(()->{if(resize!=null)resize.run();},100);}
- @Override public void onDestroy(){finishStroke();if(pendingSave!=null){main.removeCallbacks(pendingSave);pendingSave.run();pendingSave=null;}attached=false;main.removeCallbacksAndMessages(null);endCapture(null);if(ink!=null)try{manager.removeViewImmediate(ink);}catch(Exception ignored){}if(toolbar!=null)try{manager.removeViewImmediate(toolbar);}catch(Exception ignored){}files.shutdown();current=null;stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy();}
+ @Override public void onDestroy(){
+  destroyed=true;
+  finishStroke();
+  if(pendingSave!=null){main.removeCallbacks(pendingSave);pendingSave.run();pendingSave=null;}
+  attached=false;
+  main.removeCallbacksAndMessages(null);
+  endCapture(null);
+  if(ink!=null)try{manager.removeViewImmediate(ink);}catch(Exception ignored){}
+  if(toolbar!=null)try{manager.removeViewImmediate(toolbar);}catch(Exception ignored){}
+  files.shutdown();
+  current=null;
+  stopForeground(STOP_FOREGROUND_REMOVE);
+  super.onDestroy();
+ }
  @Override public IBinder onBind(Intent intent){return null;}
  private static final class Sample {final float x,y,pressure;Sample(float x,float y,float pressure){this.x=x;this.y=y;this.pressure=pressure;}}
  private static final class Mark {final String tool;final int color;final float width;final long created=SystemClock.uptimeMillis();final ArrayList<Sample> points=new ArrayList<>();Mark(String tool,int color,float width){this.tool=tool;this.color=color;this.width=width;}}

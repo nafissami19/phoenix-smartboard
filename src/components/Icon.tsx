@@ -4,6 +4,9 @@ import type { SVGProps } from "react";
 // any size without shipping an icon dependency.
 export const ICON_PATHS = {
   pin: ["M9 3h6l-1 6 4 4H6l4-4-1-6z", "M12 13v8"],
+  crop: ["M6 2v14a2 2 0 0 0 2 2h14", "M18 22V8a2 2 0 0 0-2-2H2"],
+  infinite: ["M18.178 8c5.096 0 5.096 8 0 8-2.695 0-4.757-2.667-6.178-5.333C10.578 8 8.516 8 5.822 8c-5.096 0-5.096 8 0 8 2.695 0 4.757-2.667 6.178-5.333C13.422 16 15.484 16 18.178 16z"],
+  blind: ["M3 4h18v16H3z", "M3 8h18", "M3 12h18", "M3 16h18", "M12 16v4"],
   keyboard: ["M2 5h20v14H2z", "M5 9h1m3 0h1m3 0h1m3 0h1M5 12h1m3 0h1m3 0h1m3 0h1M6 16h12"],
   autoShape: ["M3 20l4-12 7-5 7 7-3 11-9-3-6 2z", "M16 3v6", "M13 6h6"],
   selectionEraser: ["M3 7V3h4", "M17 3h4v4", "M21 17v4h-4", "M7 21H3v-4", "M3 10v4", "M21 10v4", "M10 3h4", "M10 21h4", "M7 13l6-6 4 4-6 6H9l-2-2z"],
@@ -75,6 +78,13 @@ export const ICON_PATHS = {
   reset: ["M3 12a9 9 0 109-9 9 9 0 00-9 9z", "M3 3v6h6"],
   sync: ["M21.5 2v6h-6", "M2.5 22v-6h6", "M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8", "M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"],
   pages: ["M4 4h9l3 3v13H4z", "M11 4v3h3"],
+  lock: ["M5 11h14v10H5z", "M8 11V7a4 4 0 018 0v4", "M12 15v2"],
+  unlock: ["M5 11h14v10H5z", "M8 11V7a4 4 0 018 0", "M12 15v2"],
+  group: ["M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2", "M9 7a4 4 0 100-8 4 4 0 000 8z", "M23 21v-2a4 4 0 00-3-3.87", "M16 3.13a4 4 0 010 7.75"],
+  ungroup: ["M4 4h6v6H4z", "M14 14h6v6h-6z", "M14 4h6v6h-6z", "M4 14h6v6H4z"],
+  record: ["M12 7a5 5 0 100 10 5 5 0 000-10z", "M12 2a10 10 0 100 20 10 10 0 000-20z"],
+  mic: ["M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z", "M19 10v2a7 7 0 01-14 0v-2", "M12 19v4", "M8 23h8"],
+  micOff: ["M1 1l22 22", "M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6", "M19 10v2a7 7 0 01-.2 1.66m-1.95 3.34A7 7 0 015 12v-2", "M12 19v4", "M8 23h8"],
 } satisfies Record<string, string[]>;
 
 export type IconName = keyof typeof ICON_PATHS;

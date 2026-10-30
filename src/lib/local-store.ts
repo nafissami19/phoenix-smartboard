@@ -145,7 +145,10 @@ export async function localRequest(path: string, options: RequestInit = {}): Pro
           await tx.objectStore('notebooks').put(updated); result=json({notebook:updated});
         } else if (method === 'DELETE') {
           for (const page of pages) await tx.objectStore('pages').delete(page.id);
-          for (const asset of await tx.objectStore('assets').index('notebookId').getAll(id)) await tx.objectStore('assets').delete(asset.id);
+          for (const asset of await tx.objectStore('assets').index('notebookId').getAll(id)) {
+            await tx.objectStore('assets').delete(asset.id);
+            revokeLocalAssetURL(asset.id);
+          }
           await tx.objectStore('notebooks').delete(id); result=json({ok:true});
         } else result=json({notebook,pages});
       }
@@ -183,9 +186,62 @@ export async function localRequest(path: string, options: RequestInit = {}): Pro
 }
 
 const urls = new Map<string,string>();
-export async function localAssetURL(id: string) {
-  if (urls.has(id)) return urls.get(id)!;
+const MAX_CACHED_URLS = 50;
+
+export function revokeLocalAssetURL(id?: string) {
+  if (id) {
+    const existing = urls.get(id);
+    if (existing) {
+      URL.revokeObjectURL(existing);
+      urls.delete(id);
+    }
+  } else {
+    for (const url of urls.values()) {
+      URL.revokeObjectURL(url);
+    }
+    urls.clear();
+  }
+}
+
+export async function localAssetURL(id: string): Promise<string> {
+  if (urls.has(id)) {
+    const existing = urls.get(id)!;
+    urls.delete(id);
+    urls.set(id, existing);
+    return existing;
+  }
   const db=await database(); const asset=await db.get('assets',id); db.close();
   if (!asset) throw new Error('Local file is missing');
-  const url=URL.createObjectURL(asset.blob); urls.set(id,url); return url;
+  const url=URL.createObjectURL(asset.blob);
+  if (urls.size >= MAX_CACHED_URLS) {
+    const oldestKey = urls.keys().next().value;
+    if (oldestKey) {
+      const oldestUrl = urls.get(oldestKey);
+      if (oldestUrl) URL.revokeObjectURL(oldestUrl);
+      urls.delete(oldestKey);
+    }
+  }
+  urls.set(id,url);
+  return url;
+}
+
+export async function listTrashSnapshots() {
+  const { snapshots } = await import('./recovery');
+  return snapshots();
+}
+
+export async function restoreTrashSnapshot(id: string): Promise<string> {
+  const { snapshots, deleteSnapshot } = await import('./recovery');
+  const all = await snapshots();
+  const target = all.find(s => s.id === id);
+  if (!target) throw new Error('Snapshot not found');
+  const { importLesson } = await import('./lesson-bundle');
+  const restoredId = await importLesson(target.blob);
+  await deleteSnapshot(id);
+  return restoredId;
+}
+
+export async function deleteTrashSnapshot(id: string): Promise<void> {
+  const { deleteSnapshot } = await import('./recovery');
+  return deleteSnapshot(id);
 }

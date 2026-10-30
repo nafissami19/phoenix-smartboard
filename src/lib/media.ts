@@ -264,11 +264,12 @@ export function renderDocxToCanvas(assetId:string,targetW:number,options:{cache?
   const promise=renderDocxSurface(assetId,targetW,options).finally(()=>docxRenders.delete(assetId));docxRenders.set(assetId,promise);return promise;
 }
 
-export type MediaKind = "image" | "pdf" | "docx" | "presentation" | "unsupported";
+export type MediaKind = "image" | "pdf" | "docx" | "presentation" | "spreadsheet" | "unsupported";
 
 export function classifyFile(file: File): { kind: MediaKind; message?: string } {
   const name = file.name.toLowerCase();
   const type = file.type;
+  if(name.endsWith('.xlsx')||name.endsWith('.csv')||type==='text/csv'||type==='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')return {kind:'spreadsheet'};
   if(name.endsWith('.pptx')||name.endsWith('.odp'))return {kind:'presentation'};
   if (type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(name)) return { kind: "image" };
   if (type === "application/pdf" || name.endsWith(".pdf")) return { kind: "pdf" };

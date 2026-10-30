@@ -21,7 +21,7 @@ export function GeometryOverlay({kind,onClose,onEdges,onDraw,pxPerMm}:{pxPerMm?:
  const drag=useRef<Drag|null>(null),latest=useRef(onEdges);latest.current=onEdges;
  const label={ruler:'Ruler',protractor:'Protractor',setsquare:'Set square',compass:'Compass'}[kind],height=size*.65,radius=size/2;
  const point=(x:number,y:number):Point=>({x:pos.x+x*Math.cos(angle*RAD)-y*Math.sin(angle*RAD),y:pos.y+x*Math.sin(angle*RAD)+y*Math.cos(angle*RAD)});
- const edges:GuideEdge[]=kind==='compass'?[]:kind==='setsquare'?[{a:pos,b:point(size,0)},{a:pos,b:point(0,-height)},{a:point(size,0),b:point(0,-height)}]:kind==='protractor'?[{a:point(-size,0),b:point(size,0)},{a:pos,b:point(size*Math.cos(-included*RAD),size*Math.sin(-included*RAD))}]:[{a:pos,b:point(size,0)},{a:point(0,48),b:point(size,48)}];
+ const edges:GuideEdge[]=kind==='compass'?arcEdges(pos,radius,0,Math.PI*2):kind==='setsquare'?[{a:pos,b:point(size,0)},{a:pos,b:point(0,-height)},{a:point(size,0),b:point(0,-height)}]:kind==='protractor'?[{a:point(-size,0),b:point(size,0)},{a:pos,b:point(size*Math.cos(-included*RAD),size*Math.sin(-included*RAD))},...arcEdges(pos,size,angle*RAD-Math.PI,Math.PI)]:[{a:pos,b:point(size,0)},{a:point(0,48),b:point(size,48)}];
  useEffect(()=>{latest.current(kind,edges);},[kind,pos.x,pos.y,angle,size,included]);
  useEffect(()=>()=>latest.current(kind,[]),[kind]);
  useEffect(()=>{
@@ -166,7 +166,9 @@ export function GeometryOverlay({kind,onClose,onEdges,onDraw,pxPerMm}:{pxPerMm?:
     <path d="M-4-4L4 4M-4 4L4-4"/>
    </g>
    
-   <text className="instrument-measure" x={kind==='protractor'?0:kind==='compass'?size/4:size/2} y={kind==='protractor'?64:kind==='setsquare'?24:kind==='compass'?44:70} textAnchor="middle">{label} · {Math.round(angle)}°</text>
+   <text className="instrument-measure" x={kind==='protractor'?0:kind==='compass'?size/4:size/2} y={kind==='protractor'?64:kind==='setsquare'?24:kind==='compass'?44:70} textAnchor="middle">
+    {label} · {Math.round(angle)}°{kind==='ruler'||kind==='setsquare'?` · ${pxPerMm?(size/(pxPerMm*10)).toFixed(1)+'cm':Math.round(size)+'px'}`:kind==='protractor'?` · ${included}°`:` · r ${pxPerMm?(radius/(pxPerMm*10)).toFixed(1)+'cm':Math.round(radius)+'px'}`}
+   </text>
    </g>
   </svg>
  </div>;

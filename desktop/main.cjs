@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, session, ipcMain, dialog, shell } = require('electron');
 const path = require('node:path');
 if(process.argv.includes('--smoke-test'))app.setPath('userData',path.join(app.getPath('temp'),'phoenix-smartboard-smoke-'+process.pid));
 app.whenReady().then(async () => {
@@ -60,7 +60,13 @@ app.whenReady().then(async () => {
       ipcMain.removeListener('phoenix-device-close-ready',saved);
     });
     window.center(); window.setMenuBarVisibility(false);
-    window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    window.webContents.setWindowOpenHandler(({ url }) => {
+      if (url.startsWith('blob:') || url.startsWith('data:')) return { action: 'allow' };
+      if (url.startsWith('https://') || url.startsWith('http://')) {
+        void shell.openExternal(url);
+      }
+      return { action: 'deny' };
+    });
     window.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('file://')) event.preventDefault(); });
     window.webContents.on('did-fail-load',(_event,_code,_description,_url,isMainFrame)=>{if(isMainFrame)failed();});
     void window.loadFile(path.join(__dirname, '../dist/index.html')).catch(failed);

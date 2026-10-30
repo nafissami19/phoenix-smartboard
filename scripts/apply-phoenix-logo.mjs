@@ -4,7 +4,7 @@ import path from 'node:path';
 import { chromium } from '@playwright/test';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const sourcePngPath = 'C:/Users/sami6/.gemini/antigravity/brain/5552db00-ebc9-48ad-8429-1d35f6bbec54/.user_uploaded/media_1792432699537_8379fedc.png';
+const sourcePngPath = process.argv[2] || path.resolve('branding/logo.png');
 
 const logoBuffer = await readFile(sourcePngPath);
 const logoBase64 = logoBuffer.toString('base64');

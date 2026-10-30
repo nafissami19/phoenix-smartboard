@@ -21,6 +21,8 @@ import {
   objectHitByEraser,
   pointNearStroke,
   recognizeShape,
+  simplifyStroke,
+  simplifyRDP,
   dist,
 } from "@/lib/render";
 import {
@@ -69,8 +71,14 @@ export function useWhiteboard(options: {
   pattern: string;
   onContentChange: (objects: BoardObject[], media: MediaItem[]) => void;
   onDraftChange?: (objects:BoardObject[],media:MediaItem[])=>void;
+  isViewLocked?: boolean;
 }) {
   const { initialObjects, initialMedia, background, pattern, onContentChange } = options;
+
+  const isViewLockedRef = useRef(options.isViewLocked ?? false);
+  useEffect(() => {
+    isViewLockedRef.current = options.isViewLocked ?? false;
+  }, [options.isViewLocked]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -95,6 +103,23 @@ export function useWhiteboard(options: {
   eraserModeRef.current=eraserMode;palmEraserRef.current=palmEraser;
   useEffect(()=>{try{localStorage.setItem('phoenix-eraser-mode',eraserMode);}catch{}},[eraserMode]);
   useEffect(()=>{try{localStorage.setItem('phoenix-palm-eraser',String(palmEraser));}catch{}},[palmEraser]);
+  const [dualNibMode, setDualNibMode] = useState<boolean>(() => {
+    try { return localStorage.getItem('phoenix-dual-nib') === 'true'; } catch { return false; }
+  });
+  const dualNibModeRef = useRef(dualNibMode);
+  dualNibModeRef.current = dualNibMode;
+  useEffect(() => {
+    try { localStorage.setItem('phoenix-dual-nib', String(dualNibMode)); } catch {}
+  }, [dualNibMode]);
+  const temporaryPalmGesture = useRef(false);
+  const savedToolBeforePalm = useRef<ActiveTool>("pen");
+  const drawHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drawHoldPos = useRef<Point | null>(null);
+  const drawHoldSnapped = useRef(false);
+  const transientLasers = useRef<StrokeObject[]>([]);
+  const activeLayerCanvas = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const pointerPosRef = useRef<{ x: number; y: number } | null>(null);
   const [selection, setSelectionState] = useState<Selection>(null);
   const [selectedIds,setSelectedIds] = useState<string[]>([]);
   const selectedIdsRef=useRef<string[]>([]);
@@ -311,25 +336,16 @@ export function useWhiteboard(options: {
     ctx.scale(v.scale, v.scale);
 
     for(const laser of eraseWorking.current?eraseWorking.current.filter((object):object is StrokeObject=>object.kind==='stroke'&&object.tool==='laser'):laserObjects.current)drawStroke(ctx,laser);
+    const nowTs = performance.now();
+    transientLasers.current = transientLasers.current.filter(l => (l.laserExpiresAt ?? 0) > nowTs);
+    for (const laser of transientLasers.current) drawStroke(ctx, laser);
+    if (transientLasers.current.length > 0) scheduleRender();
     if (draft.current) {
       if (draft.current.kind === "stroke") drawStroke(ctx, draft.current);
       else if (draft.current.kind === "shape") drawShape(ctx, draft.current);
     }
 
-    // eraser preview circle
-    if (modeRef.current === "erase" && eraseWorking.current) {
-      const center = eraseCenterRef.current;
-      if (center) {
-        ctx.save();ctx.globalCompositeOperation='difference';
-        ctx.beginPath();
-        ctx.arc(center.x, center.y, gestureRadius.current, 0, Math.PI * 2);
-        ctx.strokeStyle = "#ffffff";
-        ctx.setLineDash(1 / v.scale ? [4 / v.scale, 4 / v.scale] : [4, 4]);
-        ctx.lineWidth = 1.5 / v.scale;
-        ctx.stroke();
-        ctx.setLineDash([]);ctx.restore();
-      }
-    }
+    // eraser preview circle: handled below in screen-space tactile footprint during active erasing
 
     const now = performance.now();
     const head=laserHead.current;
@@ -375,6 +391,48 @@ export function useWhiteboard(options: {
     }
 
     ctx.restore();
+
+    // Tactile pen halo & eraser footprint (only active during interactive erasing or drawing)
+    const pPos = pointerPosRef.current;
+    if (canvas && (pPos || (modeRef.current === 'erase' && eraseCenterRef.current))) {
+      const rect = canvas.getBoundingClientRect();
+      const sx = pPos ? pPos.x - rect.left : (eraseCenterRef.current!.x * v.scale + v.tx);
+      const sy = pPos ? pPos.y - rect.top : (eraseCenterRef.current!.y * v.scale + v.ty);
+      if (sx >= 0 && sx <= cssW && sy >= 0 && sy <= cssH) {
+        const curTool = toolRef.current;
+        if (modeRef.current === 'erase') {
+          const r = (gestureRadius.current || eraserSizeRef.current) * v.scale;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(sx, sy, r, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(sx, sy, r + 1, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.restore();
+        } else if (modeRef.current === 'draw' && ['pen', 'highlighter', 'marker'].includes(curTool)) {
+          const p = penRef.current;
+          const r = Math.max(3, (p.size * v.scale) / 2);
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(sx, sy, r + 2, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(sx, sy, r, 0, Math.PI * 2);
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
 
     if(performance.now()-started>100){setProcessing(true);if(processingTimer.current)clearTimeout(processingTimer.current);processingTimer.current=setTimeout(()=>setProcessing(false),700);}
     if (animationTimer.current===null&&(laserObjects.current.length>0||(laserHead.current&&(performance.now()-laserHead.current.last<1400||(modeRef.current==='draw'&&toolRef.current==='laser'))))) {
@@ -654,8 +712,10 @@ export function useWhiteboard(options: {
         sx: e.clientX,
         sy: e.clientY,
       });
+      pointerPosRef.current = { x: e.clientX, y: e.clientY };
 
       if (pointers.current.size === 2) {
+        if (isViewLockedRef.current) return;
         const [a, b] = [...pointers.current.values()];
         pinch.current = {
           startDist: Math.max(dist(a, b), 1),
@@ -672,8 +732,14 @@ export function useWhiteboard(options: {
 
       const t = toolRef.current;
       if(t!=="select")setSelection(null);
-      const palmErase=e.pointerType==='touch'&&palmEraserRef.current&&Math.max(e.width,e.height)>=35;
-      const wantPan = !palmErase && ( t === "pan" || spaceHeld.current || e.button === 1 || (e.pointerType === "pen" && (e.buttons & 2)!==0 && penRef.current.barrelButton==="pan") || (e.pointerType === "touch" && penRef.current.touchMode === "pan"));
+      const contactDim = Math.max(e.width, e.height);
+      const isPalm = contactDim >= 40 || (palmEraserRef.current && contactDim >= 32);
+      const palmErase = (e.pointerType === 'touch' || e.pointerType === 'pen') && isPalm;
+      if (palmErase && t !== "eraser") {
+        temporaryPalmGesture.current = true;
+        savedToolBeforePalm.current = t;
+      }
+      const wantPan = !palmErase && !isViewLockedRef.current && ( t === "pan" || spaceHeld.current || e.button === 1 || (e.pointerType === "pen" && (e.buttons & 2)!==0 && penRef.current.barrelButton==="pan") || (e.pointerType === "touch" && penRef.current.touchMode === "pan"));
       if (wantPan) {
         modeRef.current = "pan";
         panStart.current = { sx: e.clientX, sy: e.clientY, tx: viewRef.current.tx, ty: viewRef.current.ty };
@@ -686,13 +752,40 @@ export function useWhiteboard(options: {
 
       if (t === "select" && !palmErase) {
         const hit = hitTest(world);
+        if (hit) {
+          const hitMedia = hit.kind === 'media' ? mediaRef.current.find(m => m.id === hit.id) : null;
+          const hitObj = hit.kind === 'object' ? objectsRef.current.find(o => o.id === hit.id) : null;
+          if (hitMedia?.locked || (isViewLockedRef.current && hit.kind === 'media') || hitObj?.locked) {
+            setSelection(hit);
+            modeRef.current = 'idle';
+            scheduleRender();
+            return;
+          }
+        }
         if (hit && (selectedIdsRef.current.includes(hit.id)||e.shiftKey||(selectionSettingsRef.current.smart&&selectionSettingsRef.current.mode==='rectangle'))) {
           if(e.shiftKey){const ids=selectedIdsRef.current.includes(hit.id)?selectedIdsRef.current.filter(id=>id!==hit.id):[...selectedIdsRef.current,hit.id];selectIds(ids);scheduleRender();return;}
           if(!selectedIdsRef.current.includes(hit.id))setSelection(hit);
-          if(hit.kind==='media'&&mediaRef.current.find(m=>m.id===hit.id)?.locked){modeRef.current='idle';scheduleRender();return;}
+          const isMediaLocked = hit.kind === 'media' && (mediaRef.current.find(m=>m.id===hit.id)?.locked || isViewLockedRef.current);
+          const isObjLocked = hit.kind === 'object' && objectsRef.current.find(o=>o.id===hit.id)?.locked;
+          if(isMediaLocked || isObjLocked){modeRef.current='idle';scheduleRender();return;}
           modeRef.current = "move";
           moveOriginal.current={objects:objectsRef.current,media:mediaRef.current};
           moveState.current = { sel: hit, lastWorld: world };
+          if (hit.kind === 'object') {
+            const hitObject = objectsRef.current.find(o => o.id === hit.id);
+            if (hitObject?.infiniteCloner) {
+              const clone: BoardObject = { ...hitObject, id: crypto.randomUUID() };
+              objectsRef.current = [...objectsRef.current, clone];
+              setObjectsState(objectsRef.current);
+            }
+          } else if (hit.kind === 'media') {
+            const hitMedia = mediaRef.current.find(m => m.id === hit.id);
+            if (hitMedia?.infiniteCloner) {
+              const clone: MediaItem = { ...hitMedia, id: crypto.randomUUID() };
+              mediaRef.current = [...mediaRef.current, clone];
+              setMediaState(mediaRef.current);
+            }
+          }
         } else {
           setSelection(null);modeRef.current="marquee";marquee.current={a:world,b:world,...(selectionSettingsRef.current.mode==='lasso'?{points:[world]}:{})};
         }
@@ -724,8 +817,15 @@ export function useWhiteboard(options: {
 
       // pen / marker / highlighter / shapes
       modeRef.current = "draw";
+      setIsDrawing(true);
       const p = penRef.current;
-      if (t === "pen" || t === "highlighter" || t === "marker" || t === "laser" || t === "auto-shape") {
+      let strokeColor = p.color;
+      let strokeWidth = p.size;
+      if (dualNibModeRef.current && (e.pointerType === 'pen' || e.pointerType === 'touch') && contactDim >= 20 && contactDim < 40) {
+        strokeColor = p.color.toLowerCase() === '#e11d48' || p.color.toLowerCase() === '#ff1744' ? '#2563eb' : '#e11d48';
+        strokeWidth = Math.max(8, p.size * 2);
+      }
+      if (t === "pen" || t === "highlighter" || t === "marker" || t === "laser" || t === "auto-shape" || t === "magic-ink") {
         draft.current = {
           id: uid(),
           kind: "stroke",
@@ -765,6 +865,7 @@ export function useWhiteboard(options: {
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
+      pointerPosRef.current = { x: e.clientX, y: e.clientY };
       if(toolRef.current==='laser'){
         laserHead.current={point:screenToWorld(e.clientX,e.clientY),last:performance.now()};scheduleRender();
       }
@@ -816,8 +917,8 @@ export function useWhiteboard(options: {
         moveState.current.lastWorld = world;
         const sel = moveState.current.sel;
         if (!sel) return;
-        objectsRef.current=objectsRef.current.map(o=>selectedIdsRef.current.includes(o.id)?translateObject(o,dx,dy):o);
-        mediaRef.current=mediaRef.current.map(m=>selectedIdsRef.current.includes(m.id)&&!m.locked?{...m,x:m.x+dx,y:m.y+dy}:m);
+        objectsRef.current=objectsRef.current.map(o=>selectedIdsRef.current.includes(o.id)&&!o.locked?translateObject(o,dx,dy):o);
+        mediaRef.current=mediaRef.current.map(m=>selectedIdsRef.current.includes(m.id)&&!m.locked&&!isViewLockedRef.current?{...m,x:m.x+dx,y:m.y+dy}:m);
         setObjectsState(objectsRef.current);setMediaState(mediaRef.current);
         scheduleRender();
         return;
@@ -852,7 +953,25 @@ export function useWhiteboard(options: {
           if (dist(last, world) > 1.2) {
             const samples = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent];
             const points = (samples.length ? samples : [e.nativeEvent]).map(sample => { const point = drawingEdge.current ? projectToEdge({x:sample.clientX,y:sample.clientY},drawingEdge.current) : {x:sample.clientX,y:sample.clientY};return {...screenToWorld(point.x, point.y), p: sample.pointerType === "pen" && penRef.current.pressure ? Math.max(0.05, sample.pressure) : undefined}; });
-            draft.current = { ...d, ...(d.tool==="laser"?{laserExpiresAt:performance.now()+6000}:{}),points: [...d.points, ...points] };
+            draft.current = { ...d, ...(d.tool==="laser"?{laserExpiresAt:performance.now()+1500}:{}),points: [...d.points, ...points] };
+          }
+          if (drawHoldTimer.current) clearTimeout(drawHoldTimer.current);
+          if (d.points.length >= 6 && (!drawHoldPos.current || dist(drawHoldPos.current, world) > 4)) {
+            drawHoldPos.current = world;
+            drawHoldTimer.current = setTimeout(() => {
+              if (modeRef.current === "draw" && draft.current && draft.current.kind === "stroke" && draft.current.points.length >= 6) {
+                const recognized = recognizeShape(draft.current.points, draft.current.color, draft.current.width);
+                if (recognized) {
+                  draft.current = {
+                    ...recognized,
+                    id: draft.current.id,
+                  };
+                  drawHoldSnapped.current = true;
+                  setShapeFeedback(`Snapped to ${recognized.shape}`);
+                  scheduleRender();
+                }
+              }
+            }, 380);
           }
         } else if (d.kind === "shape") {
           const w=world.x-d.x,h=world.y-d.y,size=Math.min(Math.abs(w),Math.abs(h));
@@ -866,6 +985,8 @@ export function useWhiteboard(options: {
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
+      setIsDrawing(false);
+      pointerPosRef.current = null;
       if (!pointers.current.has(e.pointerId)) return;
       if (activePen.current === e.pointerId) {activePen.current = null;penQuietUntil.current=performance.now()+350;}
       pointers.current.delete(e.pointerId);
@@ -923,6 +1044,16 @@ export function useWhiteboard(options: {
         return;
       }
 
+      if (drawHoldTimer.current) {
+        clearTimeout(drawHoldTimer.current);
+        drawHoldTimer.current = null;
+      }
+      drawHoldPos.current = null;
+      drawHoldSnapped.current = false;
+      if (temporaryPalmGesture.current) {
+        temporaryPalmGesture.current = false;
+        setTool(savedToolBeforePalm.current);
+      }
       if (modeRef.current === "erase") {
         if (eraseWorking.current) {
           commit(eraseWorking.current, mediaRef.current);
@@ -963,8 +1094,15 @@ export function useWhiteboard(options: {
             }
           }
           if(t==='auto-shape')setShapeFeedback('Shape not recognized. Drawing kept as ink.');
-          if(d.tool==="laser"){d.laserCreatedAt=performance.now();d.laserExpiresAt=performance.now()+6000;}
-          commit([...objectsRef.current, d], mediaRef.current);
+          if (d.tool === "laser") {
+            d.laserCreatedAt = performance.now();
+            d.laserExpiresAt = performance.now() + 1500;
+            transientLasers.current.push(d);
+            scheduleRender();
+            return;
+          }
+          const simplified = d.points.length > 3 ? simplifyStroke(d, 0.65) : d;
+          commit([...objectsRef.current, simplified], mediaRef.current);
         } else if (d.kind === "shape") {
           if (Math.abs(d.w) < 4 && Math.abs(d.h) < 4) return; // ignore taps
           commit([...objectsRef.current, d], mediaRef.current);
@@ -1019,6 +1157,73 @@ export function useWhiteboard(options: {
   },[commit]);
   const updateMediaSelected=useCallback((properties:Partial<Pick<MediaItem,'rotation'|'locked'>>)=>{commit(objectsRef.current,mediaRef.current.map(m=>selectedIdsRef.current.includes(m.id)?{...m,...properties}:m));},[commit]);
   const placeSelectedMedia=useCallback((frame:import('@/db/schema').ImportFrame,align:'left'|'center'|'right',fit=false)=>{commit(objectsRef.current,mediaRef.current.map(m=>selectedIdsRef.current.includes(m.id)&&!m.locked?placeMediaInFrame(m,frame,align,fit):m));},[commit]);
+  const isSelectionLocked = useMemo(() => {
+    if (!selectedIds.length) return false;
+    return objectsRef.current.some(o => selectedIds.includes(o.id) && o.locked) ||
+           mediaRef.current.some(m => selectedIds.includes(m.id) && m.locked);
+  }, [selectedIds, objects, media]);
+
+  const isSelectionGrouped = useMemo(() => {
+    const selectedItems = [...objectsRef.current, ...mediaRef.current].filter(item => selectedIds.includes(item.id));
+    const groupIds = selectedItems.map(item => item.groupId).filter(Boolean);
+    return groupIds.length >= 2 && new Set(groupIds).size === 1;
+  }, [selectedIds, objects, media]);
+
+  const toggleLockSelected = useCallback(() => {
+    const lockNow = !isSelectionLocked;
+    commit(
+      objectsRef.current.map(o => selectedIdsRef.current.includes(o.id) ? { ...o, locked: lockNow } : o),
+      mediaRef.current.map(m => selectedIdsRef.current.includes(m.id) ? { ...m, locked: lockNow } : m)
+    );
+  }, [isSelectionLocked, commit]);
+
+  const groupSelected = useCallback(() => {
+    if (selectedIdsRef.current.length < 2) return;
+    const newGroupId = crypto.randomUUID();
+    commit(
+      objectsRef.current.map(o => selectedIdsRef.current.includes(o.id) ? { ...o, groupId: newGroupId } : o),
+      mediaRef.current.map(m => selectedIdsRef.current.includes(m.id) ? { ...m, groupId: newGroupId } : m)
+    );
+  }, [commit]);
+
+  const ungroupSelected = useCallback(() => {
+    commit(
+      objectsRef.current.map(o => selectedIdsRef.current.includes(o.id) ? { ...o, groupId: undefined } : o),
+      mediaRef.current.map(m => selectedIdsRef.current.includes(m.id) ? { ...m, groupId: undefined } : m)
+    );
+  }, [commit]);
+
+  const isSelectionInfiniteCloner = useMemo(() => {
+    if (!selectedIds.length) return false;
+    return selectedIds.every(id => {
+      const obj = objects.find(o => o.id === id);
+      if (obj) return Boolean(obj.infiniteCloner);
+      const m = media.find(item => item.id === id);
+      if (m) return Boolean(m.infiniteCloner);
+      return false;
+    });
+  }, [selectedIds, objects, media]);
+
+  const toggleInfiniteClonerSelected = useCallback(() => {
+    if (!selectedIdsRef.current.length) return;
+    const ids = selectedIdsRef.current;
+    const nextVal = !isSelectionInfiniteCloner;
+    const nextObjects = objectsRef.current.map(o => ids.includes(o.id) ? { ...o, infiniteCloner: nextVal } : o);
+    const nextMedia = mediaRef.current.map(m => ids.includes(m.id) ? { ...m, infiniteCloner: nextVal } : m);
+    commit(nextObjects, nextMedia);
+  }, [commit, isSelectionInfiniteCloner]);
+
+  const updateTextSelected = useCallback((patch: Partial<TextObject>) => {
+    const id = selectedIdsRef.current[0];
+    if (!id) return;
+    const obj = objectsRef.current.find(o => o.id === id);
+    if (obj?.kind !== 'text') return;
+    commit(
+      objectsRef.current.map(o => o.id === id ? { ...o, ...patch } as TextObject : o),
+      mediaRef.current
+    );
+  }, [commit]);
+
   const selectionBounds=()=>{
     const bounds=[...objectsRef.current.filter(o=>selectedIdsRef.current.includes(o.id)).map(o=>objectBounds(o,canvasRef.current?.getContext('2d')??undefined)),...mediaRef.current.filter(m=>selectedIdsRef.current.includes(m.id)).map(m=>mediaBounds(m))];
     if(!bounds.length)return null;const x=Math.min(...bounds.map(b=>b.x)),y=Math.min(...bounds.map(b=>b.y));return{x,y,w:Math.max(...bounds.map(b=>b.x+b.w))-x,h:Math.max(...bounds.map(b=>b.y+b.h))-y};
@@ -1044,7 +1249,7 @@ export function useWhiteboard(options: {
       });
       const ids = selectedIdsRef.current;
       const nextObjects = resizeOriginal.current.objects.map((o) =>
-        !ids.includes(o.id)
+        !ids.includes(o.id) || o.locked
           ? o
           : o.kind === "stroke"
           ? { ...o, width: o.width * factor, points: o.points.map(point) }
@@ -1053,7 +1258,7 @@ export function useWhiteboard(options: {
           : { ...o, ...point(o), fontSize: o.fontSize * factor }
       );
       const nextMedia = resizeOriginal.current.media.map((m) =>
-        ids.includes(m.id) && !m.locked
+        ids.includes(m.id) && !m.locked && !isViewLockedRef.current
           ? { ...m, ...point(m), width: m.width * factor, height: m.height * factor }
           : m
       );
@@ -1098,7 +1303,7 @@ export function useWhiteboard(options: {
         y: origin.y + (p.y - origin.y) * factor,
       });
       const nextObjects = baseObjects.map((o) =>
-        !ids.includes(o.id)
+        !ids.includes(o.id) || o.locked
           ? o
           : o.kind === "stroke"
           ? { ...o, width: o.width * factor, points: o.points.map(point) }
@@ -1107,7 +1312,7 @@ export function useWhiteboard(options: {
           : { ...o, ...point(o), fontSize: o.fontSize * factor }
       );
       const nextMedia = baseMedia.map((m) =>
-        ids.includes(m.id) && !m.locked
+        ids.includes(m.id) && !m.locked && !isViewLockedRef.current
           ? { ...m, ...point(m), width: m.width * factor, height: m.height * factor }
           : m
       );
@@ -1151,7 +1356,7 @@ export function useWhiteboard(options: {
   // ------------------------------- export ----------------------------------
 
   const cancelGesture = useCallback(() => {
-    pointers.current.clear(); activePen.current = null;
+    pointers.current.clear(); activePen.current = null; setIsDrawing(false); pointerPosRef.current = null;
     draft.current = null; pinch.current = null; panStart.current = null;
     eraseWorking.current = null; eraseCenterRef.current = null;
     lastErasePoint.current=null;
@@ -1166,6 +1371,14 @@ export function useWhiteboard(options: {
   const onPointerCancel = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     if (pointers.current.has(event.pointerId) || activePen.current === event.pointerId) cancelGesture();
   }, [cancelGesture]);
+  const onPointerLeave = useCallback(() => {
+    if (pointers.current.size === 0) {
+      if (pointerPosRef.current !== null) {
+        pointerPosRef.current = null;
+        scheduleRender();
+      }
+    }
+  }, [scheduleRender]);
   useEffect(() => {
     const hidden = () => { if(document.hidden) cancelGesture(); };
     window.addEventListener('blur', cancelGesture); document.addEventListener('visibilitychange', hidden);
@@ -1194,6 +1407,65 @@ export function useWhiteboard(options: {
     },
     [paintScene],
   );
+
+  const renderSlideScene = useCallback((
+    targetCanvas: HTMLCanvasElement,
+    slideFrame: { x: number; y: number; width: number; height: number },
+  ) => {
+    const ctx = targetCanvas.getContext("2d");
+    if (!ctx) return;
+    const outW = targetCanvas.width;
+    const outH = targetCanvas.height;
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    // 1. Dark letterbox outer fill (Screenshot 3 style)
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, outW, outH);
+
+    // 2. Compute proportional fit for the slideFrame inside outW x outH
+    const fw = Math.max(1, slideFrame.width);
+    const fh = Math.max(1, slideFrame.height);
+    const scale = Math.min(outW / fw, outH / fh);
+    const destW = fw * scale;
+    const destH = fh * scale;
+    const destX = (outW - destW) / 2;
+    const destY = (outH - destH) / 2;
+
+    // 3. Draw clean paper/slide background under the slide
+    ctx.fillStyle = backgroundRef.current || "#ffffff";
+    ctx.fillRect(destX, destY, destW, destH);
+
+    // 4. Transform to world coordinates of the slideFrame
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(destX, destY, destW, destH);
+    ctx.clip(); // Ensure content is neatly framed to the slide
+    ctx.translate(destX, destY);
+    ctx.scale(scale, scale);
+    ctx.translate(-slideFrame.x, -slideFrame.y);
+
+    // 5. Draw media items on the slide
+    for (const m of mediaRef.current) {
+      drawMediaItem(ctx, m);
+    }
+
+    // 6. Draw all committed board objects
+    for (const o of objectsRef.current) {
+      if (o.kind !== "stroke" || o.tool !== "laser") {
+        drawObject(ctx, o);
+      }
+    }
+
+    // 7. Draw in-progress live pen/marker draft stroke
+    if (draft.current) {
+      if (draft.current.kind === "stroke") drawStroke(ctx, draft.current);
+      else if (draft.current.kind === "shape") drawShape(ctx, draft.current);
+    }
+
+    ctx.restore();
+  }, [drawMediaItem]);
 
   // ------------------------------ lifecycle --------------------------------
 
@@ -1243,7 +1515,7 @@ export function useWhiteboard(options: {
     const canvas = canvasRef.current;
     const onWheelNative = (e: WheelEvent) => {
       // Only zoom when the wheel is over the board surface (not toolbars).
-      if (e.target !== canvasRef.current) return;
+      if (e.target !== canvasRef.current || isViewLockedRef.current) return;
       e.preventDefault();
       zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015));
     };
@@ -1301,6 +1573,12 @@ export function useWhiteboard(options: {
     setSelection,
     selectionSettings,setSelectionSettings:(value:SelectionSettings)=>{setSelectionSettings(value);setSelection(null);},
     selectedIds,selectionBounds:selectionBounds(),resizeSelected,previewResize,commitResize,cancelResize,
+    toggleLockSelected,groupSelected,ungroupSelected,isSelectionLocked,isSelectionGrouped,
+    toggleInfiniteClonerSelected,isSelectionInfiniteCloner,
+    dualNibMode,setDualNibMode,
+    updateTextSelected,
+    contentBounds,
+    isDrawing,
     selectAll:()=>{setTool('select');selectIds([...objectsRef.current.map(o=>o.id),...mediaRef.current.map(m=>m.id)]);scheduleRender();},
     editingText,
     editSelectedText: () => {
@@ -1328,7 +1606,8 @@ export function useWhiteboard(options: {
     restoreView:setView,
     hasVisibleContent:()=>{const canvas=canvasRef.current;if(!canvas)return false;const v=viewRef.current;return [...objectsRef.current.map(o=>objectBounds(o)),...mediaRef.current.map(mediaBounds)].some(b=>b.x*v.scale+v.tx<canvas.clientWidth&&(b.x+b.w)*v.scale+v.tx>0&&b.y*v.scale+v.ty<canvas.clientHeight&&(b.y+b.h)*v.scale+v.ty>0);},
     addMedia,
-    changeMedia:(id:string,patch:Partial<MediaItem>,history=true)=>{if(!mediaRef.current.some(m=>m.id===id))return;commit(objectsRef.current,mediaRef.current.map(m=>m.id===id?{...m,...patch,id:m.id}:m),history);},
+    changeMedia:(idOrItems:string|MediaItem[],patchOrHistory?:Partial<MediaItem>|boolean,history=true)=>{if(Array.isArray(idOrItems)){const hist=typeof patchOrHistory==='boolean'?patchOrHistory:history;commit(objectsRef.current,idOrItems,hist);return;}if(!mediaRef.current.some(m=>m.id===idOrItems))return;const patch=(typeof patchOrHistory==='object'?patchOrHistory:{})as Partial<MediaItem>;commit(objectsRef.current,mediaRef.current.map(m=>m.id===idOrItems?{...m,...patch,id:m.id}:m),history);},
+    commitMedia: (nextMedia: MediaItem[]) => commit(objectsRef.current, nextMedia, false),
     setGuideEdges: (id:string, edges:GuideEdge[]) => { if(edges.length)guideEdges.current.set(id,edges);else guideEdges.current.delete(id); },
     addObjects: (items: BoardObject[]) => commit([...objectsRef.current, ...items], mediaRef.current),
     changeObjects: (change:(objects:BoardObject[])=>BoardObject[]) => commit(change(objectsRef.current),mediaRef.current),
@@ -1341,11 +1620,13 @@ export function useWhiteboard(options: {
     updateMediaSelected,placeSelectedMedia,
     exportPNG,
     renderToCanvas,
+    renderSlideScene,
     onDoubleClick: (event:React.MouseEvent<HTMLCanvasElement>) => {const world=screenToWorld(event.clientX,event.clientY),hit=hitTest(world);if(hit?.kind!=='object')return;const object=objectsRef.current.find(o=>o.id===hit.id);if(object?.kind!=='text')return;const screen=worldToScreen(object.x,object.y);setEditingText({id:object.id,screenX:screen.x,screenY:screen.y,value:object.text});},
     onPointerDown,
     onPointerMove,
     onPointerUp,
     onPointerCancel,
+    onPointerLeave,
     onWheel,
     loadPdf,
   };

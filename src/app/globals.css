@@ -253,6 +253,29 @@ summary::-webkit-details-marker{display:none;}
 }
 
 /* ---------------------------------------------------------------------------
+   Auto-Dimming Zen Drawing Mode
+   --------------------------------------------------------------------------- */
+.kn-board[data-drawing="true"] :is(.board-toolbar, .menu-dock, .page-toolbar, .board-meta) {
+  opacity: 0.18 !important;
+  pointer-events: none !important;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.kn-board :is(.board-toolbar, .menu-dock, .page-toolbar, .board-meta) {
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------------------------------------------------------------------------
+   Glassmorphism Surfaces
+   --------------------------------------------------------------------------- */
+.kn-main-tools,
+.kn-dock {
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+/* ---------------------------------------------------------------------------
    Sleek Active Tool Indicators & Micro-Interactions (Spring-Physics)
    --------------------------------------------------------------------------- */
 .kn-main-tools button {

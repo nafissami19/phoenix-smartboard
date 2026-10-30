@@ -1,4 +1,4 @@
-// Ambient declarations for asset/module imports that Next resolves at build
+// Ambient declarations for asset/module imports that Vite resolves at build
 // time but TypeScript doesn't know about by default.
 
 declare module "*?url" {
@@ -7,6 +7,8 @@ declare module "*?url" {
 }
 
 declare module "*?worker" {
-  const content: string;
-  export default content;
+  const workerConstructor: {
+    new (options?: WorkerOptions): Worker;
+  };
+  export default workerConstructor;
 }

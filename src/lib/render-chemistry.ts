@@ -12,7 +12,7 @@ export function drawChemistryEquipment(ctx:CanvasRenderingContext2D,object:Equip
   ctx.fill();
   ctx.globalAlpha=1;
 
-  if(data.solution.volumeMl){
+  if(data.solution.volumeMl && capacity > 0){
     ctx.save();
     path();
     ctx.clip();
@@ -84,14 +84,34 @@ export function drawChemistryEquipment(ctx:CanvasRenderingContext2D,object:Equip
   ctx.font=`${Math.max(11,Math.min(16,object.w*.09))}px Arial`;
   ctx.textAlign='center';
   ctx.textBaseline='middle';
-  if(data.vessel!=='funnel'){
-    for(let n=1;n<=4;n++){
-      const y=object.h*(.87-.8*n/5);
+  if(data.vessel!=='funnel'&&data.vessel!=='bunsen-burner'){
+    const count=data.vessel==='burette'?9:4;
+    for(let n=1;n<=count;n++){
+      const y=object.h*(.87-.8*n/(count+1));
       ctx.beginPath();
-      ctx.moveTo(object.w*.7,y);
+      ctx.moveTo(object.w*(data.vessel==='burette'?.55:.7),y);
       ctx.lineTo(object.w*.86,y);
       ctx.stroke();
     }
+  }
+  if(data.vessel==='burette'){
+    ctx.fillStyle=object.color;
+    ctx.fillRect(object.w*0.35,object.h*0.80,object.w*0.3,object.h*0.03);
+  }
+  if(data.vessel==='bunsen-burner'){
+    ctx.fillStyle='#38bdf8';
+    ctx.beginPath();
+    ctx.moveTo(object.w*0.45,object.h*0.26);
+    ctx.quadraticCurveTo(object.w*0.5,object.h*0.04,object.w*0.55,object.h*0.26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle='rgba(251, 146, 60, 0.75)';
+    ctx.beginPath();
+    ctx.moveTo(object.w*0.41,object.h*0.26);
+    ctx.quadraticCurveTo(object.w*0.5,object.h*0.0,object.w*0.59,object.h*0.26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle=object.color;
   }
   if(data.vessel==='cylinder'){
     ctx.beginPath();
@@ -100,6 +120,6 @@ export function drawChemistryEquipment(ctx:CanvasRenderingContext2D,object:Equip
     ctx.stroke();
   }
   ctx.fillText(data.label.slice(0,24),object.w/2,object.h*.94,object.w);
-  if(data.vessel!=='funnel')ctx.fillText(`${Number(data.solution.volumeMl.toFixed(1))}/${capacity} mL`,object.w/2,object.h*.995,object.w);
+  if(data.vessel!=='funnel'&&data.vessel!=='bunsen-burner')ctx.fillText(`${Number(data.solution.volumeMl.toFixed(1))}/${capacity} mL`,object.w/2,object.h*.995,object.w);
   ctx.restore();
 }

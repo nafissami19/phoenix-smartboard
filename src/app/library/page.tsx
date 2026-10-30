@@ -7,6 +7,7 @@ import { CustomSelect } from '@/components/CustomSelect';
 import { localRequest } from "@/lib/local-store";
 import { useRouter, useSearchParams } from "@/lib/navigation";
 import { useApp } from "@/lib/app-context";
+import { useI18n, LanguageToggle } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { Icon } from "@/components/Icon";
 import { BrandMark } from '@/components/BrandMark';
@@ -34,6 +35,7 @@ function LibraryInner() {
   const search = useSearchParams();
   const { profile } = useApp();
   const { push } = useToast();
+  const { t } = useI18n();
 
   const [interrupted, setInterrupted] = useState<WorkSession[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
@@ -53,6 +55,9 @@ function LibraryInner() {
     }
   });
   const [loadError, setLoadError] = useState(false);
+  const [activeTab, setActiveTab] = useState<'lessons' | 'trash'>('lessons');
+  const [trashList, setTrashList] = useState<Array<{ id: string; lessonId: string; savedAt: number; blob: Blob }>>([]);
+  const [trashLoading, setTrashLoading] = useState(false);
 
   const visible = notebooks
     .filter(n => (filter === 'all' || n.subject === filter) && `${n.title} ${n.subject}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
@@ -90,6 +95,55 @@ function LibraryInner() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadTrash = useCallback(async () => {
+    setTrashLoading(true);
+    try {
+      const { listTrashSnapshots } = await import('@/lib/local-store');
+      const items = await listTrashSnapshots();
+      setTrashList(items);
+    } catch {
+      push('Could not load recovery snapshots.', 'error');
+    } finally {
+      setTrashLoading(false);
+    }
+  }, [push]);
+
+  useEffect(() => {
+    void loadTrash();
+  }, [loadTrash]);
+
+  const handleRestore = async (id: string) => {
+    setBusy(true);
+    try {
+      const { restoreTrashSnapshot } = await import('@/lib/local-store');
+      const restoredId = await restoreTrashSnapshot(id);
+      push('Lesson restored successfully!', 'success');
+      await load();
+      await loadTrash();
+      setActiveTab('lessons');
+      router.push(`/board/${restoredId}`);
+    } catch (err) {
+      push(err instanceof Error ? err.message : 'Could not restore lesson.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeletePermanent = async (id: string) => {
+    if (!confirm('Permanently delete this backup snapshot? This cannot be undone.')) return;
+    setBusy(true);
+    try {
+      const { deleteTrashSnapshot } = await import('@/lib/local-store');
+      await deleteTrashSnapshot(id);
+      push('Backup snapshot permanently deleted.', 'info');
+      await loadTrash();
+    } catch (err) {
+      push(err instanceof Error ? err.message : 'Could not delete snapshot.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   async function create() {
     setBusy(true);
@@ -133,7 +187,8 @@ function LibraryInner() {
     try {
       await localRequest(`/api/notebooks/${id}`, { method: "DELETE" });
       setNotebooks((prev) => prev.filter((n) => n.id !== id));
-      push("Lesson deleted.", "success");
+      void loadTrash();
+      push("Lesson deleted. You can restore it from Trash / Recovery.", "success");
     } catch {
       push("Could not delete the lesson.", "error");
     }
@@ -155,22 +210,115 @@ function LibraryInner() {
             </div>
           </div>
           <div className="kn-workspace-actions">
+            <LanguageToggle />
             <button
               onClick={() => router.push("/onboarding")}
               className="kn-focus flex items-center gap-2 rounded-xl border border-line px-4 py-2.5 text-sm text-muted hover:bg-elevated hover:text-ink"
             >
               <Icon name="settings" className="h-4 w-4" />
-              Settings
+              {t("settings")}
             </button>
             <button
               onClick={() => setCreating(true)}
               className="kn-focus flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
             >
               <Icon name="plus" className="h-4 w-4" />
-              New lesson
+              {t("new_lesson")}
             </button>
           </div>
         </header>
+
+        <div className="flex gap-2 border-b border-line pb-3 mb-5" role="tablist" aria-label="Library views">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'lessons'}
+            className={`kn-focus px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'lessons' ? 'bg-brand text-white shadow-sm' : 'bg-panel text-muted hover:text-ink'}`}
+            onClick={() => setActiveTab('lessons')}
+          >
+            {t("lessons")} ({notebooks.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'trash'}
+            className={`kn-focus px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'trash' ? 'bg-brand text-white shadow-sm' : 'bg-panel text-muted hover:text-ink'}`}
+            onClick={() => { setActiveTab('trash'); void loadTrash(); }}
+          >
+            {t("trash_recovery")} ({trashList.length})
+          </button>
+        </div>
+
+        {activeTab === 'trash' ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Deleted Lessons & Automatic Recovery Snapshots</h2>
+                <p className="text-xs text-muted mt-0.5">
+                  Phoenix preserves up to 3 generations of deleted lessons in your device recovery store.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void loadTrash()}
+                className="kn-focus flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:text-ink"
+              >
+                <Icon name="sync" className="h-3.5 w-3.5" /> Refresh
+              </button>
+            </div>
+            {trashLoading ? (
+              <div className="p-8 text-center text-sm text-muted">Checking recovery store...</div>
+            ) : trashList.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-line p-12 text-center">
+                <h3 className="font-semibold text-ink">Trash is empty</h3>
+                <p className="mt-1 text-sm text-muted">
+                  Deleted lessons and automatic snapshots will appear here so you can restore them anytime.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {trashList.map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-line bg-panel p-5 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand-light">
+                          {Math.round(item.blob.size / 1024)} KB
+                        </span>
+                        <span className="text-xs text-muted">
+                          {new Date(item.savedAt).toLocaleDateString()} {new Date(item.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-ink mt-3 break-all">
+                        Lesson {item.lessonId.slice(0, 12)}…
+                      </h3>
+                      <p className="text-xs text-muted mt-1 font-mono">Snapshot ID: {item.id.slice(0, 8)}</p>
+                    </div>
+                    <div className="mt-5 flex items-center gap-2 pt-3 border-t border-line">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleRestore(item.id)}
+                        className="kn-focus flex-1 rounded-xl bg-brand py-2 text-center text-xs font-semibold text-white hover:bg-brand-dark transition-colors disabled:opacity-50"
+                      >
+                        {t("restore")}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleDeletePermanent(item.id)}
+                        className="kn-focus rounded-xl border border-line px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-red-400 transition-colors disabled:opacity-50"
+                        title={t("delete_permanent")}
+                      >
+                        {t("delete")}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
 
         {interrupted.length > 0 && (
           <section className="mb-5 rounded-xl border border-line bg-panel p-4" aria-label="Interrupted lessons">
@@ -229,18 +377,18 @@ function LibraryInner() {
         {!loading && !loadError && notebooks.length > 0 && (
           <>
             <div className="kn-library-summary" aria-label="Library overview">
-              <div><strong>{notebooks.length}</strong><span>Lessons</span></div>
-              <div><strong>{notebooks.reduce((sum, n) => sum + n.pageCount, 0)}</strong><span>Pages</span></div>
-              <div><strong>{subjects.length}</strong><span>Subjects</span></div>
+              <div><strong>{notebooks.length}</strong><span>{t("lessons")}</span></div>
+              <div><strong>{notebooks.reduce((sum, n) => sum + n.pageCount, 0)}</strong><span>{t("pages")}</span></div>
+              <div><strong>{subjects.length}</strong><span>{t("subjects")}</span></div>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">Your lessons</h2>
+              <h2 className="text-lg font-semibold">{t("your_lessons")}</h2>
               <span className="text-sm text-muted" role="status">{visible.length} of {notebooks.length}</span>
             </div>
             <div className="kn-library-filters">
               <label className="relative">
-                <span className="sr-only">Search lessons</span>
-                <input className="kn-focus" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search lessons or subjects" />
+                <span className="sr-only">{t("search_lessons")}</span>
+                <input className="kn-focus" value={query} onChange={e => setQuery(e.target.value)} placeholder={t("search_lessons")} />
                 {query && (
                   <button aria-label="Clear search" className="absolute right-1 top-0 grid w-10 place-items-center text-muted" onClick={() => setQuery('')}>
                     <Icon name="close" className="h-4 w-4" />
@@ -303,6 +451,8 @@ function LibraryInner() {
               <NotebookCard key={n.id} notebook={n} onOpen={() => router.push(`/board/${n.id}`)} onDelete={() => remove(n.id)} />
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
 

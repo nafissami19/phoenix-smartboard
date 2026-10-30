@@ -3,64 +3,791 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { compileTeachingExpression, formatMathNumber, type AngleMode } from '@/lib/teaching-math';
+import {
+  solveQuadratic,
+  solveCubic,
+  solveLinear2x2,
+  solveLinear3x3,
+  analyzeMatrix,
+  convertSpeed,
+  convertTemperature,
+  convertPressure,
+  convertEnergy,
+  convertBase,
+  type SpeedUnit,
+  type TempUnit,
+  type PressureUnit,
+  type EnergyUnit,
+} from '@/lib/classwiz-math';
 import { formatTime12 } from '@/lib/format-time';
 import './TeachingMath.css';
 
 // ------------------------------- Calculator --------------------------------
 
-export function Calculator() {
-  const [expression,setExpression]=useState('');
-  const [scientific,setScientific]=useState(false),[angleMode,setAngleMode]=useState<AngleMode>('DEG');
-  const [answer,setAnswer]=useState(0),[complete,setComplete]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const [history,setHistory]=useState<{expression:string;result:string;angleMode:AngleMode}[]>([]);
-  const input=useRef<HTMLInputElement>(null);
-  function insert(value:string,operator=false) {
-    const field=input.current;
-    const base=complete&&!operator?'':expression;
-    const start=complete?base.length:(field?.selectionStart??base.length),end=complete?base.length:(field?.selectionEnd??base.length);
-    const next=base.slice(0,start)+value+base.slice(end);
-    if(next.length>240)return;
-    setExpression(next);setComplete(false);setError('');
-    requestAnimationFrame(()=>{field?.focus();field?.setSelectionRange(start+value.length,start+value.length);});
+function stampTextToBoard(text: string, onStamp?: (text: string) => void) {
+  if (onStamp) {
+    onStamp(text);
+  } else {
+    window.dispatchEvent(new CustomEvent('phoenix-stamp-text', { detail: { text } }));
   }
-  function functionKey(name:string) {
-    if(complete){setExpression(`${name}(${expression})`);setComplete(false);setError('');input.current?.focus();}
-    else insert(`${name}(`);
+}
+
+export function SingleCalculator({
+  id = 'calc-1',
+  onStamp,
+}: {
+  id?: string;
+  onStamp?: (text: string) => void;
+}) {
+  const [expression, setExpression] = useState('');
+  const [scientific, setScientific] = useState(false);
+  const [angleMode, setAngleMode] = useState<AngleMode>('DEG');
+  const [textbookMode, setTextbookMode] = useState(true);
+  const [answer, setAnswer] = useState(0);
+  const [complete, setComplete] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [history, setHistory] = useState<{ expression: string; result: string; angleMode: AngleMode }[]>([]);
+  const input = useRef<HTMLInputElement>(null);
+
+  function insert(value: string, operator = false) {
+    const field = input.current;
+    const base = complete && !operator ? '' : expression;
+    const start = complete ? base.length : (field?.selectionStart ?? base.length);
+    const end = complete ? base.length : (field?.selectionEnd ?? base.length);
+    const next = base.slice(0, start) + value + base.slice(end);
+    if (next.length > 240) return;
+    setExpression(next);
+    setComplete(false);
+    setError('');
+    requestAnimationFrame(() => {
+      field?.focus();
+      field?.setSelectionRange(start + value.length, start + value.length);
+    });
   }
+
+  function functionKey(name: string) {
+    if (complete) {
+      setExpression(`${name}(${expression})`);
+      setComplete(false);
+      setError('');
+      input.current?.focus();
+    } else {
+      insert(`${name}(`);
+    }
+  }
+
   async function equals() {
-    if(busy)return;setBusy(true);setError('');
-    const submitted=expression;
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    const submitted = expression;
     try {
-      const evaluate=await compileTeachingExpression(submitted,{angleMode,answer});
-      const result=evaluate(),formatted=formatMathNumber(result);
-      setAnswer(result);setExpression(formatted);setComplete(true);
-      setHistory(previous=>[{expression:submitted,result:formatted,angleMode},...previous].slice(0,6));
-      requestAnimationFrame(()=>{input.current?.focus();input.current?.select();});
-    }catch(failure){setError(failure instanceof Error?failure.message:'Could not calculate this expression.');}
-    finally{setBusy(false);}
+      const evaluate = await compileTeachingExpression(submitted, { angleMode, answer });
+      const result = evaluate();
+      const formatted = formatMathNumber(result);
+      setAnswer(result);
+      setExpression(formatted);
+      setComplete(true);
+      setHistory(prev => [{ expression: submitted, result: formatted, angleMode }, ...prev].slice(0, 6));
+      requestAnimationFrame(() => {
+        input.current?.focus();
+        input.current?.select();
+      });
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Could not calculate this expression.');
+    } finally {
+      setBusy(false);
+    }
   }
-  function clear(){setExpression('');setComplete(false);setError('');input.current?.focus();}
-  function backspace(){const field=input.current;const start=field?.selectionStart??expression.length,end=field?.selectionEnd??expression.length;setExpression(expression.slice(0,start===end?Math.max(0,start-1):start)+expression.slice(end));setComplete(false);setError('');requestAnimationFrame(()=>{field?.focus();const caret=start===end?Math.max(0,start-1):start;field?.setSelectionRange(caret,caret);});}
-  return <section className="teaching-calculator" aria-label="Teaching calculator" onKeyDown={event=>{
-    event.stopPropagation();
-    if(event.target!==input.current)return;
-    if(event.key==='Enter'||event.key==='='){event.preventDefault();void equals();}
-    else if(event.key==='Escape'){event.preventDefault();clear();}
-    else if(complete&&['+','-','*','/','^'].includes(event.key)){event.preventDefault();insert(event.key,true);}
-  }}>
-    <div className="math-mode-switch" aria-label="Calculator mode"><button className="kn-focus" aria-pressed={!scientific} onClick={()=>setScientific(false)}>Basic</button><button className="kn-focus" aria-pressed={scientific} onClick={()=>setScientific(true)}>Scientific</button></div>
-    {scientific&&<div className="math-mode-switch" aria-label="Angle unit"><button className="kn-focus" aria-pressed={angleMode==='DEG'} onClick={()=>setAngleMode('DEG')}>DEG</button><button className="kn-focus" aria-pressed={angleMode==='RAD'} onClick={()=>setAngleMode('RAD')}>RAD</button></div>}
-    <label className="calculator-expression">Expression<input ref={input} aria-label="Calculator expression" className="kn-focus" autoComplete="off" spellCheck={false} maxLength={240} value={expression} placeholder="0" onChange={event=>{setExpression(event.target.value);setComplete(false);setError('');}}/></label>
-    <output className="calculator-answer" aria-live="polite">{complete?`Result: ${expression}`:`Ans: ${formatMathNumber(answer)}`}</output>
-    {error&&<p role="alert" className="teaching-math-error">{error}</p>}
-    {scientific&&<div className="calculator-scientific-keys">{['sin','cos','tan','sqrt','asin','acos','atan','abs','log','ln','exp','factorial'].map(name=><button key={name} className="kn-focus" onClick={()=>functionKey(name)}>{name==='factorial'?'n!':name}</button>)}{[['π','pi'],['e','e'],['x²','^2'],['xʸ','^']].map(([label,value])=><button key={label} className="kn-focus" onClick={()=>insert(value,value.startsWith('^'))}>{label}</button>)}</div>}
-    <div className="calculator-keypad"><button className="kn-focus" onClick={clear}>C</button><button className="kn-focus" aria-label="Calculator backspace" onClick={backspace}>⌫</button><button className="kn-focus" onClick={()=>insert('(')}>(</button><button className="kn-focus" onClick={()=>insert(')',true)}>)</button>
-      {['7','8','9','÷','4','5','6','×','1','2','3','-','0','.','=','+'].map(key=><button key={key} disabled={key==='='&&busy} className={`kn-focus ${key==='='?'calculator-equals':''}`} aria-label={key==='='?'Calculate':key} onClick={()=>key==='='?void equals():insert(key==='×'?'*':key==='÷'?'/':key,['+','-','×','÷'].includes(key))}>{key==='='&&busy?'…':key}</button>)}
-      <button className="kn-focus" onClick={()=>insert('ans')}>Ans</button><button className="kn-focus" title="Divide the preceding value by 100" onClick={()=>insert('/100',true)}>%</button><button className="kn-focus calculator-sign" onClick={()=>{setExpression(expression?`-(${expression})`:'-');setComplete(false);setError('');input.current?.focus();}}>±</button>
+
+  function clear() {
+    setExpression('');
+    setComplete(false);
+    setError('');
+    input.current?.focus();
+  }
+
+  function backspace() {
+    const field = input.current;
+    const start = field?.selectionStart ?? expression.length;
+    const end = field?.selectionEnd ?? expression.length;
+    setExpression(expression.slice(0, start === end ? Math.max(0, start - 1) : start) + expression.slice(end));
+    setComplete(false);
+    setError('');
+    requestAnimationFrame(() => {
+      field?.focus();
+      const caret = start === end ? Math.max(0, start - 1) : start;
+      field?.setSelectionRange(caret, caret);
+    });
+  }
+
+  // Natural textbook formatted preview
+  const naturalDisplay = useMemo(() => {
+    if (!expression) return '';
+    return expression
+      .replace(/\*/g, ' · ')
+      .replace(/\//g, ' / ')
+      .replace(/\^2/g, '²')
+      .replace(/\^3/g, '³')
+      .replace(/sqrt\(([^)]+)\)/g, '√($1)');
+  }, [expression]);
+
+  return (
+    <section
+      className="teaching-calculator"
+      aria-label="Teaching calculator"
+      onKeyDown={event => {
+        event.stopPropagation();
+        if (event.target !== input.current) return;
+        if (event.key === 'Enter' || event.key === '=') {
+          event.preventDefault();
+          void equals();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          clear();
+        } else if (complete && ['+', '-', '*', '/', '^'].includes(event.key)) {
+          event.preventDefault();
+          insert(event.key, true);
+        }
+      }}
+    >
+      <div className="flex items-center justify-between gap-1">
+        <div className="math-mode-switch flex-1" aria-label="Calculator mode">
+          <button type="button" className="kn-focus" aria-pressed={!scientific} onClick={() => setScientific(false)}>
+            Basic
+          </button>
+          <button type="button" className="kn-focus" aria-pressed={scientific} onClick={() => setScientific(true)}>
+            Scientific
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => setTextbookMode(v => !v)}
+          className={`h-9 px-2 rounded-lg text-xs font-semibold border ${
+            textbookMode ? 'border-brand bg-brand/10 text-brand-light' : 'border-line text-muted'
+          }`}
+          title="Toggle Natural Textbook Display"
+        >
+          {textbookMode ? 'Natural 📖' : 'Standard'}
+        </button>
+      </div>
+
+      {scientific && (
+        <div className="math-mode-switch" aria-label="Angle unit">
+          <button type="button" className="kn-focus" aria-pressed={angleMode === 'DEG'} onClick={() => setAngleMode('DEG')}>
+            DEG
+          </button>
+          <button type="button" className="kn-focus" aria-pressed={angleMode === 'RAD'} onClick={() => setAngleMode('RAD')}>
+            RAD
+          </button>
+        </div>
+      )}
+
+      {textbookMode && naturalDisplay && (
+        <div className="classwiz-textbook-display select-none">
+          {naturalDisplay} {complete ? `= ${formatMathNumber(answer)}` : ''}
+        </div>
+      )}
+
+      <label className="calculator-expression">
+        Expression
+        <input
+          ref={input}
+          aria-label="Calculator expression"
+          className="kn-focus"
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={240}
+          value={expression}
+          placeholder="0"
+          onChange={event => {
+            setExpression(event.target.value);
+            setComplete(false);
+            setError('');
+          }}
+        />
+      </label>
+
+      <output className="calculator-answer" aria-live="polite">
+        {complete ? `Result: ${expression}` : `Ans: ${formatMathNumber(answer)}`}
+      </output>
+
+      {error && <p role="alert" className="teaching-math-error">{error}</p>}
+
+      {scientific && (
+        <div className="calculator-scientific-keys">
+          {['sin', 'cos', 'tan', 'sqrt', 'asin', 'acos', 'atan', 'abs', 'log', 'ln', 'exp', 'factorial'].map(name => (
+            <button key={name} type="button" className="kn-focus" onClick={() => functionKey(name)}>
+              {name === 'factorial' ? 'n!' : name}
+            </button>
+          ))}
+          {[
+            ['π', 'pi'],
+            ['e', 'e'],
+            ['x²', '^2'],
+            ['xʸ', '^'],
+          ].map(([label, value]) => (
+            <button key={label} type="button" className="kn-focus" onClick={() => insert(value, value.startsWith('^'))}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="calculator-keypad">
+        <button type="button" className="kn-focus" onClick={clear}>C</button>
+        <button type="button" className="kn-focus" aria-label="Calculator backspace" onClick={backspace}>⌫</button>
+        <button type="button" className="kn-focus" onClick={() => insert('(')}>(</button>
+        <button type="button" className="kn-focus" onClick={() => insert(')', true)}>)</button>
+        {['7', '8', '9', '÷', '4', '5', '6', '×', '1', '2', '3', '-', '0', '.', '=', '+'].map(key => (
+          <button
+            key={key}
+            type="button"
+            disabled={key === '=' && busy}
+            className={`kn-focus ${key === '=' ? 'calculator-equals' : ''}`}
+            aria-label={key === '=' ? 'Calculate' : key}
+            onClick={() => (key === '=' ? void equals() : insert(key === '×' ? '*' : key === '÷' ? '/' : key, ['+', '-', '×', '÷'].includes(key)))}
+          >
+            {key === '=' && busy ? '…' : key}
+          </button>
+        ))}
+        <button type="button" className="kn-focus" onClick={() => insert('ans')}>Ans</button>
+        <button type="button" className="kn-focus" title="Divide preceding value by 100" onClick={() => insert('/100', true)}>%</button>
+        <button
+          type="button"
+          className="kn-focus calculator-sign"
+          onClick={() => {
+            setExpression(expression ? `-(${expression})` : '-');
+            setComplete(false);
+            setError('');
+            input.current?.focus();
+          }}
+        >
+          ±
+        </button>
+      </div>
+
+      <button
+        type="button"
+        className="classwiz-stamp-btn kn-focus"
+        onClick={() => {
+          const text = complete ? `${history[0]?.expression ?? expression} = ${expression}` : `Result: ${formatMathNumber(answer)}`;
+          stampTextToBoard(text, onStamp);
+        }}
+      >
+        <Icon name="board" className="h-4 w-4" />
+        <span>1-Tap Stamp to Board</span>
+      </button>
+
+      {history.length > 0 && (
+        <details className="calculator-history">
+          <summary>History</summary>
+          <ol>
+            {history.map((entry, index) => (
+              <li key={index}>
+                <button
+                  type="button"
+                  className="kn-focus"
+                  onClick={() => {
+                    setExpression(entry.expression);
+                    setAngleMode(entry.angleMode);
+                    setComplete(false);
+                    setError('');
+                    input.current?.focus();
+                  }}
+                >
+                  <span>{entry.expression} = <strong>{entry.result}</strong></span>
+                  <small>{entry.angleMode}</small>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <button type="button" className="kn-focus" onClick={() => setHistory([])}>Clear history</button>
+        </details>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------- Equation Solver Tab --------------------------
+
+export function EquationSolver({ onStamp }: { onStamp?: (text: string) => void }) {
+  const [type, setType] = useState<'quadratic' | 'cubic' | 'linear2' | 'linear3'>('quadratic');
+
+  // Quadratic coefficients: ax² + bx + c = 0
+  const [qa, setQa] = useState(1);
+  const [qb, setQb] = useState(-5);
+  const [qc, setQc] = useState(6);
+
+  // Cubic coefficients: ax³ + bx² + cx + d = 0
+  const [ca, setCa] = useState(1);
+  const [cb, setCb] = useState(-6);
+  const [cc, setCc] = useState(11);
+  const [cd, setCd] = useState(-6);
+
+  // 2x2 Linear: a1*x + b1*y = c1, a2*x + b2*y = c2
+  const [l2, setL2] = useState({ a1: 2, b1: 1, c1: 7, a2: 1, b2: -1, c2: 2 });
+
+  // 3x3 Linear
+  const [l3, setL3] = useState<[[number, number, number, number], [number, number, number, number], [number, number, number, number]]>([
+    [1, 1, 1, 6],
+    [0, 2, 5, -4],
+    [2, 5, -1, 27],
+  ]);
+
+  const quadSol = useMemo(() => {
+    try {
+      return solveQuadratic(qa, qb, qc);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Invalid quadratic input' };
+    }
+  }, [qa, qb, qc]);
+
+  const cubicSol = useMemo(() => {
+    try {
+      return solveCubic(ca, cb, cc, cd);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Invalid cubic input' };
+    }
+  }, [ca, cb, cc, cd]);
+
+  const l2Sol = useMemo(() => {
+    try {
+      return solveLinear2x2(l2.a1, l2.b1, l2.c1, l2.a2, l2.b2, l2.c2);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Invalid linear input' };
+    }
+  }, [l2]);
+
+  const l3Sol = useMemo(() => {
+    try {
+      return solveLinear3x3(l3);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Invalid 3x3 input' };
+    }
+  }, [l3]);
+
+  function stamp() {
+    let text = '';
+    if (type === 'quadratic' && !('error' in quadSol)) {
+      text = quadSol.formattedSteps.join('\n');
+    } else if (type === 'cubic' && !('error' in cubicSol)) {
+      text = cubicSol.formattedSteps.join('\n');
+    } else if (type === 'linear2' && !('error' in l2Sol)) {
+      text = l2Sol.formattedSteps.join('\n');
+    } else if (type === 'linear3' && !('error' in l3Sol)) {
+      text = l3Sol.formattedSteps.join('\n');
+    }
+    if (text) stampTextToBoard(text, onStamp);
+  }
+
+  return (
+    <div className="classwiz-solver-panel">
+      <div className="classwiz-tabs">
+        <button type="button" aria-pressed={type === 'quadratic'} onClick={() => setType('quadratic')}>ax²+bx+c=0</button>
+        <button type="button" aria-pressed={type === 'cubic'} onClick={() => setType('cubic')}>ax³+...+d=0</button>
+        <button type="button" aria-pressed={type === 'linear2'} onClick={() => setType('linear2')}>2x2 Linear</button>
+        <button type="button" aria-pressed={type === 'linear3'} onClick={() => setType('linear3')}>3x3 Linear</button>
+      </div>
+
+      {type === 'quadratic' && (
+        <>
+          <div className="classwiz-grid-inputs">
+            <label className="classwiz-input-field">a<input type="number" value={qa} onChange={e => setQa(Number(e.target.value))} /></label>
+            <label className="classwiz-input-field">b<input type="number" value={qb} onChange={e => setQb(Number(e.target.value))} /></label>
+            <label className="classwiz-input-field">c<input type="number" value={qc} onChange={e => setQc(Number(e.target.value))} /></label>
+          </div>
+          <div className="classwiz-solution-box">
+            {'error' in quadSol ? (
+              <span className="text-red-400">{quadSol.error}</span>
+            ) : (
+              quadSol.formattedSteps.map((st, i) => <div key={i}>{st}</div>)
+            )}
+          </div>
+        </>
+      )}
+
+      {type === 'cubic' && (
+        <>
+          <div className="classwiz-grid-inputs">
+            <label className="classwiz-input-field">a<input type="number" value={ca} onChange={e => setCa(Number(e.target.value))} /></label>
+            <label className="classwiz-input-field">b<input type="number" value={cb} onChange={e => setCb(Number(e.target.value))} /></label>
+            <label className="classwiz-input-field">c<input type="number" value={cc} onChange={e => setCc(Number(e.target.value))} /></label>
+            <label className="classwiz-input-field">d<input type="number" value={cd} onChange={e => setCd(Number(e.target.value))} /></label>
+          </div>
+          <div className="classwiz-solution-box">
+            {'error' in cubicSol ? (
+              <span className="text-red-400">{cubicSol.error}</span>
+            ) : (
+              cubicSol.formattedSteps.map((st, i) => <div key={i}>{st}</div>)
+            )}
+          </div>
+        </>
+      )}
+
+      {type === 'linear2' && (
+        <>
+          <div className="classwiz-grid-inputs">
+            <label className="classwiz-input-field">a₁<input type="number" value={l2.a1} onChange={e => setL2({ ...l2, a1: Number(e.target.value) })} /></label>
+            <label className="classwiz-input-field">b₁<input type="number" value={l2.b1} onChange={e => setL2({ ...l2, b1: Number(e.target.value) })} /></label>
+            <label className="classwiz-input-field">= c₁<input type="number" value={l2.c1} onChange={e => setL2({ ...l2, c1: Number(e.target.value) })} /></label>
+            <label className="classwiz-input-field">a₂<input type="number" value={l2.a2} onChange={e => setL2({ ...l2, a2: Number(e.target.value) })} /></label>
+            <label className="classwiz-input-field">b₂<input type="number" value={l2.b2} onChange={e => setL2({ ...l2, b2: Number(e.target.value) })} /></label>
+            <label className="classwiz-input-field">= c₂<input type="number" value={l2.c2} onChange={e => setL2({ ...l2, c2: Number(e.target.value) })} /></label>
+          </div>
+          <div className="classwiz-solution-box">
+            {'error' in l2Sol ? (
+              <span className="text-red-400">{l2Sol.error}</span>
+            ) : (
+              l2Sol.formattedSteps.map((st, i) => <div key={i}>{st}</div>)
+            )}
+          </div>
+        </>
+      )}
+
+      {type === 'linear3' && (
+        <>
+          <div className="classwiz-solution-box">
+            {'error' in l3Sol ? (
+              <span className="text-red-400">{l3Sol.error}</span>
+            ) : (
+              l3Sol.formattedSteps.map((st, i) => <div key={i}>{st}</div>)
+            )}
+          </div>
+        </>
+      )}
+
+      <button type="button" className="classwiz-stamp-btn kn-focus" onClick={stamp}>
+        <Icon name="board" className="h-4 w-4" />
+        <span>Stamp Equation Steps to Board</span>
+      </button>
     </div>
-    {scientific&&<p className="teaching-math-hint">Trig uses {angleMode==='DEG'?'degrees':'radians'}. log = base 10; ln = natural log. Close parentheses before =.</p>}
-    {history.length>0&&<details className="calculator-history"><summary>History</summary><ol>{history.map((entry,index)=><li key={index}><button className="kn-focus" onClick={()=>{setExpression(entry.expression);setAngleMode(entry.angleMode);setComplete(false);setError('');input.current?.focus();}}><span>{entry.expression} = <strong>{entry.result}</strong></span><small>{entry.angleMode}</small></button></li>)}</ol><button className="kn-focus" onClick={()=>setHistory([])}>Clear history</button></details>}
-  </section>;
+  );
+}
+
+// ----------------------------- Matrix Solver Tab ----------------------------
+
+export function MatrixSolver({ onStamp }: { onStamp?: (text: string) => void }) {
+  const [dim, setDim] = useState<2 | 3>(2);
+  const [m2, setM2] = useState<number[][]>([
+    [4, 7],
+    [2, 6],
+  ]);
+  const [m3, setM3] = useState<number[][]>([
+    [1, 0, 2],
+    [2, -1, 3],
+    [4, 1, 8],
+  ]);
+
+  const matResult = useMemo(() => {
+    try {
+      return analyzeMatrix(dim === 2 ? m2 : m3);
+    } catch (e) {
+      return null;
+    }
+  }, [dim, m2, m3]);
+
+  function updateM2(r: number, c: number, v: number) {
+    const next = m2.map(row => [...row]);
+    next[r][c] = v;
+    setM2(next);
+  }
+
+  function updateM3(r: number, c: number, v: number) {
+    const next = m3.map(row => [...row]);
+    next[r][c] = v;
+    setM3(next);
+  }
+
+  function stamp() {
+    if (!matResult) return;
+    const lines = [
+      `Matrix ${dim}x${dim}:`,
+      (dim === 2 ? m2 : m3).map(r => `[ ${r.join(', ')} ]`).join('\n'),
+      `Determinant: det(A) = ${matResult.determinant}`,
+      `Transpose Aᵀ:`,
+      matResult.transpose.map(r => `[ ${r.join(', ')} ]`).join('\n'),
+    ];
+    if (matResult.inverse) {
+      lines.push('Inverse A⁻¹:');
+      lines.push(matResult.inverse.map(r => `[ ${r.join(', ')} ]`).join('\n'));
+    } else {
+      lines.push('Matrix is singular (no inverse exists).');
+    }
+    stampTextToBoard(lines.join('\n'), onStamp);
+  }
+
+  return (
+    <div className="classwiz-solver-panel">
+      <div className="classwiz-tabs">
+        <button type="button" aria-pressed={dim === 2} onClick={() => setDim(2)}>2x2 Matrix</button>
+        <button type="button" aria-pressed={dim === 3} onClick={() => setDim(3)}>3x3 Matrix</button>
+      </div>
+
+      <div className="flex justify-center p-2">
+        <div className={`grid gap-1.5 ${dim === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          {dim === 2
+            ? m2.flatMap((row, r) =>
+                row.map((val, c) => (
+                  <input
+                    key={`${r}-${c}`}
+                    type="number"
+                    className="w-16 rounded border border-line bg-base p-2 text-center text-sm font-bold text-ink"
+                    value={val}
+                    onChange={e => updateM2(r, c, Number(e.target.value))}
+                  />
+                )),
+              )
+            : m3.flatMap((row, r) =>
+                row.map((val, c) => (
+                  <input
+                    key={`${r}-${c}`}
+                    type="number"
+                    className="w-14 rounded border border-line bg-base p-2 text-center text-xs font-bold text-ink"
+                    value={val}
+                    onChange={e => updateM3(r, c, Number(e.target.value))}
+                  />
+                )),
+              )}
+        </div>
+      </div>
+
+      {matResult && (
+        <div className="classwiz-solution-box">
+          <div>Determinant det(A) = <strong>{matResult.determinant}</strong></div>
+          <div className="mt-1 text-muted">Transpose Aᵀ:</div>
+          <div>{matResult.transpose.map(r => `[ ${r.join(', ')} ]`).join(' ')}</div>
+          <div className="mt-1 text-muted">Inverse A⁻¹:</div>
+          <div>
+            {matResult.inverse
+              ? matResult.inverse.map(r => `[ ${r.join(', ')} ]`).join(' ')
+              : 'Singular (det = 0, no inverse)'}
+          </div>
+        </div>
+      )}
+
+      <button type="button" className="classwiz-stamp-btn kn-focus" onClick={stamp}>
+        <Icon name="board" className="h-4 w-4" />
+        <span>Stamp Matrix to Board</span>
+      </button>
+    </div>
+  );
+}
+
+// ------------------------- Science & Base Converter -------------------------
+
+export function ConverterPanel({ onStamp }: { onStamp?: (text: string) => void }) {
+  const [tab, setTab] = useState<'units' | 'base'>('units');
+
+  // Units state
+  const [category, setCategory] = useState<'speed' | 'temp' | 'pressure' | 'energy'>('speed');
+  const [val, setVal] = useState(100);
+  const [speedFrom, setSpeedFrom] = useState<SpeedUnit>('km/h');
+  const [speedTo, setSpeedTo] = useState<SpeedUnit>('m/s');
+  const [tempFrom, setTempFrom] = useState<TempUnit>('C');
+  const [tempTo, setTempTo] = useState<TempUnit>('F');
+  const [pressFrom, setPressFrom] = useState<PressureUnit>('atm');
+  const [pressTo, setPressTo] = useState<PressureUnit>('Pa');
+  const [nrgFrom, setNrgFrom] = useState<EnergyUnit>('cal');
+  const [nrgTo, setNrgTo] = useState<EnergyUnit>('J');
+
+  // Base state
+  const [baseInput, setBaseInput] = useState('255');
+  const [baseMode, setBaseMode] = useState<10 | 16 | 2 | 8>(10);
+
+  const convertedUnit = useMemo(() => {
+    if (category === 'speed') return `${convertSpeed(val, speedFrom, speedTo)} ${speedTo}`;
+    if (category === 'temp') return `${convertTemperature(val, tempFrom, tempTo)} °${tempTo}`;
+    if (category === 'pressure') return `${convertPressure(val, pressFrom, pressTo)} ${pressTo}`;
+    return `${convertEnergy(val, nrgFrom, nrgTo)} ${nrgTo}`;
+  }, [category, val, speedFrom, speedTo, tempFrom, tempTo, pressFrom, pressTo, nrgFrom, nrgTo]);
+
+  const convertedBase = useMemo(() => {
+    try {
+      return convertBase(baseInput, baseMode);
+    } catch {
+      return null;
+    }
+  }, [baseInput, baseMode]);
+
+  function stamp() {
+    if (tab === 'units') {
+      const fromStr =
+        category === 'speed' ? `${val} ${speedFrom}` :
+        category === 'temp' ? `${val} °${tempFrom}` :
+        category === 'pressure' ? `${val} ${pressFrom}` : `${val} ${nrgFrom}`;
+      stampTextToBoard(`Unit Conversion:\n${fromStr} = ${convertedUnit}`, onStamp);
+    } else if (convertedBase) {
+      stampTextToBoard(
+        `Programmer Base Conversion:\nDEC: ${convertedBase.dec}\nHEX: 0x${convertedBase.hex}\nBIN: 0b${convertedBase.formattedBin}\nOCT: 0o${convertedBase.oct}`,
+        onStamp,
+      );
+    }
+  }
+
+  return (
+    <div className="classwiz-solver-panel">
+      <div className="classwiz-tabs">
+        <button type="button" aria-pressed={tab === 'units'} onClick={() => setTab('units')}>Physics / Chem Units</button>
+        <button type="button" aria-pressed={tab === 'base'} onClick={() => setTab('base')}>Programmer Base</button>
+      </div>
+
+      {tab === 'units' ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-1 text-xs">
+            {(['speed', 'temp', 'pressure', 'energy'] as const).map(c => (
+              <button
+                key={c}
+                type="button"
+                className={`flex-1 rounded p-1 font-semibold ${category === c ? 'bg-brand text-white' : 'bg-elevated text-muted'}`}
+                onClick={() => setCategory(c)}
+              >
+                {c.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            <label className="classwiz-input-field">
+              Value
+              <input type="number" value={val} onChange={e => setVal(Number(e.target.value))} />
+            </label>
+            <div className="flex flex-col justify-end">
+              <span className="text-[10px] text-muted">From / To</span>
+              {category === 'speed' && (
+                <div className="flex gap-1">
+                  <select value={speedFrom} onChange={e => setSpeedFrom(e.target.value as SpeedUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                    {(['km/h', 'm/s', 'mph', 'knot'] as const).map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <select value={speedTo} onChange={e => setSpeedTo(e.target.value as SpeedUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                    {(['km/h', 'm/s', 'mph', 'knot'] as const).map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              )}
+              {category === 'temp' && (
+                <div className="flex gap-1">
+                  <select value={tempFrom} onChange={e => setTempFrom(e.target.value as TempUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                    {(['C', 'K', 'F'] as const).map(u => <option key={u} value={u}>°{u}</option>)}
+                  </select>
+                  <select value={tempTo} onChange={e => setTempTo(e.target.value as TempUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                    {(['C', 'K', 'F'] as const).map(u => <option key={u} value={u}>°{u}</option>)}
+                  </select>
+                </div>
+              )}
+              {category === 'pressure' && (
+                <div className="flex gap-1">
+                  <select value={pressFrom} onChange={e => setPressFrom(e.target.value as PressureUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                    {(['atm', 'Pa', 'kPa', 'bar', 'mmHg', 'psi'] as const).map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <select value={pressTo} onChange={e => setPressTo(e.target.value as PressureUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                    {(['atm', 'Pa', 'kPa', 'bar', 'mmHg', 'psi'] as const).map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              )}
+              {category === 'energy' && (
+                <div className="flex gap-1">
+                  <select value={nrgFrom} onChange={e => setNrgFrom(e.target.value as EnergyUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                    {(['J', 'kJ', 'eV', 'cal', 'kcal', 'kWh'] as const).map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <select value={nrgTo} onChange={e => setNrgTo(e.target.value as EnergyUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                    {(['J', 'kJ', 'eV', 'cal', 'kcal', 'kWh'] as const).map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="classwiz-solution-box text-center font-bold text-base text-brand-light">
+            {convertedUnit}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={baseInput}
+              onChange={e => setBaseInput(e.target.value)}
+              placeholder="Enter number..."
+              className="flex-1 rounded border border-line bg-base p-2 text-sm font-mono text-ink"
+            />
+            <select
+              value={baseMode}
+              onChange={e => setBaseMode(Number(e.target.value) as 10 | 16 | 2 | 8)}
+              className="rounded bg-base border border-line p-2 text-xs font-semibold"
+            >
+              <option value={10}>DEC</option>
+              <option value={16}>HEX</option>
+              <option value={2}>BIN</option>
+              <option value={8}>OCT</option>
+            </select>
+          </div>
+
+          {convertedBase ? (
+            <div className="classwiz-solution-box grid grid-cols-2 gap-2 text-xs">
+              <div><span className="text-muted">DEC:</span> <strong>{convertedBase.dec}</strong></div>
+              <div><span className="text-muted">HEX:</span> <strong>0x{convertedBase.hex}</strong></div>
+              <div><span className="text-muted">OCT:</span> <strong>0o{convertedBase.oct}</strong></div>
+              <div className="col-span-2"><span className="text-muted">BIN:</span> <strong>{convertedBase.formattedBin}</strong></div>
+            </div>
+          ) : (
+            <div className="classwiz-solution-box text-red-400">Invalid number for base {baseMode}</div>
+          )}
+        </div>
+      )}
+
+      <button type="button" className="classwiz-stamp-btn kn-focus" onClick={stamp}>
+        <Icon name="board" className="h-4 w-4" />
+        <span>Stamp Conversion to Board</span>
+      </button>
+    </div>
+  );
+}
+
+// ------------------------------ Main Calculator ------------------------------
+
+export function Calculator({ onStamp }: { onStamp?: (text: string) => void }) {
+  const [activeTab, setActiveTab] = useState<'calc' | 'eq' | 'matrix' | 'conv'>('calc');
+  const [dualMode, setDualMode] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-1 pb-1 border-b border-line">
+        <div className="classwiz-tabs flex-1">
+          <button type="button" aria-pressed={activeTab === 'calc'} onClick={() => setActiveTab('calc')}>🧮 Calc</button>
+          <button type="button" aria-pressed={activeTab === 'eq'} onClick={() => setActiveTab('eq')}>📐 Equation</button>
+          <button type="button" aria-pressed={activeTab === 'matrix'} onClick={() => setActiveTab('matrix')}>📊 Matrix</button>
+          <button type="button" aria-pressed={activeTab === 'conv'} onClick={() => setActiveTab('conv')}>⚡ Convert</button>
+        </div>
+        <button
+          type="button"
+          onClick={() => setDualMode(v => !v)}
+          className={`h-8 px-2 rounded-lg text-xs font-semibold border ${
+            dualMode ? 'border-brand bg-brand text-white shadow' : 'border-line text-muted hover:text-ink'
+          }`}
+          title="Duplicate / Split Calculator side-by-side"
+        >
+          {dualMode ? 'Single' : 'Dual ⧉'}
+        </button>
+      </div>
+
+      {activeTab === 'calc' && (
+        dualMode ? (
+          <div className="grid grid-cols-2 gap-4">
+            <SingleCalculator id="calc-left" onStamp={onStamp} />
+            <SingleCalculator id="calc-right" onStamp={onStamp} />
+          </div>
+        ) : (
+          <SingleCalculator id="calc-main" onStamp={onStamp} />
+        )
+      )}
+
+      {activeTab === 'eq' && <EquationSolver onStamp={onStamp} />}
+      {activeTab === 'matrix' && <MatrixSolver onStamp={onStamp} />}
+      {activeTab === 'conv' && <ConverterPanel onStamp={onStamp} />}
+    </div>
+  );
 }
 
 // -------------------------------- Timer ------------------------------------
@@ -594,41 +1321,80 @@ export function MagnifierOverlay({
   onClose: () => void;
 }) {
   const lens = useRef<HTMLCanvasElement>(null);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [pos, setPos] = useState({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+  const [zoom, setZoom] = useState<number>(2);
+
   useEffect(() => {
     const move = (e: PointerEvent) => {
       setPos({ x: e.clientX, y: e.clientY });
-      const source = getCanvas();
-      const c = lens.current;
-      if (!source || !c) return;
-      const ctx = c.getContext("2d");
-      if (!ctx) return;
-      const dpr = source.width / source.clientWidth;
-      const zoom = 1.8;
-      const size = c.width;
-      const sx = (e.clientX - source.getBoundingClientRect().left) * dpr - size / (2 * zoom);
-      const sy = (e.clientY - source.getBoundingClientRect().top) * dpr - size / (2 * zoom);
-      ctx.clearRect(0, 0, size, size);
-      try {
-        ctx.drawImage(source, sx, sy, size / zoom, size / zoom, 0, 0, size, size);
-      } catch {
-        /* ignore */
-      }
     };
     window.addEventListener("pointermove", move);
     return () => window.removeEventListener("pointermove", move);
-  }, [getCanvas]);
+  }, []);
+
+  useEffect(() => {
+    const source = getCanvas();
+    const c = lens.current;
+    if (!source || !c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    const dpr = source.width / source.clientWidth;
+    const size = c.width;
+    const sx = (pos.x - source.getBoundingClientRect().left) * dpr - size / (2 * zoom);
+    const sy = (pos.y - source.getBoundingClientRect().top) * dpr - size / (2 * zoom);
+    ctx.clearRect(0, 0, size, size);
+    try {
+      ctx.drawImage(source, sx, sy, size / zoom, size / zoom, 0, 0, size, size);
+      // Reticle center crosshair
+      ctx.strokeStyle = "rgba(0, 98, 255, 0.45)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(size / 2 - 12, size / 2);
+      ctx.lineTo(size / 2 + 12, size / 2);
+      ctx.moveTo(size / 2, size / 2 - 12);
+      ctx.lineTo(size / 2, size / 2 + 12);
+      ctx.stroke();
+    } catch {
+      /* ignore */
+    }
+  }, [getCanvas, pos, zoom]);
+
   return (
     <div className="fixed inset-0 z-40" onPointerDown={onClose}>
       <canvas
         ref={lens}
-        width={220}
-        height={220}
-        className="pointer-events-none fixed rounded-full border-4 border-brand shadow-2xl"
+        width={240}
+        height={240}
+        className="pointer-events-none fixed rounded-full border-4 border-brand shadow-2xl backdrop-blur-sm"
         style={{ left: pos.x + 24, top: pos.y + 24 }}
       />
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full border border-line bg-panel px-4 py-2 text-xs text-muted">
-        Magnifier — move to zoom, click to exit
+      <div
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full border border-line bg-panel px-4 py-2 text-xs text-muted shadow-2xl pointer-events-auto select-none"
+        onPointerDown={e => e.stopPropagation()}
+      >
+        <span className="font-semibold text-ink">Magnifier Loupe:</span>
+        <div className="flex gap-1">
+          {([2, 3, 4] as const).map(z => (
+            <button
+              key={z}
+              type="button"
+              onClick={() => setZoom(z)}
+              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                zoom === z ? 'bg-brand text-white shadow-md' : 'bg-elevated text-muted hover:text-ink'
+              }`}
+            >
+              {z}x
+            </button>
+          ))}
+        </div>
+        <div className="h-4 w-px bg-line mx-1" />
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full bg-red-500/20 px-3 py-1 font-semibold text-red-400 hover:bg-red-500/30 transition-all"
+        >
+          Exit
+        </button>
       </div>
     </div>
   );

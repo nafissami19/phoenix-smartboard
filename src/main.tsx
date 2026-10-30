@@ -4,6 +4,7 @@ import {SmartKeyboard} from '@/components/SmartKeyboard';
 import { createRoot } from 'react-dom/client';
 import { lazy, Suspense, useEffect } from 'react';
 import { AppProvider } from '@/lib/app-context';
+import { I18nProvider } from '@/lib/i18n';
 import { ToastProvider } from '@/lib/toast';
 import { useLocation } from '@/lib/navigation';
 import Home from '@/app/page';
@@ -21,6 +22,6 @@ function App() {
   const location = useLocation();
   useEffect(() => { void navigator.storage?.persist?.(); }, []);
   const page = location.startsWith('/board/') ? <Board key={location.split('?')[0]}/> : location.startsWith('/library') ? <Library/> : location === '/onboarding' ? <Onboarding/> : <Home/>;
-  return <AppProvider><ToastProvider><Suspense fallback={<div role="status" className="grid h-dvh place-items-center bg-base text-ink">Opening your board...</div>}>{page}</Suspense><SmartKeyboard/></ToastProvider></AppProvider>;
+  return <I18nProvider><AppProvider><ToastProvider><Suspense fallback={<div role="status" className="grid h-dvh place-items-center bg-base text-ink">Opening your board...</div>}>{page}</Suspense><SmartKeyboard/></ToastProvider></AppProvider></I18nProvider>;
 }
 void Promise.allSettled([initializeDeviceLibrary(),initializeAndroidDisplay()]).then(()=>createRoot(document.getElementById('root')!).render(<App/>));

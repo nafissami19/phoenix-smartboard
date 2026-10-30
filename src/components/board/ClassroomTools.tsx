@@ -1,120 +1,270 @@
-import {CustomSelect} from '@/components/CustomSelect';
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FloatingWindow } from './FloatingWindow';
 import './ClassroomTools.css';
 
-// Rejection sampling avoids modulo bias for names and six-sided dice.
-function randomIndex(length: number) {
-  const limit = Math.floor(0x100000000 / length) * length;
-  const buffer = new Uint32Array(1);
-  do { crypto.getRandomValues(buffer); } while (buffer[0] >= limit);
-  return buffer[0] % length;
-}
-function namesFromText(text: string) {
-  const unique = new Map<string,string>();
-  for (const line of text.split(/\r?\n/)) {
-    const name = line.trim().replace(/\s+/g,' ');
-    if (name && !unique.has(name.toLocaleLowerCase())) unique.set(name.toLocaleLowerCase(),name);
-  }
-  return [...unique.values()];
-}
-const PIPS: Record<number, [number,number][]> = {
-  1:[[50,50]],2:[[25,25],[75,75]],3:[[25,25],[50,50],[75,75]],
-  4:[[25,25],[75,25],[25,75],[75,75]],5:[[25,25],[75,25],[50,50],[25,75],[75,75]],6:[[25,25],[75,25],[25,50],[75,50],[25,75],[75,75]],
-};
-function Die({value, rolling}:{value:number; rolling?:boolean}) {
+// ------------------------------ Classroom Noise Meter -----------------------
+
+export function NoiseMeter({ onClose }: { onClose: () => void }) {
+  const [level, setLevel] = useState<number>(30);
+  const [threshold, setThreshold] = useState<number>(65);
+  const [isAlert, setIsAlert] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let audioCtx: AudioContext | undefined;
+    let stream: MediaStream | undefined;
+    let timer: number | undefined;
+
+    async function initAudio() {
+      try {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioCtx = new AudioContextClass();
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        const check = () => {
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          const avg = sum / dataArray.length;
+          // Scale roughly to 20 - 100 dB
+          const approxDb = Math.round(20 + (avg / 255) * 80);
+          setLevel(prev => Math.round(prev * 0.7 + approxDb * 0.3));
+
+          if (approxDb > threshold) {
+            setIsAlert(true);
+          } else {
+            setIsAlert(false);
+          }
+
+          timer = window.requestAnimationFrame(check);
+        };
+        check();
+      } catch {
+        setError('Microphone access denied or audio analyser unavailable.');
+      }
+    }
+
+    void initAudio();
+    return () => {
+      if (timer) window.cancelAnimationFrame(timer);
+      stream?.getTracks().forEach(t => t.stop());
+      void audioCtx?.close();
+    };
+  }, [threshold]);
+
+  const trafficState = level > threshold ? 'red' : level > threshold - 15 ? 'yellow' : 'green';
+
   return (
-    <svg viewBox="0 0 100 100" role="img" aria-label={`Die showing ${value}`} className={`classroom-die ${rolling ? 'is-rolling' : ''}`}>
-      <defs>
-        <radialGradient id={`die-grad-${value}`} cx="35%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#000000" stopOpacity="0.35" />
-        </radialGradient>
-        <filter id="die-shadow" x="-10%" y="-10%" width="130%" height="130%">
-          <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.4" />
-        </filter>
-      </defs>
-      <rect x="6" y="6" width="88" height="88" rx="18" fill="var(--color-elevated, #26262e)" stroke="rgba(255,255,255,0.2)" strokeWidth="2.5" filter="url(#die-shadow)"/>
-      <rect x="6" y="6" width="88" height="88" rx="18" fill={`url(#die-grad-${value})`}/>
-      {PIPS[value].map(([x,y],index)=>(
-        <g key={index}>
-          <circle cx={x} cy={y+1} r="7.5" fill="rgba(0,0,0,0.5)"/>
-          <circle cx={x} cy={y} r="7.5" fill="var(--color-brand-light, #3385ff)"/>
-          <circle cx={x-2} cy={y-2} r="2.5" fill="#ffffff" fillOpacity="0.65"/>
-        </g>
-      ))}
-    </svg>
+    <FloatingWindow title="Classroom noise meter" initialX={window.innerWidth - 320} initialY={240} width={280} onClose={onClose}>
+      <div className="noise-meter-container select-none p-2">
+        <div className="noise-meter-traffic-light">
+          <div
+            className={`noise-light bg-emerald-500 text-emerald-400 ${trafficState === 'green' ? 'is-active' : ''}`}
+            title="Quiet / Good Study Level"
+          />
+          <div
+            className={`noise-light bg-amber-400 text-amber-300 ${trafficState === 'yellow' ? 'is-active' : ''}`}
+            title="Moderate Whispering"
+          />
+          <div
+            className={`noise-light bg-red-500 text-red-400 ${trafficState === 'red' ? 'is-active animate-pulse' : ''}`}
+            title="Too Noisy!"
+          />
+        </div>
+
+        <div className="text-3xl font-black tabular-nums tracking-tight text-brand-light">
+          {level} <span className="text-sm font-semibold text-muted">dB</span>
+        </div>
+
+        {isAlert && (
+          <div className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-400 animate-bounce">
+            🤫 Shh! Quiet Please!
+          </div>
+        )}
+
+        <div className="w-full">
+          <div className="flex justify-between text-xs text-muted mb-1">
+            <span>Noise Threshold:</span>
+            <span className="font-bold text-ink">{threshold} dB</span>
+          </div>
+          <input
+            type="range"
+            min={40}
+            max={90}
+            value={threshold}
+            onChange={e => setThreshold(Number(e.target.value))}
+            className="kn-range w-full"
+          />
+        </div>
+
+        <p className="text-[11px] text-muted">
+          Adjust the threshold slider to match your classroom's quiet study expectations.
+        </p>
+
+        {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
+      </div>
+    </FloatingWindow>
   );
 }
-export function ClassroomTools({onClose}:{onClose:()=>void}) {
-  const [text,setText] = useState('');
-  const [repeat,setRepeat] = useState(false), [picked,setPicked] = useState<string[]>([]);
-  const [winner,setWinner] = useState(''), [error,setError] = useState('');
-  const [diceCount,setDiceCount] = useState(1), [dice,setDice] = useState<number[]>([]);
-  const [rolling,setRolling] = useState(false);
-  const names = namesFromText(text);
-  const available = repeat ? names : names.filter(name=>!picked.includes(name));
-  function pick() {
-    if (!available.length) return;
-    try {const next=available[randomIndex(available.length)];setWinner(next);setPicked(previous=>[...previous,next]);setError('');}
-    catch {setError('Random selection is unavailable in this browser. Please try again.');}
-  }
-  function resetRound() {setPicked([]);setWinner('');setError('');}
-  function roll() {
-    try {
-      setRolling(true);
-      setTimeout(() => {
-        setDice(Array.from({length:diceCount},()=>randomIndex(6)+1));
-        setRolling(false);
-      }, 360);
-      setError('');
-    }
-    catch {setError('Dice are unavailable in this browser. Please try again.');setRolling(false);}
-  }
-  return <FloatingWindow title="Classroom tools" initialX={180} initialY={70} width={400} onClose={onClose}><div className="classroom-tools">
-    <section aria-label="Random name picker">
-      <h3>Random name picker</h3><label className="classroom-label">Names, one per line<textarea aria-label="Names, one per line" className="kn-focus" placeholder={'Asha\nRavi\nMeera'} rows={5} maxLength={20000} value={text} onChange={event=>{setText(event.target.value);resetRound();}}/></label>
-      <p className="classroom-hint">Names stay in this panel only and clear when you close it. Blank lines and duplicate names are ignored.</p>
-      <label className="classroom-check"><input type="checkbox" checked={repeat} onChange={event=>{setRepeat(event.target.checked);resetRound();}}/> Allow repeat picks</label>
-      <div className="classroom-actions"><button className="kn-focus classroom-primary" onClick={pick} disabled={!available.length}>Pick a name</button><button className="kn-focus" onClick={resetRound} disabled={!picked.length}>Reset round</button></div>
-      <p className="classroom-hint">{names.length} {names.length===1?'name':'names'} · {repeat?'Repeats allowed':`${available.length} remaining`}</p>
-      <div className="classroom-winner" role="status" aria-live="polite">{winner || 'Add names, then pick'}{!repeat && names.length>0 && !available.length && <small>Everyone has been picked. Reset the round to start again.</small>}</div>
-    </section>
-    <section aria-label="Classroom dice"><h3>Dice</h3><div className="classroom-dice-controls"><label>Number of dice<CustomSelect aria-label="Number of dice" className="kn-focus" value={diceCount} onChange={event=>{setDiceCount(Number(event.target.value));setDice([]);}}><option value={1}>One</option><option value={2}>Two</option><option value={3}>Three</option></CustomSelect></label><button className="kn-focus classroom-primary" onClick={roll} disabled={rolling}>{rolling ? 'Rolling…' : 'Roll dice'}</button></div><div className="classroom-dice" aria-live="polite">{dice.length ? <><div>{dice.map((value,index)=><Die key={index} value={value} rolling={rolling}/>)}</div><p role="status">{dice.join(' + ')}{dice.length>1?` = ${dice.reduce((sum,value)=>sum+value,0)}`:''}</p></>:<p className="classroom-hint">Roll to show the result.</p>}</div></section>
-    {error && <p role="alert" className="classroom-error">{error}</p>}
-  </div></FloatingWindow>;
-}
 
-type CurtainEdge='top'|'right'|'bottom'|'left';
-function curtainSpace() {
-  const canvas=document.querySelector('.kn-canvas-surface')?.getBoundingClientRect();
-  const left=Math.max(0,canvas?.left??0),top=Math.max(0,canvas?.top??0);
-  return {left,top,width:Math.max(1,Math.min(innerWidth,canvas?.right??innerWidth)-left),height:Math.max(1,Math.min(innerHeight,canvas?.bottom??innerHeight)-top)};
-}
-export function ScreenCurtain({onClose}:{onClose:()=>void}) {
-  const [coverage,setCoverage]=useState(65),[edge,setEdge]=useState<CurtainEdge>('top'),[space,setSpace]=useState(curtainSpace);
-  const drag=useRef<{id:number;position:number;coverage:number}|null>(null);
-  const horizontal=edge==='left'||edge==='right',reverse=edge==='bottom'||edge==='right';
-  useEffect(()=>{
-    const update=()=>setSpace(curtainSpace());const observer=new ResizeObserver(update);
-    const canvas=document.querySelector('.kn-canvas-surface');if(canvas)observer.observe(canvas);
-    window.addEventListener('resize',update);window.addEventListener('phoenix-layout-updated',update);update();
-    return()=>{observer.disconnect();window.removeEventListener('resize',update);window.removeEventListener('phoenix-layout-updated',update);};
-  },[]);
-  useEffect(()=>{const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!event.defaultPrevented){event.preventDefault();onClose();}};window.addEventListener('keydown',escape);return()=>window.removeEventListener('keydown',escape);},[onClose]);
-  function start(event:PointerEvent<HTMLButtonElement>){event.preventDefault();event.stopPropagation();event.currentTarget.setPointerCapture(event.pointerId);drag.current={id:event.pointerId,position:horizontal?event.clientX:event.clientY,coverage};}
-  function move(event:PointerEvent<HTMLButtonElement>){const initial=drag.current;if(!initial||initial.id!==event.pointerId)return;const delta=(horizontal?event.clientX:event.clientY)-initial.position;setCoverage(Math.max(0,Math.min(100,Math.round(initial.coverage+delta/(horizontal?space.width:space.height)*100*(reverse?-1:1)))));}
-  const boundary=(reverse?100-coverage:coverage)/100*(horizontal?space.width:space.height);
-  return <section className="screen-curtain" aria-label="Screen curtain" data-edge={edge} style={{left:space.left,top:space.top,width:space.width,height:space.height}}>
-    <div className="screen-curtain-shade" hidden={coverage===0} onPointerDown={event=>{event.preventDefault();event.stopPropagation();}} style={{left:space.left+(edge==='right'?space.width*(1-coverage/100):0),top:space.top+(edge==='bottom'?space.height*(1-coverage/100):0),width:horizontal?space.width*coverage/100:space.width,height:horizontal?space.height:space.height*coverage/100}}/>
-    <button className="kn-focus screen-curtain-grip" aria-label="Drag curtain reveal handle" onPointerDown={start} onPointerMove={move} onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}} onLostPointerCapture={()=>{drag.current=null;}} onKeyDown={event=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();event.stopPropagation();const increase=event.key==='ArrowDown'||event.key==='ArrowRight';setCoverage(value=>Math.max(0,Math.min(100,value+(increase?5:-5)*(reverse?-1:1))));}}} style={horizontal?{left:space.left+Math.max(0,Math.min(space.width-44,boundary-22)),top:space.top+space.height*.45,cursor:'ew-resize'}:{left:space.left+space.width/2-30,top:space.top+Math.max(72,Math.min(space.height-44,boundary-22)),cursor:'ns-resize'}}>
-      <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" style={{transform:horizontal?'rotate(90deg)':undefined}}><path d="M5 10h14M5 14h14m-10-8 3-3 3 3m-6 12 3 3 3-3"/></svg>
-    </button>
-    <div className="screen-curtain-controls" style={{top:space.top+8,left:space.left+space.width/2}}>
-      <button className="kn-focus" aria-label={`Cover from ${edge}. Change direction`} onClick={()=>{drag.current=null;setEdge((['top','right','bottom','left'] as const)[(['top','right','bottom','left'].indexOf(edge)+1)%4]);}}><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" style={{transform:`rotate(${['top','right','bottom','left'].indexOf(edge)*90}deg)`}}><path d="M4 4h16M12 7v13m-5-5 5 5 5-5"/></svg><span>{edge}</span></button>
-      <label>Covered {coverage}%<input aria-label="Curtain coverage" type="range" min={0} max={100} value={coverage} onChange={event=>setCoverage(Number(event.target.value))}/></label>
-      <button className="kn-focus" onClick={()=>setCoverage(value=>value===0?100:0)}>{coverage===0?'Cover all':'Reveal all'}</button>
-      <button className="kn-focus" onClick={onClose} aria-label="Close curtain"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+// ------------------------------ Cinema Spotlight Dimmer -----------------------
+
+export function SpotlightDimmer({ onClose }: { onClose: () => void }) {
+  const [pos, setPos] = useState(() => ({
+    x: typeof window !== 'undefined' ? window.innerWidth / 2 : 400,
+    y: typeof window !== 'undefined' ? window.innerHeight / 2 : 300,
+  }));
+  const [size, setSize] = useState(280);
+  const [shape, setShape] = useState<'circle' | 'rect'>('circle');
+  const [opacity, setOpacity] = useState(0.75);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+
+  const onPointerDownAperture = (e: React.PointerEvent) => {
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY, posX: pos.x, posY: pos.y };
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMoveAperture = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setPos({
+      x: Math.max(size / 4, Math.min(window.innerWidth - size / 4, dragStart.current.posX + dx)),
+      y: Math.max(size / 4, Math.min(window.innerHeight - size / 4, dragStart.current.posY + dy)),
+    });
+  };
+
+  const onPointerUpAperture = (e: React.PointerEvent) => {
+    isDragging.current = false;
+    try { (e.target as HTMLElement).releasePointerCapture?.(e.pointerId); } catch {}
+  };
+
+  const rectW = size;
+  const rectH = Math.round(size * 0.65);
+
+  return (
+    <div className="fixed inset-0 z-40 select-none overflow-hidden" role="dialog" aria-label="Cinema Spotlight Dimmer">
+      {/* Darkened backdrop with aperture mask */}
+      <svg className="fixed inset-0 h-full w-full pointer-events-none z-40">
+        <defs>
+          <mask id="cinema-spotlight-mask">
+            <rect width="100%" height="100%" fill="white" />
+            {shape === 'circle' ? (
+              <circle cx={pos.x} cy={pos.y} r={size / 2} fill="black" />
+            ) : (
+              <rect
+                x={pos.x - rectW / 2}
+                y={pos.y - rectH / 2}
+                width={rectW}
+                height={rectH}
+                rx={12}
+                fill="black"
+              />
+            )}
+          </mask>
+        </defs>
+        <rect
+          width="100%"
+          height="100%"
+          fill={`rgba(0, 0, 0, ${opacity})`}
+          mask="url(#cinema-spotlight-mask)"
+        />
+      </svg>
+
+      {/* Draggable glowing aperture boundary */}
+      <div
+        className="fixed z-40 cursor-grab active:cursor-grabbing pointer-events-auto border-2 border-brand-light/80 shadow-[0_0_32px_rgba(56,189,248,0.35)] transition-shadow hover:shadow-[0_0_48px_rgba(56,189,248,0.55)]"
+        style={{
+          left: shape === 'circle' ? pos.x - size / 2 : pos.x - rectW / 2,
+          top: shape === 'circle' ? pos.y - size / 2 : pos.y - rectH / 2,
+          width: shape === 'circle' ? size : rectW,
+          height: shape === 'circle' ? size : rectH,
+          borderRadius: shape === 'circle' ? '9999px' : '14px',
+        }}
+        onPointerDown={onPointerDownAperture}
+        onPointerMove={onPointerMoveAperture}
+        onPointerUp={onPointerUpAperture}
+        onPointerCancel={onPointerUpAperture}
+        title="Drag spotlight to focus attention"
+      >
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-bold text-white/40 tracking-wider pointer-events-none uppercase">
+          Drag
+        </div>
+      </div>
+
+      {/* Floating control pill */}
+      <div
+        className="fixed z-50 flex items-center gap-2.5 rounded-full border border-white/20 bg-slate-900/90 backdrop-blur-xl px-4 py-2 text-white shadow-2xl pointer-events-auto"
+        style={{
+          left: Math.max(16, Math.min(window.innerWidth - 380, pos.x - 170)),
+          top: pos.y + (shape === 'circle' ? size / 2 : rectH / 2) + 16 > window.innerHeight - 70
+            ? Math.max(16, pos.y - (shape === 'circle' ? size / 2 : rectH / 2) - 56)
+            : pos.y + (shape === 'circle' ? size / 2 : rectH / 2) + 16,
+        }}
+      >
+        <div className="flex items-center rounded-lg bg-white/10 p-0.5 text-xs font-semibold">
+          <button
+            type="button"
+            className={`px-2.5 py-1 rounded-md transition ${shape === 'circle' ? 'bg-brand text-white shadow' : 'text-white/70 hover:text-white'}`}
+            onClick={() => setShape('circle')}
+          >
+            Circle
+          </button>
+          <button
+            type="button"
+            className={`px-2.5 py-1 rounded-md transition ${shape === 'rect' ? 'bg-brand text-white shadow' : 'text-white/70 hover:text-white'}`}
+            onClick={() => setShape('rect')}
+          >
+            Rect
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-xs text-white/80">
+          <span>Size:</span>
+          <input
+            type="range"
+            min={140}
+            max={560}
+            value={size}
+            onChange={(e) => setSize(Number(e.target.value))}
+            className="kn-range w-20 accent-brand-light"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 text-xs text-white/80">
+          <span>Dim:</span>
+          <input
+            type="range"
+            min={0.4}
+            max={0.92}
+            step={0.05}
+            value={opacity}
+            onChange={(e) => setOpacity(Number(e.target.value))}
+            className="kn-range w-16 accent-brand-light"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close Spotlight"
+          className="ml-1 rounded-full p-1 text-white/70 hover:bg-white/15 hover:text-white transition"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     </div>
-  </section>;
+  );
 }

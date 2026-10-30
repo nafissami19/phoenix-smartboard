@@ -2,11 +2,14 @@ import type {ThemePack} from '../lib/theme-pack';
 import type {BoardPreset} from '../lib/board-presets';
 export type Point = { x: number; y: number; p?: number };
 
-export type PenTool = "pen" | "highlighter" | "marker" | "laser";
+export type PenTool = "pen" | "highlighter" | "marker" | "laser" | "magic-ink";
 
 export type StrokeObject = {
   id: string;
   kind: "stroke";
+  locked?: boolean;
+  groupId?: string;
+  infiniteCloner?: boolean;
   tool: PenTool;
   brush?: import('../lib/brush-presets').BrushKind;
   brushSettings?:import('../lib/brush-presets').BrushSettings;
@@ -25,6 +28,9 @@ export type ShapeObject = {
   mirrorX?:boolean;mirrorY?:boolean;
   id: string;
   kind: "shape";
+  locked?: boolean;
+  groupId?: string;
+  infiniteCloner?: boolean;
   shape: "line" | "rect" | "ellipse" | "arrow" | "triangle" | "star" | "diamond" | "pentagon" | "hexagon" | "circle" | "righttriangle" | "parallelogram" | "trapezoid";
   x: number;
   y: number;
@@ -46,6 +52,12 @@ export type TextObject = {
   rotation?:number;mirrorX?:boolean;mirrorY?:boolean;
   id: string;
   kind: "text";
+  locked?: boolean;
+  groupId?: string;
+  infiniteCloner?: boolean;
+  cardStyle?: 'none' | 'minimal' | 'callout' | 'sticky';
+  cardBg?: string;
+  cardBorder?: string;
   x: number;
   y: number;
   text: string;
@@ -61,6 +73,8 @@ export type BoardObject = StrokeObject | ShapeObject | TextObject;
 export type MediaItem = {
   mirrorX?:boolean;mirrorY?:boolean;
   locked?:boolean;
+  groupId?: string;
+  infiniteCloner?: boolean;
   id: string;
   title?:string;sourceUrl?:string;videoId?:string;playback?:number;sheet?:import('../lib/spreadsheet').Spreadsheet;
   kind: "image" | "pdf" | "docx" | "audio" | "video" | "youtube" | "link" | "spreadsheet";

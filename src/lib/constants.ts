@@ -15,6 +15,7 @@ export type ActiveTool =
   | "marker"
   | "eraser"
   | "laser"
+  | "magic-ink"
   | "line"
   | "rect"
   | "ellipse"
@@ -107,9 +108,11 @@ export const BOARD_PATTERNS = [
   { label: "Grid", value: "grid" },
   { label: "Dots", value: "dots" },
   { label: "Lines", value: "lines" },
-  { label: "Music staff", value: "staff" },
+  { label: "Music staff (5-line)", value: "staff" },
+  { label: "English ruling (4-line)", value: "english-4line" },
   { label: "Handwriting", value: "handwriting" },
-  { label: "Isometric", value: "isometric" },
+  { label: "Isometric grid", value: "isometric" },
+  { label: "Isometric 3D dots", value: "isometric-dots" },
 ];
 
 export const SUBJECTS = [
@@ -147,7 +150,10 @@ export type FloatingToolId =
   | "setsquare"
   | "spotlight"
   | "magnifier"
-  | "screenshot";
+  | "screenshot"
+  | "pin"
+  | "blind"
+  | "noise-meter";
 
 export const FLOATING_TOOLS: { id: FloatingToolId; label: string; icon: string; group: string }[] = [
   { id: "ruler", label: "Ruler", icon: "📏", group: "Math" },
@@ -161,6 +167,9 @@ export const FLOATING_TOOLS: { id: FloatingToolId; label: string; icon: string; 
   { id: "spotlight", label: "Spotlight", icon: "🔦", group: "Utility" },
   { id: "magnifier", label: "Magnifier", icon: "🔍", group: "Utility" },
   { id: "screenshot", label: "Screen capture", icon: "📷", group: "Utility" },
+  { id: "pin", label: "Reference Pin", icon: "📌", group: "Utility" },
+  { id: "blind", label: "Solution Blind", icon: "🪟", group: "Utility" },
+  { id: "noise-meter", label: "Noise meter", icon: "🔊", group: "Utility" },
 ];
 
 export function uid(): string {

@@ -108,7 +108,7 @@ export function SlidesPanel({previewFrames,pages,activePageId,onGo,onReorder,onC
           <span>{applyingView ? 'Applying...' : `Apply view to all (${pages.length})`}</span>
         </button>
         {onToggleViewSync && (
-          <label className="kn-sync-lock" title="Keep zoom and alignment locked while navigating slides">
+          <label className="kn-sync-lock" title={viewSync ? "Slide position, zoom, and canvas are locked (click to unlock)" : "Lock slide position, zoom, and canvas in place"}>
             <input type="checkbox" checked={viewSync} onChange={onToggleViewSync}/>
             <span>Lock</span>
           </label>

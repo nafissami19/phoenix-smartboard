@@ -17,7 +17,7 @@ import { classifyFile, getPdfPageCount, loadPdf, renderDocxToCanvas, renderPdfPa
 import {DEFAULT_IMPORT_LAYOUT,placeImportedMedia,validateImportLayout,combineImportFrames,orientImportFrame,type ImportLayout,type ImportFrame} from '@/lib/import-layout';
 import {importOfficeSlides} from '@/lib/office-slides';
 
-type Picked = { file: File; kind: "image" | "pdf" | "docx" | "presentation" | "unsupported"; message?: string; error?: string; status?: "pending" | "done" | "failed" };
+type Picked = { file: File; kind: "image" | "pdf" | "docx" | "presentation" | "spreadsheet" | "unsupported"; message?: string; error?: string; status?: "pending" | "done" | "failed" };
 
 const MAX = 25 * 1024 * 1024;
 
@@ -88,7 +88,7 @@ export function ImportPanel({
     }
     const usable = picked.filter((p) => p.kind !== "unsupported" && p.status!=="done");
     if (usable.length === 0) {
-      push("Choose a PDF, image, DOCX, PPTX or ODP to import.", "error");
+      push("Choose a PDF, image, DOCX, PPTX, ODP, XLSX or CSV to import.", "error");
       return;
     }
     try{validateImportLayout(layout);}catch(error){push(error instanceof Error?error.message:'Invalid import placement.','error');return;}
@@ -164,6 +164,27 @@ export function ImportPanel({
             pageNumber: 1,
           });
         }
+        else if (p.kind === "spreadsheet") {
+          const { importXLSX, parseCSV } = await import('@/lib/spreadsheet');
+          const isXlsx = p.file.name.toLowerCase().endsWith('.xlsx');
+          const sheet = isXlsx ? await importXLSX(p.file) : parseCSV(await p.file.text());
+          const placed = placeImportedMedia({ width: 720, height: 480 }, layout, center);
+          frames.push(placed.frame);
+          items.push({
+            id: uid(),
+            kind: "spreadsheet",
+            locked: layout.locked ?? false,
+            assetId: asset.id,
+            title: p.file.name.replace(/\.[^/.]+$/, ""),
+            sheet,
+            x: placed.x,
+            y: placed.y,
+            width: placed.width,
+            height: placed.height,
+            rotation: 0,
+            pageNumber: 1,
+          });
+        }
         completed++;
         setPicked(list=>list.map(item=>item===p?{...item,status:"done",error:undefined}:item));
       } catch (error) {
@@ -214,12 +235,12 @@ export function ImportPanel({
       >
         <Icon name="import" className="mx-auto mb-2 h-8 w-8 text-muted" />
         <p className="text-sm font-medium">Choose files or drop here</p>
-        <p className="mt-1 text-xs text-muted">PDF, images, DOCX, PPTX, ODP - up to 25 MB each</p><span className="kn-import-archive-hint">Open Phoenix (.ps) lessons, or earlier (.enb) lessons</span>
+        <p className="mt-1 text-xs text-muted">PDF, images, DOCX, PPTX, ODP, XLSX, CSV - up to 25 MB each</p><span className="kn-import-archive-hint">Open Phoenix (.ps) lessons, or earlier (.enb) lessons</span>
         <input
           ref={inputRef}
           type="file"
           multiple
-          accept=".ps,.enb,.pdf,image/*,.docx,.pptx,.odp,application/pdf"
+          accept=".ps,.enb,.pdf,image/*,.docx,.pptx,.odp,.xlsx,.csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
           className="hidden"
           onChange={(e) => {addFiles(e.target.files);e.target.value="";}}
         />

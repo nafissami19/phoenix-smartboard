@@ -7,7 +7,7 @@ import {useLayoutEffect,useRef,useState,type ReactNode} from 'react';
 
 import { Icon } from "@/components/Icon";
 import { INK_COLORS } from "@/lib/constants";
-import type { BoardObject, MediaItem, ShapeObject } from "@/db/schema";
+import type { BoardObject, MediaItem, ShapeObject, TextObject } from "@/db/schema";
 
 export function SelectionBar({
   anchor,children,
@@ -23,6 +23,9 @@ export function SelectionBar({
   onPdfPage,
   onDeselect,
   onEditText,onTransform,
+  onTextProperties,
+  isLocked,onToggleLock,isGrouped,onGroup,onUngroup,
+  isInfiniteCloner,onToggleInfiniteCloner,
 }: {
   children?:ReactNode;
   anchor:{x:number;y:number;width:number;height:number};
@@ -39,6 +42,9 @@ export function SelectionBar({
   onPdfPage: (delta: number) => void;
   onDeselect: () => void;
   onEditText: () => void;onTransform:(action:ObjectTransform)=>void;
+  onTextProperties?: (properties: Partial<Pick<TextObject, 'cardStyle' | 'cardBg' | 'cardBorder'>>) => void;
+  isLocked?: boolean;onToggleLock?: () => void;isGrouped?: boolean;onGroup?: () => void;onUngroup?: () => void;
+  isInfiniteCloner?: boolean;onToggleInfiniteCloner?: () => void;
 }) {
   const isObject = selection.kind === "object";
   const panel=useRef<HTMLDivElement>(null);
@@ -83,6 +89,10 @@ export function SelectionBar({
       {object?.kind==='text' && count===1 && <button onClick={onEditText} className="selection-edit-text">Edit text</button>}
       <button aria-label="Shrink selection" className="p-2" onClick={()=>onResize(.9)}>−</button><button aria-label="Enlarge selection" className="p-2" onClick={()=>onResize(1.1)}>+</button><button className="p-2 text-xs" onClick={onSelectAll}>Select all</button>
       <button type="button" onClick={onDuplicate} aria-label="Duplicate" title="Duplicate"><Icon name="copy" className="h-5 w-5"/></button>
+      {onToggleLock && <button type="button" onClick={onToggleLock} aria-label={isLocked ? "Unlock selection" : "Lock selection"} title={isLocked ? "Unlock selection" : "Lock selection"} className={`p-2 ${isLocked ? 'text-amber-400' : ''}`}><Icon name={isLocked ? "unlock" : "lock"} className="h-5 w-5"/></button>}
+      {onToggleInfiniteCloner && <button type="button" onClick={onToggleInfiniteCloner} aria-label={isInfiniteCloner ? "Disable infinite cloner" : "Enable infinite cloner"} title={isInfiniteCloner ? "Disable infinite cloner" : "Enable infinite cloner"} className={`p-2 ${isInfiniteCloner ? 'text-indigo-400' : ''}`}><Icon name="infinite" className="h-5 w-5"/></button>}
+      {count >= 2 && onGroup && !isGrouped && <button type="button" onClick={onGroup} aria-label="Group items" title="Group items" className="p-2"><Icon name="group" className="h-5 w-5"/></button>}
+      {isGrouped && onUngroup && <button type="button" onClick={onUngroup} aria-label="Ungroup items" title="Ungroup items" className="p-2"><Icon name="ungroup" className="h-5 w-5"/></button>}
       <button type="button" onClick={onDelete} aria-label="Delete" title="Delete" className="selection-delete"><Icon name="trash" className="h-5 w-5"/></button>
       </div>
       {children}
@@ -128,6 +138,41 @@ export function SelectionBar({
               ><span style={{background:c}}/></button>
             ))}
           </div>
+      )}
+
+      {object?.kind === 'text' && onTextProperties && (
+        <SideSettings key={`card-style-${selection.id}`} label="Card preset">
+          <div className="flex flex-wrap gap-1.5 p-1">
+            <button
+              type="button"
+              className={`px-2.5 py-1 text-xs rounded border transition ${(!object.cardStyle || object.cardStyle === 'none') ? 'bg-brand text-white border-brand' : 'bg-elevated border-line text-ink hover:bg-hover'}`}
+              onClick={() => onTextProperties({ cardStyle: 'none' })}
+            >
+              Plain
+            </button>
+            <button
+              type="button"
+              className={`px-2.5 py-1 text-xs rounded border transition ${object.cardStyle === 'minimal' ? 'bg-brand text-white border-brand' : 'bg-elevated border-line text-ink hover:bg-hover'}`}
+              onClick={() => onTextProperties({ cardStyle: 'minimal' })}
+            >
+              Minimal
+            </button>
+            <button
+              type="button"
+              className={`px-2.5 py-1 text-xs rounded border transition ${object.cardStyle === 'callout' ? 'bg-brand text-white border-brand' : 'bg-elevated border-line text-ink hover:bg-hover'}`}
+              onClick={() => onTextProperties({ cardStyle: 'callout' })}
+            >
+              Callout
+            </button>
+            <button
+              type="button"
+              className={`px-2.5 py-1 text-xs rounded border transition ${object.cardStyle === 'sticky' ? 'bg-brand text-white border-brand' : 'bg-elevated border-line text-ink hover:bg-hover'}`}
+              onClick={() => onTextProperties({ cardStyle: 'sticky' })}
+            >
+              Sticky Note
+            </button>
+          </div>
+        </SideSettings>
       )}
 
       {media&&<SideSettings key={`document-${selection.id}`} label="Document"><div>

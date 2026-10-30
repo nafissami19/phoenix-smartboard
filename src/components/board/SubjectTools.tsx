@@ -1,14 +1,12 @@
 import {EquipmentPalette} from './BoardChemistry';
 import type {Vessel} from '@/lib/chemistry-equipment';
-import {HandwritingEquation} from './HandwritingEquation';
 import {GRAPH_PRESETS,compileTeachingExpression,sampleTeachingGraph,validatePlotRange,type PlotRange} from '@/lib/teaching-math';
 import { useEffect, useRef, useState } from 'react';
 import {PhysicsExperiments,ChemistryExperiments} from './ScienceExperiments';
 import { FloatingWindow } from './FloatingWindow';
 import { PeriodicTable } from './PeriodicTable';
-import { ClassroomTools, ScreenCurtain } from './ClassroomTools';
 
-export type SubjectTool = 'graph'|'solids'|'chemistry'|'periodic'|'physics'|'camera'|'curtain'|'classroom'|'handwriting';
+export type SubjectTool = 'graph'|'solids'|'chemistry'|'periodic'|'physics';
 const drawings: Record<string,string> = {
   Cube:'<path d="M70 120 170 70 270 120 170 175zM70 120v130l100 50 100-50V120M170 175v125"/>',
   Cylinder:'<ellipse cx="170" cy="100" rx="90" ry="30"/><path d="M80 100v170c0 40 180 40 180 0V100"/><path stroke-dasharray="6 5" d="M80 270c0-40 180-40 180 0"/>',
@@ -28,8 +26,8 @@ const drawings: Record<string,string> = {
 export function SubjectTools({tool,onClose,onInsert,onInsertText,onAddEquipment}:{onAddEquipment:(vessel:Vessel,reagent?:'Water'|'HCl'|'NaOH')=>void;tool:SubjectTool;onInsertText:(text:string)=>void;onClose:()=>void;onInsert:(url:string,width:number,height:number)=>Promise<void>}) {
   const [formula,setFormula]=useState('sin(x)'), [error,setError]=useState(''), [busy,setBusy]=useState(false);
   const [range,setRange]=useState<PlotRange>({xMin:-10,xMax:10,yMin:-6.25,yMax:6.25});
-  const canvas=useRef<HTMLCanvasElement>(null), video=useRef<HTMLVideoElement>(null);
-  useEffect(()=>{if(tool!=='camera')return;let stream:MediaStream|undefined,closed=false;navigator.mediaDevices.getUserMedia({video:{width:{ideal:1920},height:{ideal:1080}},audio:false}).then(next=>{if(closed){next.getTracks().forEach(t=>t.stop());return;}stream=next;if(video.current)video.current.srcObject=next;}).catch(()=>setError('Camera permission was denied or no camera is available.'));return()=>{closed=true;stream?.getTracks().forEach(t=>t.stop());};},[tool]);
+  const canvas=useRef<HTMLCanvasElement>(null);
+
   async function plot() {
     setBusy(true);setError('');
     try {
@@ -44,17 +42,14 @@ export function SubjectTools({tool,onClose,onInsert,onInsertText,onAddEquipment}
       for(const segment of sampleTeachingGraph(evaluate,range)){segment.forEach((point,index)=>{const x=(point.x-range.xMin)/(range.xMax-range.xMin)*640,y=400-(point.y-range.yMin)/(range.yMax-range.yMin)*400;if(index===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});}ctx.stroke();ctx.fillStyle='#172026';ctx.font='16px Arial';ctx.fillText('y = '+formula,15,25);ctx.font='12px Arial';ctx.fillText(range.xMin.toFixed(2),5,390);ctx.fillText(range.xMax.toFixed(2),590,390);ctx.fillText(range.yMax.toFixed(2),5,45);ctx.fillText(range.yMin.toFixed(2),5,375);
     }catch(e){setError(e instanceof Error?e.message:'Could not draw this function');}finally{setBusy(false);}
   }
-  const title={graph:'Function drawing',solids:'3D shapes',chemistry:'Chemistry',periodic:'Periodic table',physics:'Physics',camera:'Document camera',curtain:'Screen curtain',classroom:'Classroom tools',handwriting:'Handwriting equation'}[tool];
+  const title={graph:'Function drawing',solids:'3D shapes',chemistry:'Chemistry',periodic:'Periodic table',physics:'Physics'}[tool];
   const labels=tool==='solids'?['Cube','Cylinder','Cone','Sphere','Pyramid']:tool==='chemistry'?['Atom']:['Resistor','Battery','Lamp','Lens'];
   if(tool==='periodic')return <FloatingWindow title="Chemistry · periodic table" initialX={120} initialY={45} width={1050} onClose={onClose}><PeriodicTable onInsert={onInsert}/></FloatingWindow>;
   if(tool==='chemistry'||tool==='physics')return <FloatingWindow title={tool==='chemistry'?'Chemistry lab':'Physics lab'} initialX={260} initialY={45} width={560} onClose={onClose}>{tool==='chemistry'&&<EquipmentPalette onAdd={onAddEquipment}/>}
 {tool==='chemistry'?<ChemistryExperiments onInsert={onInsert} onInsertText={onInsertText}/>:<PhysicsExperiments onInsert={onInsert}/>}<details className="experiment-library"><summary>Diagram library</summary><div className="grid grid-cols-3 gap-2">{labels.map(label=><button key={label} className="lab-action" onClick={()=>void onInsert('data:image/svg+xml;base64,'+btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="340" height="360" viewBox="0 0 340 360"><g fill="none" stroke="#142b39" stroke-width="4">${drawings[label]}</g></svg>`),340,360)}>{label}</button>)}</div></details></FloatingWindow>;
-  if(tool==='handwriting')return <HandwritingEquation onClose={onClose} onInsert={onInsertText}/>;
-  if(tool==='curtain')return <ScreenCurtain onClose={onClose}/>;
-  if(tool==='classroom')return <ClassroomTools onClose={onClose}/>;
   return <FloatingWindow title={title} initialX={260} initialY={70} width={tool==='graph'?520:380} onClose={onClose}>
     {tool==='graph'?<><div className="mb-3 flex flex-wrap gap-2">{GRAPH_PRESETS.map(preset=><button type="button" key={preset.label} className="min-h-11 rounded-lg border border-line px-3 text-sm" onClick={()=>{setFormula(preset.expression);setRange({...preset.range});}} >{preset.label}</button>)}</div><form onSubmit={e=>{e.preventDefault();void plot();}} className="flex gap-2"><input aria-label="Function of x" value={formula} onChange={e=>setFormula(e.target.value)} className="kn-focus min-w-0 flex-1 rounded border border-line p-2"/><button disabled={busy} className="kn-focus rounded bg-brand px-3 text-white">Plot</button></form><details className="my-3"><summary className="min-h-11 cursor-pointer py-3 text-sm">Graph range</summary><div className="grid grid-cols-2 gap-2">{(['xMin','xMax','yMin','yMax'] as const).map(key=><label key={key} className="text-sm">{key}<input aria-label={key} className="block min-h-11 w-full rounded border border-line p-2" type="number" value={range[key]} onChange={e=>setRange({...range,[key]:Number(e.target.value)})}/></label>)}</div></details><canvas ref={canvas} width={640} height={400} className="my-3 w-full bg-white"/><button onClick={()=>canvas.current&&void onInsert(canvas.current.toDataURL(),640,400)} className="kn-focus rounded bg-brand px-4 py-2 text-white">Insert on board</button></>:
-    tool==='camera'?<><video ref={video} autoPlay playsInline muted className="w-full rounded bg-black"/><button onClick={()=>{const v=video.current;if(!v?.videoWidth)return;const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d')!.drawImage(v,0,0);void onInsert(c.toDataURL(),c.width,c.height);}} className="mt-3 rounded bg-brand px-4 py-2 text-white">Capture to board</button></>:
+
     <div className="grid grid-cols-3 gap-3">{labels.map(label=><button key={label} onClick={()=>void onInsert('data:image/svg+xml;base64,'+btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="340" height="360" viewBox="0 0 340 360"><g fill="none" stroke="#142b39" stroke-width="4" stroke-linejoin="round">${drawings[label]}</g></svg>`),340,360)} className="kn-focus rounded-lg border border-line p-2"><svg viewBox="0 0 340 360" className="w-full" dangerouslySetInnerHTML={{__html:`<g fill="none" stroke="currentColor" stroke-width="4">${drawings[label]}</g>`}}/><span className="text-xs">{label}</span></button>)}</div>}
     {error&&<p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
   </FloatingWindow>;

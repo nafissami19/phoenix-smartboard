@@ -18,6 +18,7 @@ import {controlContrast,controlPalette,BUILTIN_THEMES} from '@/lib/theme-pack';
 import {BoardPresets} from '@/components/BoardPresets';
 import {ControlLayoutEditor} from '@/components/board/ControlLayoutEditor';
 import {TeachingPreferences} from '@/components/TeachingPreferences';
+import {useLessonRecorder} from '@/components/board/LessonRecorder';
 
 "use client";
 import { LocalAssistant } from "@/components/board/LocalAssistant";
@@ -47,6 +48,9 @@ import { SettingsPanel, HelpPanel, AboutPanel, Modal as Dialog } from "@/compone
 import { ImportPanel } from "@/components/board/ImportPanel";
 import { ExportPanel, download } from "@/components/board/ExportPanel";
 import { FloatingWindow } from "@/components/board/FloatingWindow";
+import { ReferencePin } from "@/components/board/ReferencePin";
+import { SolutionBlind } from "@/components/board/SolutionBlind";
+import { NoiseMeter, SpotlightDimmer } from "@/components/board/ClassroomTools";
 import {
   AnalogClock,
   Calculator,
@@ -88,8 +92,8 @@ export default function BoardPage() {
   const [saveState, setSaveState] = useState<"saved" | "saving" | "dirty">("saved");
   const [operation,setOperation]=useState<string|null>(null);
   const [textValue, setTextValue] = useState("");
-  const [toolbarLayout]=useState<'bottom'|'top'|'left'|'right'>('left');
-  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout','left');window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
+  const [toolbarLayout]=useState<'bottom'|'top'|'left'|'right'>(()=>{try{const s=localStorage.getItem('phoenix-toolbar-layout');return ['bottom','top','left','right'].includes(s||'')?(s as any):'left';}catch{return 'left';}});
+  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout',toolbarLayout);window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
   const [assistantOpen,setAssistantOpen]=useState(false);
   const [subjectTool, setSubjectTool] = useState<SubjectTool | null>(null);
 
@@ -152,6 +156,9 @@ export default function BoardPage() {
     const entry=captureEdit(objects,media,bgRef.current,patternRef.current);if(entry)void checkpoint({...entry,partial:true},{detached:true}).catch(()=>{});
   },[captureEdit]);
 
+  const [viewSync, setViewSync] = useState(() => isViewSyncEnabled(id));
+  const [applyingView, setApplyingView] = useState(false);
+
   const wb = useWhiteboard({
     watermark:profile.watermark,defaultPenColor:profile.defaultPenColor,
     initialObjects: [],
@@ -161,17 +168,40 @@ export default function BoardPage() {
     pattern,
     onContentChange: handleContentChange,
     onDraftChange:handleDraftChange,
+    isViewLocked: viewSync,
   });
 
-  const [viewSync, setViewSync] = useState(() => isViewSyncEnabled(id));
-  const [applyingView, setApplyingView] = useState(false);
+  const getSlideFrame = useCallback(() => {
+    if (frameRef.current && frameRef.current.width > 0 && frameRef.current.height > 0) {
+      return frameRef.current;
+    }
+    const doc = wb.media.find((m) => ['pdf', 'image', 'docx'].includes(m.kind)) ?? wb.media[0];
+    if (doc && doc.width > 0 && doc.height > 0) {
+      return { x: doc.x, y: doc.y, width: doc.width, height: doc.height };
+    }
+    const b = wb.contentBounds?.();
+    if (b && b.w > 20 && b.h > 20) {
+      return { x: b.x, y: b.y, width: b.w, height: b.h };
+    }
+    return { x: -960, y: -540, width: 1920, height: 1080 };
+  }, [wb.media, wb.contentBounds]);
+
+  const recorder = useLessonRecorder({
+    renderSlideScene: wb.renderSlideScene,
+    getSlideFrame,
+    lessonTitle: notebook?.title || "Lesson",
+  });
 
   const handleApplyViewToAll = useCallback(async () => {
     if (applyingView) return;
     setApplyingView(true);
     try {
       await flushSave();
-      const currentMedia = wb.media;
+      let currentMedia = wb.media;
+      if (isViewSyncEnabled(id)) {
+        currentMedia = currentMedia.map(m => ['pdf', 'image', 'docx'].includes(m.kind) ? { ...m, locked: true } : m);
+        wb.commitMedia(currentMedia);
+      }
       const currentDoc = currentMedia.find(m => ['pdf', 'image', 'docx'].includes(m.kind)) ?? currentMedia[0];
       const targetFrame = currentDoc
         ? { x: currentDoc.x, y: currentDoc.y, width: currentDoc.width, height: currentDoc.height }
@@ -222,6 +252,7 @@ export default function BoardPage() {
             rotation: currentDoc.rotation ?? 0,
             mirrorX: currentDoc.mirrorX,
             mirrorY: currentDoc.mirrorY,
+            locked: isViewSyncEnabled(id) ? true : m.locked,
           } : m);
 
           return { ...p, media: updatedMedia, importFrame: targetFrame };
@@ -274,15 +305,39 @@ export default function BoardPage() {
     setViewSync(prev => {
       const next = !prev;
       setViewSyncEnabled(id, next);
+
+      // Immediately lock or unlock slide media on active board
+      const nextCurrentMedia = wb.media.map(m =>
+        ['pdf', 'image', 'docx'].includes(m.kind) ? { ...m, locked: next } : m
+      );
+      wb.commitMedia(nextCurrentMedia);
+
+      // Update pages in state
+      const nextPages = pages.map(p => ({
+        ...p,
+        media: (p.media ?? []).map(m =>
+          ['pdf', 'image', 'docx'].includes(m.kind) ? { ...m, locked: next } : m
+        ),
+      }));
+      setPages(nextPages);
+
+      // Persist to storage
+      for (const p of nextPages) {
+        void localRequest(`/api/pages/${p.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ media: p.media, importFrame: p.importFrame }),
+        }).catch(() => {});
+      }
+
       if (next) {
         void handleApplyViewToAll();
-        push('View sync enabled. All slides locked to current alignment and zoom.', 'success');
+        push('Slide locked in place. Slide movement and canvas pan are locked.', 'success');
       } else {
-        push('View sync disabled. Slides can have independent views.', 'info');
+        push('Slide unlocked. You can now move, zoom, and reposition.', 'info');
       }
       return next;
     });
-  }, [id, handleApplyViewToAll, push]);
+  }, [id, wb, pages, handleApplyViewToAll, push]);
 
   // -------------------------------- loading --------------------------------
 
@@ -310,7 +365,9 @@ export default function BoardPage() {
       const syncOn = isViewSyncEnabled(id);
       const defaultView = savedLessonDefaultView(id);
       const defaultFrame = savedLessonDefaultFrame(id);
-      let mediaToLoad = pg.media ?? [];
+      let mediaToLoad = (pg.media ?? []).map(m =>
+        syncOn && ['pdf', 'image', 'docx'].includes(m.kind) ? { ...m, locked: true } : m
+      );
 
       if (syncOn && defaultFrame && mediaToLoad.length > 0) {
         const doc = mediaToLoad.find(m => ['pdf', 'image', 'docx'].includes(m.kind)) ?? mediaToLoad[0];
@@ -679,6 +736,70 @@ export default function BoardPage() {
     return wb.screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
   }, [wb]);
 
+  useEffect(() => {
+    const onStampText = (e: Event) => {
+      const custom = e as CustomEvent<{ text: string }>;
+      if (!custom.detail?.text) return;
+      const center = centerWorld();
+      wb.addObjects([
+        {
+          id: uid(),
+          kind: 'text',
+          x: center.x - 200,
+          y: center.y - 40,
+          text: custom.detail.text,
+          color: wb.pen.color,
+          fontSize: 22,
+          fontFamily: 'Arial',
+          bold: false,
+        },
+      ]);
+    };
+
+    const onStampImage = async (e: Event) => {
+      const custom = e as CustomEvent<{ dataUrl: string; width: number; height: number }>;
+      const { dataUrl, width, height } = custom.detail ?? {};
+      if (!dataUrl) return;
+      try {
+        const blob = await (await fetch(dataUrl)).blob();
+        const response = await localRequest('/api/assets', {
+          method: 'POST',
+          body: JSON.stringify({
+            notebookId: id,
+            name: 'Teaching snapshot',
+            mimeType: blob.type,
+            dataBase64: await fileToBase64(blob),
+          }),
+        });
+        if (response.ok) {
+          const { asset } = await response.json();
+          const center = centerWorld();
+          const scale = Math.min(1, 700 / width, 550 / height);
+          wb.addMedia({
+            id: uid(),
+            kind: 'image',
+            assetId: asset.id,
+            x: center.x - (width * scale) / 2,
+            y: center.y - (height * scale) / 2,
+            width: width * scale,
+            height: height * scale,
+            rotation: 0,
+            pageNumber: 1,
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+
+    window.addEventListener('phoenix-stamp-text', onStampText);
+    window.addEventListener('phoenix-stamp-image', onStampImage);
+    return () => {
+      window.removeEventListener('phoenix-stamp-text', onStampText);
+      window.removeEventListener('phoenix-stamp-image', onStampImage);
+    };
+  }, [centerWorld, id, wb]);
+
   if (loading || !notebook) {
     return (
       <div className="grid h-dvh w-full place-items-center bg-base">
@@ -708,7 +829,7 @@ export default function BoardPage() {
   ];
 
   return (
-    <div data-menu-edge={ui.menuEdge} data-slides-edge={ui.slidesEdge} data-toolbar-layout={toolbarLayout} data-slides-side={slidesSide} data-flip-tools={ui.flipToolsOnSwap} data-show-fullscreen={ui.showFullscreen} data-show-customize={ui.showCustomize} data-show-time={ui.showTime} data-show-slides={ui.showSlideControls} data-show-menu={ui.showMenu} data-show-toolbar={ui.showToolbar} className="kn-board fixed inset-0 flex flex-col bg-base" style={{'--control-panel':controlPalette(profile.theme??BUILTIN_THEMES[0],background).panel,'--control-ink':controlPalette(profile.theme??BUILTIN_THEMES[0],background).ink,'--control-line':controlPalette(profile.theme??BUILTIN_THEMES[0],background).line,'--guide-ink':(parseInt(background.slice(1,3),16)*.299+parseInt(background.slice(3,5),16)*.587+parseInt(background.slice(5,7),16)*.114)<125?'#e5f3fa':'#153848'} as React.CSSProperties}>
+    <div data-drawing={wb.isDrawing} data-menu-edge={ui.menuEdge} data-slides-edge={ui.slidesEdge} data-toolbar-layout={toolbarLayout} data-slides-side={slidesSide} data-flip-tools={ui.flipToolsOnSwap} data-show-fullscreen={ui.showFullscreen} data-show-customize={ui.showCustomize} data-show-time={ui.showTime} data-show-slides={ui.showSlideControls} data-show-menu={ui.showMenu} data-show-toolbar={ui.showToolbar} className="kn-board fixed inset-0 flex flex-col bg-base" style={{'--control-panel':controlPalette(profile.theme??BUILTIN_THEMES[0],background).panel,'--control-ink':controlPalette(profile.theme??BUILTIN_THEMES[0],background).ink,'--control-line':controlPalette(profile.theme??BUILTIN_THEMES[0],background).line,'--guide-ink':(parseInt(background.slice(1,3),16)*.299+parseInt(background.slice(3,5),16)*.587+parseInt(background.slice(5,7),16)*.114)<125?'#e5f3fa':'#153848'} as React.CSSProperties}>
       {operation&&<LoadingOverlay detail={operation}/>}
       {/* ---------------------------- Top bar ---------------------------- */}
       {!presenting && (
@@ -800,6 +921,7 @@ export default function BoardPage() {
           onPointerMove={wb.onPointerMove}
           onPointerUp={wb.onPointerUp}
           onPointerCancel={wb.onPointerCancel}
+          onPointerLeave={wb.onPointerLeave}
           onLostPointerCapture={wb.onPointerCancel}
         />
 
@@ -819,6 +941,13 @@ export default function BoardPage() {
             onDelete={wb.deleteSelected}
             onDuplicate={wb.duplicateSelected}
             onRecolor={wb.recolorSelected}
+            isLocked={wb.isSelectionLocked}
+            onToggleLock={wb.toggleLockSelected}
+            isGrouped={wb.isSelectionGrouped}
+            onGroup={wb.groupSelected}
+            onUngroup={wb.ungroupSelected}
+            isInfiniteCloner={wb.isSelectionInfiniteCloner}
+            onToggleInfiniteCloner={wb.toggleInfiniteClonerSelected}
             onShapeProperties={wb.updateShapeSelected}
             onMediaProperties={wb.updateMediaSelected}
             onPlaceMedia={(align,fit)=>{const center=centerWorld();const frame=frameRef.current??{x:center.x-640,y:center.y-360,width:1280,height:720};wb.placeSelectedMedia(frame,align,fit);if(fit)wb.centerBounds(frame);}}
@@ -829,12 +958,13 @@ export default function BoardPage() {
             }}
             onDeselect={() => wb.setSelection(null)}
             onEditText={wb.editSelectedText}
+            onTextProperties={wb.updateTextSelected}
           />
         )}
 
         <SpecialObjectsLayer items={wb.media} scale={wb.view.scale} worldToScreen={wb.worldToScreen} onChange={wb.changeMedia} onSelect={id=>{if(!id)setThumbsOpen(false);wb.setTool('select');wb.setSelection(id?{kind:'media',id}:null);}} onRemove={wb.removeMedia}/>
         <BoardChemistryLayer objects={wb.objects} selected={isEquipment(selectedObject)?selectedObject:undefined} worldToScreen={wb.worldToScreen} screenToWorld={wb.screenToWorld} scale={wb.view.scale} onChange={wb.changeObjects} dose={chemistryDose}/>
-        {wb.selection && !selectedMedia?.locked && wb.selectionBounds && (
+        {wb.selection && !selectedMedia?.locked && !viewSync && wb.selectionBounds && (
           <ResizeHandles
             bounds={wb.selectionBounds}
             screen={wb.worldToScreen}
@@ -922,9 +1052,18 @@ export default function BoardPage() {
             <AnalogClock />
           </FloatingWindow>
         )}
-        {openTools.has("spotlight") && <SpotlightOverlay onClose={() => toggleTool("spotlight")} />}
+        {openTools.has("spotlight") && <SpotlightDimmer onClose={() => toggleTool("spotlight")} />}
         {openTools.has("magnifier") && (
           <MagnifierOverlay getCanvas={() => wb.canvasRef.current} onClose={() => toggleTool("magnifier")} />
+        )}
+        {openTools.has("pin") && (
+          <ReferencePin getCanvas={() => wb.canvasRef.current} active={openTools.has("pin")} onClose={() => toggleTool("pin")} />
+        )}
+        {openTools.has("blind") && (
+          <SolutionBlind onClose={() => toggleTool("blind")} />
+        )}
+        {openTools.has("noise-meter") && (
+          <NoiseMeter onClose={() => toggleTool("noise-meter")} />
         )}
 
         {/* Dock + menus */}
@@ -942,7 +1081,7 @@ export default function BoardPage() {
               )}
             </div>
             {panel === "treasure" && (
-              <TreasureBox onOpenBackgrounds={()=>{setPanel(null);setModal("backgrounds");}} onSubjectTool={tool=>{setSubjectTool(tool);if(tool==='curtain')setPanel(null);}} openTools={openTools} onToggle={toggleTool} onClose={() => setPanel(null)} />
+              <TreasureBox onOpenBackgrounds={()=>{setPanel(null);setModal("backgrounds");}} onSubjectTool={tool=>setSubjectTool(tool)} openTools={openTools} onToggle={toggleTool} onClose={() => setPanel(null)} />
             )}
           </>
         )}
@@ -962,6 +1101,7 @@ export default function BoardPage() {
             eraserSize={wb.eraserSize}
             eraserMode={wb.eraserMode} onEraserMode={wb.setEraserMode}
             palmEraser={wb.palmEraser} onPalmEraser={wb.setPalmEraser}
+            dualNibMode={wb.dualNibMode} onDualNibMode={wb.setDualNibMode}
             onClearAnnotations={wb.clearAnnotations}
             setEraserSize={wb.setEraserSize}
             undo={wb.undo}
@@ -969,6 +1109,7 @@ export default function BoardPage() {
             canUndo={wb.canUndo}
             canRedo={wb.canRedo}
             onOpenTreasure={() => {setThumbsOpen(false);setPanel((p) => (p === "treasure" ? null : "treasure"));}} onOpenBoardTools={() => setModal((m) => (m === "board-tools" ? null : "board-tools"))} boardToolsActive={modal === "board-tools"}
+            recorder={recorder}
           />
         </div>
         <div className="page-toolbar">
