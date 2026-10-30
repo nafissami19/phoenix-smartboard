@@ -125,7 +125,7 @@ export function Toolbar({
       {tool==='select'&&optionsOpen&&<ToolPopover anchor="Select"><section data-toolbar-surface className="kn-more-tools kn-select-options" aria-label="Selection options"><header><strong>Select</strong><button type="button" aria-label="Close selection options" onClick={()=>setOptionsOpen(false)}><Icon name="close"/></button></header><div className="kn-selection-modes">{([{mode:'rectangle',label:'Square select',icon:'rect'},{mode:'lasso',label:'Custom select',icon:'lasso'}] as const).map(item=><button key={item.mode} type="button" aria-label={item.label} aria-pressed={selectionSettings.mode===item.mode} onClick={()=>onSelectionSettings({...selectionSettings,mode:item.mode})}><Icon name={item.icon}/><span>{item.label}</span></button>)}</div><label className="kn-smart-object"><input type="checkbox" aria-label="Smart object selection" checked={selectionSettings.smart} onChange={e=>onSelectionSettings({...selectionSettings,smart:e.target.checked})}/>Smart object</label><small>{selectionSettings.smart?'Touch part of an object to select it completely.':'Select enclosed ink segments. Enclose shapes, text and documents completely.'}</small></section></ToolPopover>}
       {/* Pen / eraser options floating above the toolbar */}
       {isPen && optionsOpen && (<ToolPopover anchor="Pen">
-        <div data-toolbar-surface aria-label="Pen options" className="kn-tool-options kn-pop kn-scroll absolute bottom-24 left-1/2 max-h-[calc(100dvh-168px)] w-[330px] max-w-[calc(100vw-24px)] -translate-x-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur">
+        <div data-toolbar-surface aria-label="Pen options" className="kn-tool-options kn-pop kn-scroll max-h-[calc(100dvh-168px)] w-[330px] max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur">
           <div className="kn-options-heading mb-2 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-muted">
               {tool === "highlighter" ? "Highlighter" : tool === "laser" ? "Laser pointer" : "Pen"}
@@ -187,7 +187,7 @@ export function Toolbar({
       )}
 
       {tool === "eraser" && optionsOpen && (<ToolPopover anchor="Eraser">
-        <div data-toolbar-surface aria-label="Eraser options" className="kn-tool-options kn-pop kn-scroll absolute bottom-24 left-1/2 max-h-[calc(100dvh-168px)] w-[260px] max-w-[calc(100vw-24px)] -translate-x-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur">
+        <div data-toolbar-surface aria-label="Eraser options" className="kn-tool-options kn-pop kn-scroll max-h-[calc(100dvh-168px)] w-[260px] max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur">
           <div className="kn-eraser-modes" aria-label="Eraser modes">{[
             {id:'ink',label:'Custom eraser',icon:'eraser'},
             {id:'selection',label:'Selection eraser',icon:'selectionEraser'},
@@ -219,7 +219,7 @@ export function Toolbar({
           <div
             data-toolbar-surface
             aria-label="Lesson recording"
-            className="kn-tool-options kn-pop kn-scroll absolute bottom-24 left-1/2 w-[310px] max-w-[calc(100vw-24px)] -translate-x-1/2 rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur"
+            className="kn-tool-options kn-pop kn-scroll max-h-[calc(100dvh-168px)] w-[310px] max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur"
           >
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -325,6 +325,7 @@ export function Toolbar({
         {MAIN_TOOLS.filter(tItem=>tItem.id!=="pan"&&tItem.id!=="text").map((tItem) => (
           <ToolButton
             key={tItem.id}
+            dataToolId={tItem.id}
             active={tItem.id==="pen"?isPen:tool === tItem.id}
             onClick={() => { setShapeOpen(false);setTouchOpen(false);setRecorderOpen(false);setOptionsOpen((tItem.id==="pen"||tItem.id==="eraser"||tItem.id==="select")?openSettings(tItem.id,tItem.id==="pen"?isPen:tool===tItem.id,optionsOpen):false);if(tItem.id!=="pen"||!isPen)setTool(tItem.id); }}
             secondary={tItem.id==="select"||tItem.id==="text"} pinned={pinned.includes(tItem.label)} art={tItem.id==="pen"?(tool==="laser"?"laser":tool==="highlighter"?"highlighter":pen.brush??"normal"):undefined} color={pen.color}
@@ -337,6 +338,7 @@ export function Toolbar({
         <div className={`relative kn-responsive-secondary ${pinned.includes("Shapes")?"kn-pinned":""}`}>
           <ToolButton
             active={isShape}
+            dataToolId="shapes"
             onClick={() => {setShapeOpen(openSettings('shapes',isShape,shapeOpen));if(!isShape)setTool('auto-shape');setOptionsOpen(false);setTouchOpen(false);setRecorderOpen(false);}}
             icon="shapes"
             label={t("shapes", "Shapes")}

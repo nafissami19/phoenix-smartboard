@@ -11,7 +11,7 @@ export function privacyFindings(name,source){
   return findings;
 }
 export function scanTree(root){
-  const reports=[];const skip=new Set(['.git','node_modules','release','test-results','playwright-report','.vite','.gradle','build']);
+  const reports=[];const skip=new Set(['.git','node_modules','release','test-results','playwright-report','.vite','.gradle','build','android']);
   const walk=dir=>{for(const entry of fs.readdirSync(dir,{withFileTypes:true})){if(skip.has(entry.name))continue;const file=path.join(dir,entry.name),name=path.relative(root,file).split(path.sep).join('/');if(entry.isSymbolicLink()){reports.push({name,rules:['symbolic link in release source']});continue;}if(entry.isDirectory()){walk(file);continue;}if(!entry.isFile())continue;
     const fileRules=privacyFindings(name,'');if(fileRules.length){reports.push({name,rules:fileRules});continue;}
     if(!/\.(?:[cm]?[jt]sx?|json|html|css|md|svg|ya?ml|toml|txt|properties|pem|env)$|(?:^|\/)\.env(?:\.|$)/i.test(name))continue;

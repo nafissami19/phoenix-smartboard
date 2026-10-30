@@ -17,6 +17,7 @@ import { COVER_COLORS } from "@/lib/constants";
 import type { Notebook, Page } from "@/db/schema";
 import { drawBackground, drawObject } from "@/lib/render";
 import { loadBackgroundImage } from "@/lib/background-image";
+import { ExamTimerModal } from "@/components/exam/ExamTimerModal";
 
 export default function LibraryPage() {
   return (
@@ -58,6 +59,7 @@ function LibraryInner() {
   const [activeTab, setActiveTab] = useState<'lessons' | 'trash'>('lessons');
   const [trashList, setTrashList] = useState<Array<{ id: string; lessonId: string; savedAt: number; blob: Blob }>>([]);
   const [trashLoading, setTrashLoading] = useState(false);
+  const [examTimerOpen, setExamTimerOpen] = useState(false);
 
   const visible = notebooks
     .filter(n => (filter === 'all' || n.subject === filter) && `${n.title} ${n.subject}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
@@ -217,6 +219,14 @@ function LibraryInner() {
             >
               <Icon name="settings" className="h-4 w-4" />
               {t("settings")}
+            </button>
+            <button
+              onClick={() => setExamTimerOpen(true)}
+              className="kn-focus flex items-center gap-2 rounded-xl border border-line bg-panel-2/80 px-4 py-2.5 text-sm font-semibold text-ink hover:bg-elevated hover:border-brand/40 transition-colors shadow-sm"
+              title="Open Exam Timer & Clock System"
+            >
+              <Icon name="timer" className="h-4 w-4 text-brand" />
+              Exam Timer
             </button>
             <button
               onClick={() => setCreating(true)}
@@ -495,6 +505,10 @@ function LibraryInner() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {examTimerOpen && (
+        <ExamTimerModal onClose={() => setExamTimerOpen(false)} />
       )}
     </div>
   );

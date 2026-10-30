@@ -13,11 +13,13 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test --test-isolation=none test/*.test.ts",
     "desktop": "electron desktop/main.cjs",
-    "desktop:build": "npm run build && electron-builder --win nsis --publish never",
+    "desktop:build": "npm run build && node scripts/build-desktop.mjs",
     "android:sync": "npm run build && cap sync android",
     "android:add": "cap add android",
     "check:privacy": "node scripts/check-privacy.mjs",
-    "check:release": "node scripts/check-release.mjs"
+    "check:release": "node scripts/check-release.mjs",
+    "android:build": "npm run android:sync && node scripts/build-android.mjs",
+    "build:all": "npm run build && npm run desktop:build && npm run android:build"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",

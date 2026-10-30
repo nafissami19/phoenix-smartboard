@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Phoenix Smartboard</string>
+    <string name="title_activity_main">Phoenix Smartboard</string>
+    <string name="package_name">com.phoenix.smartboard</string>
+    <string name="custom_url_scheme">com.phoenix.smartboard</string>
+</resources>
