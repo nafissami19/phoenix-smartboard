@@ -100,6 +100,7 @@ export const BOARD_BACKGROUNDS = [
   { label: "Slate", value: "#1e293b" },
   { label: "White", value: "#ffffff" },
   { label: "Paper", value: "#f5f1e6" },
+  { label: "Exam Ivory Cream", value: "#f3e9dc" },
   { label: "Green", value: "#7cb342" },
 ];
 

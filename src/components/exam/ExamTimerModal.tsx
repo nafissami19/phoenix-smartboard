@@ -256,19 +256,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
     Math.max(0, (currentSecElapsedSeconds / currentSecTotalSeconds) * 100)
   );
 
-  // Overall Exam Time Remaining
   const totalExamMinutes = calculateTotalExamDurationMinutes(activePreset);
-  const totalExamSeconds = totalExamMinutes * 60;
-  const completedSectionsSeconds = activePreset.sections
-    .slice(0, currentSectionIndex)
-    .reduce((acc, s) => acc + s.durationMinutes * 60, 0);
-  const totalElapsedSeconds =
-    completedSectionsSeconds + (hasExamFinished ? currentSecTotalSeconds : currentSecElapsedSeconds);
-  const totalRemainingSeconds = Math.max(0, totalExamSeconds - totalElapsedSeconds);
-  const totalProgressPercent = Math.min(
-    100,
-    Math.max(0, (totalElapsedSeconds / totalExamSeconds) * 100)
-  );
 
   // Time warning states
   const isDangerTime = !hasExamFinished && remainingSeconds <= 60 && remainingSeconds > 0;
@@ -277,32 +265,32 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[100] flex flex-col text-slate-100 select-none overflow-y-auto"
+      className="fixed inset-0 z-[100] flex flex-col text-[#47322d] select-none overflow-y-auto"
       style={{
-        backgroundColor: "#090d16",
-        backgroundImage:
-          "radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.12) 0%, transparent 60%), radial-gradient(rgba(255, 255, 255, 0.08) 1.2px, transparent 1.2px)",
-        backgroundSize: "100% 100%, 32px 32px",
+        backgroundColor: "#f3e9dc",
+        colorScheme: "light",
+        backgroundImage: "radial-gradient(#dec9b8 1px, transparent 1px)",
+        backgroundSize: "32px 32px",
       }}
     >
       {/* Top Header */}
-      <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-white/10 bg-[#0d121f]/90 backdrop-blur-md shrink-0">
+      <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-[#e2d2c1] bg-[#fbf5ed]/90 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-blue-600 text-white shadow-md">
+          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#a9746e] text-[#fbf7f4] shadow-sm">
             <Icon name="timer" className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-white">
+              <h1 className="text-xl font-bold tracking-tight text-[#47322d]">
                 {isChoosingPreset ? "Exam Timer" : activePreset.title}
               </h1>
               {!isChoosingPreset && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-white/10 text-slate-300">
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-[#ebdcc9] text-[#78544c] border border-[#ddcbba]">
                   {formatDurationLabel(totalExamMinutes)} Total
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#8f6e66]">
               {isChoosingPreset
                 ? "Select an exam timer or create a new one"
                 : `${activePreset.sections.length} Sections · Sequential Exam Timer`}
@@ -311,21 +299,21 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
         </div>
 
         {/* Header Actions */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           {!isChoosingPreset ? (
             <button
               onClick={() => setIsChoosingPreset(true)}
               title="Return to timer selection menu"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 text-sm font-semibold transition-colors min-h-[44px]"
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] hover:bg-[#ebdcc9] text-[#6b4941] text-sm font-semibold transition-all min-h-[44px]"
             >
-              <Icon name="chevronLeft" className="w-4 h-4 text-slate-400" />
+              <Icon name="chevronLeft" className="w-4 h-4 text-[#8f6e66]" />
               <span>Change Timer</span>
             </button>
           ) : (
             <button
               onClick={openNewPresetEditor}
               title="Add a new custom exam schedule"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors min-h-[44px]"
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-[#a9746e] hover:bg-[#97645e] text-white text-sm font-semibold transition-all min-h-[44px] shadow-sm"
             >
               <Icon name="plus" className="w-4 h-4" />
               <span>Add New Timer</span>
@@ -336,28 +324,28 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             <button
               onClick={() => openEditPreset(activePreset)}
               title="Edit this exam schedule"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium transition-colors min-h-[44px]"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] hover:bg-[#ebdcc9] text-[#6b4941] text-sm font-medium transition-all min-h-[44px]"
             >
-              <Icon name="edit" className="w-4 h-4 text-slate-400" />
+              <Icon name="edit" className="w-4 h-4 text-[#8f6e66]" />
               <span className="hidden sm:inline">Edit</span>
             </button>
           )}
 
           {/* Live Wall Clock */}
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-slate-300 font-mono text-sm shadow-inner min-h-[44px]">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-slate-400 text-xs hidden md:inline">Clock:</span>
-            <span className="font-bold text-white text-sm">{currentTimeStr}</span>
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-[#ebdcc9]/80 border border-[#ddcbba] text-[#6b4941] font-mono text-sm shadow-inner min-h-[44px]">
+            <span className="inline-block w-2 h-2 rounded-full bg-[#a9746e]" />
+            <span className="text-[#8f6e66] text-xs hidden md:inline">Clock:</span>
+            <span className="font-bold text-[#47322d] text-sm">{currentTimeStr}</span>
           </div>
 
           {/* Mute Chime Toggle */}
           <button
             onClick={() => setIsMuted((m) => !m)}
             title={isMuted ? "Unmute sound alert" : "Mute sound alert"}
-            className={`p-2.5 rounded-xl border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${
+            className={`p-2.5 rounded-2xl border transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
               isMuted
-                ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
+                ? "border-[#c85a4b]/40 bg-[#f7e4e1] text-[#b34839]"
+                : "border-[#d9c7b4] bg-[#fbf5ed] text-[#6b4941] hover:bg-[#ebdcc9]"
             }`}
           >
             <Icon name={isMuted ? "bellOff" : "bell"} className="w-5 h-5" />
@@ -367,7 +355,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
           <button
             onClick={toggleFullscreen}
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-            className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2.5 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] hover:bg-[#ebdcc9] text-[#6b4941] transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <Icon name={isFullscreen ? "shrink" : "expand"} className="w-5 h-5" />
           </button>
@@ -376,24 +364,24 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
           <button
             onClick={onClose}
             title="Exit Exam Timer"
-            className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-rose-600 hover:text-white text-slate-300 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2.5 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] hover:bg-[#f2dbd7] hover:text-[#a83224] text-[#6b4941] transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <Icon name="close" className="w-5 h-5" />
           </button>
         </div>
       </header>
 
-      {/* VIEW 1: PRESET SELECTION HUB (NSU & Add New ONLY) */}
+      {/* VIEW 1: PRESET SELECTION HUB */}
       {isChoosingPreset ? (
         <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12 flex flex-col justify-start gap-8">
           <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-white tracking-tight">
+            <h2 className="text-3xl font-extrabold text-[#47322d] tracking-tight">
               Select Exam Timer
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
-            {/* NSU Exam Timer (and any custom ones created by the user) */}
+            {/* Presets List */}
             {presets.map((preset) => {
               const totalMins = calculateTotalExamDurationMinutes(preset);
               const isNsu = preset.id === NSU_EXAM_TIMER_PRESET.id;
@@ -401,19 +389,19 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
               return (
                 <div
                   key={preset.id}
-                  className="flex flex-col justify-between p-6 rounded-2xl border border-white/10 bg-[#101624] shadow-xl hover:border-blue-500/50 transition-all"
+                  className="flex flex-col justify-between p-6 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] shadow-md hover:border-[#a9746e] transition-all"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-3">
-                      <h3 className="text-xl font-bold text-white">{preset.title}</h3>
+                      <h3 className="text-xl font-bold text-[#47322d]">{preset.title}</h3>
                       {isNsu && (
-                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#a9746e]/15 text-[#8f5a52] border border-[#a9746e]/30">
                           Standard
                         </span>
                       )}
                     </div>
 
-                    <p className="text-sm text-slate-400 mb-5">
+                    <p className="text-sm text-[#8f6e66] mb-5">
                       {preset.sections.length} Sections · Total Duration: {formatDurationLabel(totalMins)}
                     </p>
 
@@ -422,10 +410,10 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                       {preset.sections.map((sec, idx) => (
                         <div
                           key={sec.id || idx}
-                          className="flex items-center justify-between px-3 py-2 rounded-xl bg-black/30 border border-white/5 text-xs text-slate-300"
+                          className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#f3e9dc] border border-[#e2d2c1] text-xs text-[#6b4941]"
                         >
-                          <span className="font-medium text-slate-300">{sec.name}</span>
-                          <span className="font-mono font-bold text-white">
+                          <span className="font-medium">{sec.name}</span>
+                          <span className="font-mono font-bold text-[#47322d]">
                             {sec.durationMinutes}m
                           </span>
                         </div>
@@ -434,10 +422,10 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                   </div>
 
                   {/* Card Action Buttons */}
-                  <div className="flex items-center gap-2.5 pt-4 border-t border-white/5">
+                  <div className="flex items-center gap-2.5 pt-4 border-t border-[#e2d2c1]">
                     <button
                       onClick={() => handleLaunchPreset(preset.id)}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 px-5 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-sm min-h-[46px]"
+                      className="flex-1 flex items-center justify-center gap-2 py-3 px-5 rounded-2xl font-bold text-sm bg-[#a9746e] hover:bg-[#97645e] text-white transition-all shadow-sm min-h-[46px]"
                     >
                       <Icon name="play" className="w-4 h-4" />
                       <span>Start {preset.title}</span>
@@ -446,7 +434,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                     <button
                       onClick={() => openEditPreset(preset)}
                       title="Edit timer sections"
-                      className="p-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors min-h-[46px] min-w-[46px] flex items-center justify-center"
+                      className="p-3 rounded-2xl border border-[#d9c7b4] bg-[#faf4ec] hover:bg-[#ebdcc9] text-[#6b4941] transition-all min-h-[46px] min-w-[46px] flex items-center justify-center"
                     >
                       <Icon name="edit" className="w-4 h-4" />
                     </button>
@@ -458,15 +446,15 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             {/* "+ Add New Exam Timer" Card */}
             <div
               onClick={openNewPresetEditor}
-              className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-white/15 hover:border-blue-400/60 bg-[#101624]/40 hover:bg-[#101624]/80 cursor-pointer transition-all text-center min-h-[260px] group"
+              className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-[#d9c7b4] hover:border-[#a9746e] bg-[#fbf5ed]/50 hover:bg-[#fbf5ed] cursor-pointer transition-all text-center min-h-[260px] group"
             >
-              <div className="w-12 h-12 rounded-xl bg-white/5 group-hover:bg-blue-600/20 text-slate-400 group-hover:text-blue-400 flex items-center justify-center mb-3 transition-colors">
+              <div className="w-12 h-12 rounded-2xl bg-[#ebdcc9] group-hover:bg-[#a9746e] text-[#6b4941] group-hover:text-white flex items-center justify-center mb-3 transition-colors">
                 <Icon name="plus" className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-white group-hover:text-blue-300 transition-colors">
+              <h3 className="text-lg font-bold text-[#47322d] group-hover:text-[#a9746e] transition-colors">
                 Add New Exam Timer
               </h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-xs">
+              <p className="text-xs text-[#8f6e66] mt-1 max-w-xs">
                 Set up a custom examination with your own sections and durations.
               </p>
             </div>
@@ -474,14 +462,14 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
         </main>
       ) : (
         /* VIEW 2: ACTIVE EXAM STAGE */
-        <main className="flex-1 flex flex-col justify-between max-w-5xl w-full mx-auto px-6 py-6 gap-6">
+        <main className="flex-1 flex flex-col justify-between max-w-4xl w-full mx-auto px-6 py-6 sm:py-8 gap-6 sm:gap-8">
           {/* Section Sequence Horizontal Stepper */}
           <div className="w-full">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#8f6e66]">
                 Exam Sections
               </span>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-[#8f6e66] font-medium">
                 Section {currentSectionIndex + 1} of {activePreset.sections.length}
               </span>
             </div>
@@ -494,43 +482,43 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                 return (
                   <div
                     key={section.id || idx}
-                    className={`p-3.5 rounded-xl border transition-all ${
+                    className={`p-3.5 rounded-2xl border transition-all duration-300 ${
                       isEnded
-                        ? "bg-slate-900/60 border-slate-700/50 text-slate-400"
+                        ? "bg-[#ede2d5]/90 border-[#dfcebe] text-[#78574f]"
                         : isActive
-                        ? "bg-[#131b2e] border-blue-500 shadow-md text-white"
-                        : "bg-slate-900/30 border-white/5 text-slate-500"
+                        ? "bg-[#fbf5ed] border-2 border-[#a9746e] shadow-[0_4px_16px_rgba(169,116,110,0.12)] text-[#47322d]"
+                        : "bg-[#f7efe5]/70 border-[#e8d9cc] text-[#9b7b72]"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-bold">{section.name}</span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-bold truncate pr-1">{section.name}</span>
                       <span
-                        className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${
+                        className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full shrink-0 ${
                           isEnded
-                            ? "bg-emerald-500/20 text-emerald-300"
+                            ? "bg-[#dccbc0] text-[#543b35]"
                             : isActive
-                            ? "bg-blue-500 text-white"
-                            : "bg-white/5 text-slate-400"
+                            ? "bg-[#a9746e] text-white"
+                            : "bg-[#eae0d3] text-[#85655d]"
                         }`}
                       >
                         {isEnded ? "Ended" : isActive ? "Active" : "Pending"}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-400">
+                    <div className="flex items-center justify-between text-xs text-[#8f6e66]">
                       <span>{section.durationMinutes}m</span>
                       {isActive && (
-                        <span className="font-mono font-bold text-blue-300">
+                        <span className="font-mono font-bold text-[#a9746e]">
                           {formatTimeRemaining(remainingSeconds)}
                         </span>
                       )}
                     </div>
 
                     {/* Mini Progress Bar */}
-                    <div className="w-full bg-black/40 h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div className="w-full bg-[#ead9c7] h-1.5 rounded-full mt-2.5 overflow-hidden">
                       <div
                         className={`h-full transition-all duration-300 ${
-                          isEnded ? "w-full bg-emerald-500" : isActive ? "bg-blue-500" : "w-0"
+                          isEnded ? "w-full bg-[#a9746e]/60" : isActive ? "bg-[#a9746e]" : "w-0"
                         }`}
                         style={{
                           width: isEnded
@@ -547,75 +535,46 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             </div>
           </div>
 
-          {/* Clean Total Exam Remaining Bar */}
-          <div className="w-full px-5 py-3 rounded-xl bg-[#101624] border border-white/10 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Total Exam Remaining:
-              </span>
-              <span className="text-xl font-mono font-extrabold text-blue-400">
-                {formatTimeRemaining(totalRemainingSeconds)}
-              </span>
-              <span className="text-xs text-slate-400">
-                of {formatDurationLabel(totalExamMinutes)}
-              </span>
-            </div>
-
-            <div className="flex-1 max-w-xs w-full bg-black/40 h-2 rounded-full overflow-hidden border border-white/5">
-              <div
-                className="h-full bg-blue-500 transition-all duration-300"
-                style={{ width: `${totalProgressPercent}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Center Stage: Clear Section Headline & Massive Clean Digits */}
-          <div className="flex-1 flex flex-col items-center justify-center my-2 text-center">
-            {/* Bold, Clean Headline */}
-            <div className="mb-2">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white">
-                {hasExamFinished
-                  ? "All Exam Sections Completed"
-                  : isRunning
-                  ? `${currentSection.name} Timer is Running`
-                  : `${currentSection.name} Timer (Ready)`}
+          {/* Center Stage: Minimalist Pomodoro-Style Countdown (Image 2 Aesthetic) */}
+          <div className="flex-1 flex flex-col items-center justify-center my-4 sm:my-6 text-center">
+            {/* Prominent Section Headline */}
+            <div className="mb-2 sm:mb-4">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-[0.2em] text-[#704b43] select-none drop-shadow-[0_1px_4px_rgba(112,75,67,0.12)]">
+                {hasExamFinished ? "All Exam Sections Completed" : currentSection.name}
               </h2>
             </div>
 
             {/* Massive Digital Countdown */}
             <div className="my-2">
               <div
-                className={`font-mono tabular-nums font-black tracking-tight leading-none text-8xl sm:text-9xl md:text-[12rem] transition-colors ${
+                className={`font-mono tabular-nums font-bold tracking-tight leading-none text-8xl sm:text-9xl md:text-[11rem] lg:text-[12.5rem] transition-colors drop-shadow-[0_2px_12px_rgba(169,116,110,0.18)] ${
                   hasExamFinished
-                    ? "text-emerald-400"
+                    ? "text-[#5a8067]"
                     : isDangerTime
-                    ? "text-rose-400 animate-pulse"
+                    ? "text-[#c85a4b] animate-pulse"
                     : isWarningTime
-                    ? "text-amber-300"
-                    : "text-white"
+                    ? "text-[#c07d4b]"
+                    : "text-[#a9746e]"
                 }`}
               >
                 {hasExamFinished ? "00:00" : formatTimeRemaining(remainingSeconds)}
               </div>
             </div>
-          </div>
 
-          {/* Bottom Control Bar */}
-          <div className="w-full flex flex-col items-center gap-4 bg-[#101624] border border-white/10 rounded-2xl p-5 shadow-2xl">
-            {/* Primary Action Buttons */}
-            <div className="flex flex-wrap items-center justify-center gap-4 w-full">
+            {/* Primary Action Buttons (Directly below timer, matching Image 2) */}
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-6 sm:mt-8">
               {/* Previous Section */}
               <button
                 onClick={handlePrevSection}
                 disabled={currentSectionIndex === 0}
                 title="Return to previous section"
-                className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 disabled:opacity-30 disabled:pointer-events-none text-base font-bold transition-all min-h-[56px]"
+                className="flex items-center gap-1.5 px-5 py-3.5 rounded-2xl border border-[#a9746e] bg-transparent hover:bg-[#a9746e]/10 active:scale-[0.98] text-[#a9746e] disabled:opacity-35 disabled:pointer-events-none font-semibold text-base transition-all min-h-[50px]"
               >
-                <Icon name="chevronLeft" className="w-5 h-5" />
-                <span>Prev Section</span>
+                <Icon name="chevronLeft" className="w-4 h-4" />
+                <span>Prev</span>
               </button>
 
-              {/* Main Play / Pause Button */}
+              {/* Main Start / Pause Button */}
               <button
                 onClick={() => {
                   if (hasExamFinished) {
@@ -625,25 +584,34 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                   }
                 }}
                 title={isRunning ? "Pause exam timer" : "Start exam timer"}
-                className={`flex items-center gap-3 px-10 py-4 rounded-xl font-extrabold text-lg transition-all shadow-lg min-h-[60px] ${
+                className={`flex items-center justify-center gap-2.5 px-9 py-3.5 rounded-2xl font-semibold text-base sm:text-lg transition-all shadow-md active:scale-[0.98] min-h-[50px] min-w-[150px] ${
                   hasExamFinished
-                    ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                    ? "bg-[#5a8067] hover:bg-[#4d6f58] text-white"
                     : isRunning
-                    ? "bg-amber-600 hover:bg-amber-500 text-white"
-                    : "bg-blue-600 hover:bg-blue-500 text-white"
+                    ? "bg-[#c07d4b] hover:bg-[#ac6f41] text-white"
+                    : "bg-[#a9746e] hover:bg-[#97645e] text-white"
                 }`}
               >
                 <Icon
                   name={hasExamFinished ? "reset" : isRunning ? "pause" : "play"}
-                  className="w-6 h-6"
+                  className="w-5 h-5"
                 />
                 <span>
                   {hasExamFinished
-                    ? "Restart Exam"
+                    ? "Restart"
                     : isRunning
-                    ? "Pause Timer"
-                    : "Start Exam"}
+                    ? "Pause"
+                    : "Start"}
                 </span>
+              </button>
+
+              {/* Reset Current Section */}
+              <button
+                onClick={handleResetCurrentSection}
+                title="Reset current section to starting duration"
+                className="flex items-center justify-center gap-1.5 px-6 py-3.5 rounded-2xl border border-[#a9746e] bg-transparent hover:bg-[#a9746e]/10 active:scale-[0.98] text-[#a9746e] font-semibold text-base transition-all min-h-[50px] min-w-[100px]"
+              >
+                <span>Reset</span>
               </button>
 
               {/* Skip to Next Section */}
@@ -651,104 +619,104 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                 onClick={handleSkipNext}
                 disabled={hasExamFinished}
                 title="Finish current section and advance to next"
-                className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 disabled:opacity-30 disabled:pointer-events-none text-base font-bold transition-all min-h-[56px]"
+                className="flex items-center gap-1.5 px-5 py-3.5 rounded-2xl border border-[#a9746e] bg-transparent hover:bg-[#a9746e]/10 active:scale-[0.98] text-[#a9746e] disabled:opacity-35 disabled:pointer-events-none font-semibold text-base transition-all min-h-[50px]"
               >
-                <span>Next Section</span>
-                <Icon name="forward" className="w-5 h-5" />
+                <span>Next</span>
+                <Icon name="chevronRight" className="w-4 h-4" />
               </button>
             </div>
+          </div>
 
-            {/* Quick Adjustments & Manual Time Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-4 w-full pt-4 border-t border-white/10 text-sm">
-              {/* Manual Time & Seconds Add/Subtract */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-slate-400 mr-1 text-xs uppercase tracking-wider">
-                  Adjust:
-                </span>
-                <div className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-lg px-2 py-1">
-                  <input
-                    type="number"
-                    min="0"
-                    max="180"
-                    value={manualAdjMins}
-                    onChange={(e) => setManualAdjMins(e.target.value)}
-                    aria-label="Adjust Minutes"
-                    className="w-12 bg-transparent text-white font-mono text-center text-sm font-bold focus:outline-none"
-                  />
-                  <span className="text-xs text-slate-400">m</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={manualAdjSecs}
-                    onChange={(e) => setManualAdjSecs(e.target.value)}
-                    aria-label="Adjust Seconds"
-                    className="w-12 bg-transparent text-white font-mono text-center text-sm font-bold focus:outline-none"
-                  />
-                  <span className="text-xs text-slate-400">s</span>
-                </div>
-
-                <button
-                  onClick={() => handleApplyManualAdjustment(true)}
-                  disabled={hasExamFinished}
-                  title="Add entered time to active timer"
-                  className="px-3 py-1.5 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 text-blue-200 font-bold text-xs transition-colors min-h-[36px]"
-                >
-                  + Add
-                </button>
-                <button
-                  onClick={() => handleApplyManualAdjustment(false)}
-                  disabled={hasExamFinished || remainingSeconds <= 1}
-                  title="Subtract entered time from active timer"
-                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold text-xs transition-colors min-h-[36px] disabled:opacity-30"
-                >
-                  - Deduct
-                </button>
-
-                {/* Quick Shortcuts */}
-                <div className="flex items-center gap-1 ml-1">
-                  <button
-                    onClick={() => handleAdjustSeconds(30)}
-                    disabled={hasExamFinished}
-                    className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-mono text-xs"
-                  >
-                    +30s
-                  </button>
-                  <button
-                    onClick={() => handleAdjustSeconds(60)}
-                    disabled={hasExamFinished}
-                    className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-mono text-xs"
-                  >
-                    +1m
-                  </button>
-                  <button
-                    onClick={() => handleAdjustSeconds(300)}
-                    disabled={hasExamFinished}
-                    className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-mono text-xs"
-                  >
-                    +5m
-                  </button>
-                </div>
+          {/* Secondary Quick Adjustments Row (Subtle, Clean, Non-intrusive) */}
+          <div className="w-full max-w-2xl mx-auto px-5 py-3 rounded-2xl bg-[#fbf5ed]/80 border border-[#dfcebe] shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+            {/* Quick Adjustments */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-[#8f6e66] mr-1 uppercase tracking-wider text-[11px]">
+                Adjust:
+              </span>
+              <div className="flex items-center gap-1.5 bg-[#f3e9dc] border border-[#d9c7b4] rounded-xl px-2.5 py-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="180"
+                  value={manualAdjMins}
+                  onChange={(e) => setManualAdjMins(e.target.value)}
+                  aria-label="Adjust Minutes"
+                  style={{
+                    backgroundColor: "transparent",
+                    color: "#47322d",
+                    colorScheme: "light",
+                  }}
+                  className="w-8 !bg-transparent !text-[#47322d] font-mono text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <span className="text-[11px] text-[#8f6e66] font-medium">m</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={manualAdjSecs}
+                  onChange={(e) => setManualAdjSecs(e.target.value)}
+                  aria-label="Adjust Seconds"
+                  style={{
+                    backgroundColor: "transparent",
+                    color: "#47322d",
+                    colorScheme: "light",
+                  }}
+                  className="w-8 !bg-transparent !text-[#47322d] font-mono text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <span className="text-[11px] text-[#8f6e66] font-medium">s</span>
               </div>
 
-              {/* Reset Controls */}
-              <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleApplyManualAdjustment(true)}
+                disabled={hasExamFinished}
+                title="Add entered time"
+                className="px-2.5 py-1 rounded-xl bg-[#a9746e]/15 hover:bg-[#a9746e]/25 text-[#7a4e46] font-bold border border-[#a9746e]/30 transition-all"
+              >
+                + Add
+              </button>
+              <button
+                onClick={() => handleApplyManualAdjustment(false)}
+                disabled={hasExamFinished || remainingSeconds <= 1}
+                title="Subtract entered time"
+                className="px-2.5 py-1 rounded-xl bg-[#f3e9dc] hover:bg-[#ebdcc9] text-[#7a4e46] font-bold border border-[#d9c7b4] transition-all disabled:opacity-40"
+              >
+                - Deduct
+              </button>
+
+              <div className="flex items-center gap-1 ml-1">
                 <button
-                  onClick={handleResetCurrentSection}
-                  title="Reset current section timer to full duration"
-                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold transition-colors min-h-[36px]"
+                  onClick={() => handleAdjustSeconds(30)}
+                  disabled={hasExamFinished}
+                  className="px-2 py-1 rounded-xl bg-[#f3e9dc] hover:bg-[#ebdcc9] border border-[#d9c7b4] text-[#7a4e46] font-mono text-[11px] transition-all"
                 >
-                  Reset Section
+                  +30s
                 </button>
                 <button
-                  onClick={() => resetExam()}
-                  title="Reset entire exam from Section A"
-                  className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-semibold transition-colors min-h-[36px]"
+                  onClick={() => handleAdjustSeconds(60)}
+                  disabled={hasExamFinished}
+                  className="px-2 py-1 rounded-xl bg-[#f3e9dc] hover:bg-[#ebdcc9] border border-[#d9c7b4] text-[#7a4e46] font-mono text-[11px] transition-all"
                 >
-                  Reset Exam
+                  +1m
+                </button>
+                <button
+                  onClick={() => handleAdjustSeconds(300)}
+                  disabled={hasExamFinished}
+                  className="px-2 py-1 rounded-xl bg-[#f3e9dc] hover:bg-[#ebdcc9] border border-[#d9c7b4] text-[#7a4e46] font-mono text-[11px] transition-all"
+                >
+                  +5m
                 </button>
               </div>
             </div>
+
+            {/* Reset Exam */}
+            <button
+              onClick={() => resetExam()}
+              title="Reset entire exam from Section A"
+              className="px-3 py-1 rounded-xl bg-[#f5e3e0] hover:bg-[#eed3cf] border border-[#e5bdb6] text-[#9e463b] font-semibold text-xs transition-all"
+            >
+              Reset All
+            </button>
           </div>
         </main>
       )}
@@ -832,23 +800,23 @@ function PresetEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="w-full max-w-xl bg-[#0f1523] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-xl bg-[#fbf5ed] border border-[#d9c7b4] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-[#47322d]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#141b2d]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e2d2c1] bg-[#f4ebe0]">
           <div>
-            <h3 className="text-lg font-bold text-white">
+            <h3 className="text-lg font-bold text-[#47322d]">
               {preset.id.startsWith("preset-")
                 ? "Create Exam Timer"
                 : "Edit Exam Schedule"}
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#8f6e66]">
               Set section names and minute durations
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 rounded-xl text-[#8f6e66] hover:text-[#47322d] hover:bg-[#ebdcc9] transition-colors"
           >
             <Icon name="close" className="w-5 h-5" />
           </button>
@@ -858,7 +826,7 @@ function PresetEditorModal({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Title */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#78544c] mb-1.5">
               Exam Title
             </label>
             <input
@@ -867,13 +835,14 @@ function PresetEditorModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. NSU Final Examination"
-              className="w-full px-4 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm font-medium"
+              style={{ backgroundColor: "#f3e9dc", color: "#47322d", colorScheme: "light" }}
+              className="w-full px-4 py-2.5 rounded-xl !bg-[#f3e9dc] border border-[#d9c7b4] !text-[#47322d] placeholder-[#a4847b] focus:outline-none focus:border-[#a9746e] text-sm font-medium"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#78544c] mb-1.5">
               Description (Optional)
             </label>
             <input
@@ -881,17 +850,18 @@ function PresetEditorModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. 4-section exam with automated transitions"
-              className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 text-xs"
+              style={{ backgroundColor: "#f3e9dc", color: "#47322d", colorScheme: "light" }}
+              className="w-full px-4 py-2 rounded-xl !bg-[#f3e9dc] border border-[#d9c7b4] !text-[#47322d] placeholder-[#a4847b] focus:outline-none focus:border-[#a9746e] text-xs"
             />
           </div>
 
           {/* Sections List */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[#78544c]">
                 Sections & Durations ({sections.length})
               </label>
-              <span className="text-xs font-mono font-bold text-blue-400">
+              <span className="text-xs font-mono font-bold text-[#a9746e]">
                 Total: {totalMins}m ({formatDurationLabel(totalMins)})
               </span>
             </div>
@@ -900,9 +870,9 @@ function PresetEditorModal({
               {sections.map((section, idx) => (
                 <div
                   key={section.id || idx}
-                  className="flex items-center gap-2 p-2 rounded-xl bg-black/30 border border-white/5"
+                  className="flex items-center gap-2 p-2 rounded-xl bg-[#f3e9dc] border border-[#e2d2c1]"
                 >
-                  <span className="text-xs font-bold text-slate-400 w-6 text-center">
+                  <span className="text-xs font-bold text-[#8f6e66] w-6 text-center">
                     #{idx + 1}
                   </span>
                   <input
@@ -911,7 +881,8 @@ function PresetEditorModal({
                     value={section.name}
                     onChange={(e) => handleUpdateSection(idx, "name", e.target.value)}
                     placeholder="Section Name"
-                    className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500"
+                    style={{ backgroundColor: "#fbf5ed", color: "#47322d", colorScheme: "light" }}
+                    className="flex-1 px-3 py-1.5 rounded-lg !bg-[#fbf5ed] border border-[#d9c7b4] !text-[#47322d] text-sm focus:outline-none focus:border-[#a9746e]"
                   />
                   <div className="flex items-center gap-1.5">
                     <input
@@ -923,16 +894,17 @@ function PresetEditorModal({
                       onChange={(e) =>
                         handleUpdateSection(idx, "durationMinutes", e.target.value)
                       }
-                      className="w-20 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono text-center focus:outline-none focus:border-blue-500"
+                      style={{ backgroundColor: "#fbf5ed", color: "#47322d", colorScheme: "light" }}
+                      className="w-20 px-3 py-1.5 rounded-lg !bg-[#fbf5ed] border border-[#d9c7b4] !text-[#47322d] text-sm font-mono text-center focus:outline-none focus:border-[#a9746e]"
                     />
-                    <span className="text-xs text-slate-400">min</span>
+                    <span className="text-xs text-[#8f6e66]">min</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveSection(idx)}
                     disabled={sections.length <= 1}
                     title="Delete this section"
-                    className="p-2 rounded-lg text-rose-400 hover:bg-rose-500/20 disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                    className="p-2 rounded-lg text-[#b85447] hover:bg-[#f3dbd7] disabled:opacity-20 disabled:pointer-events-none transition-colors"
                   >
                     <Icon name="trash" className="w-4 h-4" />
                   </button>
@@ -943,7 +915,7 @@ function PresetEditorModal({
             <button
               type="button"
               onClick={handleAddSection}
-              className="mt-3 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-white/20 hover:border-blue-400 hover:bg-blue-500/10 text-blue-300 text-xs font-medium transition-colors w-full justify-center"
+              className="mt-3 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-[#d9c7b4] hover:border-[#a9746e] hover:bg-[#a9746e]/10 text-[#a9746e] text-xs font-medium transition-colors w-full justify-center"
             >
               <Icon name="plus" className="w-4 h-4" />
               Add Another Section
@@ -951,12 +923,12 @@ function PresetEditorModal({
           </div>
 
           {/* Footer Controls */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/10">
+          <div className="flex items-center justify-between pt-4 border-t border-[#e2d2c1]">
             {!preset.isBuiltin && (
               <button
                 type="button"
                 onClick={() => onDelete(preset.id)}
-                className="px-3 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold transition-colors"
+                className="px-3 py-2 rounded-xl bg-[#f5e3e0] hover:bg-[#eed3cf] text-[#9e463b] text-xs font-semibold transition-colors"
               >
                 Delete
               </button>
@@ -965,13 +937,13 @@ function PresetEditorModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg border border-white/10 hover:bg-white/10 text-slate-300 text-sm font-medium transition-colors"
+                className="px-4 py-2 rounded-xl border border-[#d9c7b4] hover:bg-[#ebdcc9] text-[#6b4941] text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-colors"
+                className="px-5 py-2 rounded-xl bg-[#a9746e] hover:bg-[#97645e] text-white text-sm font-bold transition-colors shadow-sm"
               >
                 Save
               </button>

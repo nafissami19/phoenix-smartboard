@@ -18,6 +18,7 @@ import type { Notebook, Page } from "@/db/schema";
 import { drawBackground, drawObject } from "@/lib/render";
 import { loadBackgroundImage } from "@/lib/background-image";
 import { ExamTimerModal } from "@/components/exam/ExamTimerModal";
+import { ThemeModal } from "@/components/ThemeModal";
 
 export default function LibraryPage() {
   return (
@@ -41,10 +42,8 @@ function LibraryInner() {
   const [interrupted, setInterrupted] = useState<WorkSession[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(search.get("new") === "1");
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [cover, setCover] = useState(COVER_COLORS[0]);
   const [busy, setBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('recent');
@@ -60,6 +59,7 @@ function LibraryInner() {
   const [trashList, setTrashList] = useState<Array<{ id: string; lessonId: string; savedAt: number; blob: Blob }>>([]);
   const [trashLoading, setTrashLoading] = useState(false);
   const [examTimerOpen, setExamTimerOpen] = useState(false);
+  const [themeModalOpen, setThemeModalOpen] = useState(false);
 
   const visible = notebooks
     .filter(n => (filter === 'all' || n.subject === filter) && `${n.title} ${n.subject}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
@@ -74,8 +74,11 @@ function LibraryInner() {
   };
 
   useEffect(() => {
-    if (search.get('new') === '1') setCreating(true);
-  }, [search]);
+    if (search.get('new') === '1') {
+      router.replace('/library');
+      fileInputRef.current?.click();
+    }
+  }, [search, router]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -147,15 +150,31 @@ function LibraryInner() {
     }
   };
 
-  async function create() {
+  const handleNewLesson = () => {
+    if (busy) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await createLesson(file);
+  };
+
+  async function createLesson(file?: File | null) {
     setBusy(true);
     let createdNotebookId: string | null = null;
     try {
-      const lessonTitle = (pdfFile ? pdfFile.name.replace(/\.pdf$/i, "") : "").trim() || "Untitled lesson";
+      const lessonTitle = (file ? file.name.replace(/\.pdf$/i, "") : "").trim() || "Untitled lesson";
       const res = await localRequest("/api/notebooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: lessonTitle, subject: "General", coverColor: cover }),
+        body: JSON.stringify({
+          title: lessonTitle,
+          subject: "General",
+          coverColor: COVER_COLORS[notebooks.length % COVER_COLORS.length] || COVER_COLORS[0],
+        }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
@@ -165,9 +184,9 @@ function LibraryInner() {
       if (!data.notebook) throw new Error(data.error || "Could not create the lesson.");
       const notebook = data.notebook;
       createdNotebookId = notebook.id;
-      if (pdfFile) await importPdfPages(notebook.id, pdfFile, true);
-      setPdfFile(null);
-      setCreating(false);
+      if (file) {
+        await importPdfPages(notebook.id, file, true);
+      }
       router.push(`/board/${notebook.id}`);
     } catch (error) {
       if (createdNotebookId) {
@@ -221,6 +240,23 @@ function LibraryInner() {
               {t("settings")}
             </button>
             <button
+              onClick={() => setThemeModalOpen(true)}
+              className="kn-focus flex items-center gap-2 rounded-xl border border-line bg-panel-2/80 px-3.5 py-2.5 text-sm font-semibold text-ink hover:bg-elevated hover:border-brand/40 transition-colors shadow-sm"
+              title="Change full project theme & background"
+            >
+              <span
+                className="w-3.5 h-3.5 rounded-full border border-line/60 shrink-0 shadow-xs"
+                style={{
+                  backgroundColor: profile.theme?.colors.panel ?? "#17171c",
+                  boxShadow: `0 0 0 2px ${profile.theme?.colors.accent ?? "#0062ff"}55`,
+                }}
+              />
+              <span className="hidden sm:inline text-muted text-xs font-semibold uppercase tracking-wider">Theme:</span>
+              <span className="font-medium text-ink text-sm truncate max-w-[130px]">
+                {profile.theme?.name ?? "Phoenix Ember"}
+              </span>
+            </button>
+            <button
               onClick={() => setExamTimerOpen(true)}
               className="kn-focus flex items-center gap-2 rounded-xl border border-line bg-panel-2/80 px-4 py-2.5 text-sm font-semibold text-ink hover:bg-elevated hover:border-brand/40 transition-colors shadow-sm"
               title="Open Exam Timer & Clock System"
@@ -228,12 +264,22 @@ function LibraryInner() {
               <Icon name="timer" className="h-4 w-4 text-brand" />
               Exam Timer
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              className="hidden"
+              aria-label="Start lesson from PDF"
+              disabled={busy}
+              onChange={handleFileChange}
+            />
             <button
-              onClick={() => setCreating(true)}
-              className="kn-focus flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+              onClick={handleNewLesson}
+              disabled={busy}
+              className="kn-focus flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
             >
-              <Icon name="plus" className="h-4 w-4" />
-              {t("new_lesson")}
+              <Icon name={busy ? "sync" : "plus"} className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
+              {busy ? "Opening…" : t("new_lesson")}
             </button>
           </div>
         </header>
@@ -448,7 +494,7 @@ function LibraryInner() {
             <button className="kn-focus mt-5 rounded-xl bg-brand px-5 py-2 text-white" onClick={() => void load()}>Try again</button>
           </div>
         ) : notebooks.length === 0 ? (
-          <EmptyState onCreate={() => setCreating(true)} />
+          <EmptyState onCreate={handleNewLesson} onCreateBlank={() => void createLesson(null)} />
         ) : visible.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-line p-12 text-center">
             <h3 className="font-semibold">No matching lessons</h3>
@@ -466,49 +512,24 @@ function LibraryInner() {
         )}
       </div>
 
-      {creating && (
-        <Modal title="New lesson" icon={<Icon name="plus" className="h-5 w-5 text-brand-light" />} onClose={() => setCreating(false)}>
-          <div className="space-y-4">
-            <label className="block text-sm">
-              Start from PDF (optional)
-              <input
-                aria-label="Start lesson from PDF"
-                type="file"
-                accept=".pdf,application/pdf"
-                disabled={busy}
-                onChange={e => { setPdfFile(e.target.files?.[0] ?? null); }}
-                className="mt-2 block w-full"
-              />
-              <span className="mt-1 block text-xs text-muted">One PDF page per board page, ready to annotate. Up to 25 MB / 1500 pages.</span>
-            </label>
+      {busy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
+          <div className="flex items-center gap-3.5 rounded-2xl bg-panel border border-line px-6 py-4 shadow-2xl">
+            <Icon name="sync" className="h-5 w-5 animate-spin text-brand" />
             <div>
-              <label className="mb-2 block text-sm font-medium">Cover colour</label>
-              <div className="flex flex-wrap gap-2">
-                {COVER_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setCover(c)}
-                    className={`h-9 w-9 rounded-lg border-2 transition ${cover === c ? "scale-110 border-ink" : "border-transparent"}`}
-                    style={{ background: c }}
-                    aria-label={c}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setCreating(false)} className="kn-focus rounded-xl border border-line px-4 py-2.5 text-sm hover:bg-elevated">
-                Cancel
-              </button>
-              <button onClick={create} disabled={busy} className="kn-focus rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60">
-                {busy ? "Creating…" : "Create & open"}
-              </button>
+              <div className="text-sm font-semibold text-ink">Opening lesson from PDF…</div>
+              <div className="text-xs text-muted">Preparing pages for annotation</div>
             </div>
           </div>
-        </Modal>
+        </div>
       )}
 
       {examTimerOpen && (
         <ExamTimerModal onClose={() => setExamTimerOpen(false)} />
+      )}
+
+      {themeModalOpen && (
+        <ThemeModal onClose={() => setThemeModalOpen(false)} />
       )}
     </div>
   );
@@ -768,7 +789,7 @@ function NotebookCard({
   );
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({ onCreate, onCreateBlank }: { onCreate: () => void; onCreateBlank?: () => void }) {
   return (
     <div className="grid place-items-center rounded-3xl border border-dashed border-line py-20 text-center">
       <span className="mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-panel-2">
@@ -778,10 +799,17 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <p className="mt-1 max-w-sm text-sm text-muted">
         Create your first board to start writing, importing PDFs and teaching with smart tools.
       </p>
-      <button onClick={onCreate} className="kn-focus mt-5 flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">
-        <Icon name="plus" className="h-4 w-4" />
-        New lesson
-      </button>
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        <button onClick={onCreate} className="kn-focus flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">
+          <Icon name="plus" className="h-4 w-4" />
+          New lesson
+        </button>
+        {onCreateBlank && (
+          <button onClick={onCreateBlank} className="kn-focus rounded-xl border border-line px-4 py-2.5 text-sm font-medium hover:bg-elevated text-muted hover:text-ink">
+            Blank board
+          </button>
+        )}
+      </div>
     </div>
   );
 }

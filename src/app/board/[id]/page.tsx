@@ -14,6 +14,7 @@ import {newPageStyle} from '@/lib/new-page-style';
 import {BoardTooltips} from '@/components/board/BoardTooltips';
 import {persistentObjects} from '@/lib/pen-strokes';
 import {ThemeSettings} from '@/components/ThemeSettings';
+import {ThemeModal} from '@/components/ThemeModal';
 import {controlContrast,controlPalette,BUILTIN_THEMES} from '@/lib/theme-pack';
 import {BoardPresets} from '@/components/BoardPresets';
 import {ControlLayoutEditor} from '@/components/board/ControlLayoutEditor';
@@ -645,7 +646,7 @@ export default function BoardPage() {
           printPage();
           break;
         case "themes":
-          setModal("board-tools");
+          setModal("themes");
           break;
         case "settings":
           setModal("settings");
@@ -1165,7 +1166,23 @@ export default function BoardPage() {
       )}
       {(slowSave||wb.processing)&&<LoadingOverlay detail="Processing and saving your edits..."/>}
       {(recoveryEdits.length>0||lastActivity)&&<Dialog title="Interrupted work" onClose={()=>{setRecoveryEdits([]);setLastActivity(undefined);}} width={460}><p className="mb-4 text-sm">{lastActivity&&<span className="mb-2 block">Last operation: {lastActivity}. Open the saved lesson to review it; an interrupted import or export can be started again.</span>}{recoveryEdits.length>0?'An unfinished edit was saved before this lesson closed. Restore it, or keep the last saved pages.':'Your saved pages are ready to open.'}</p><div className="flex gap-3">{recoveryEdits.length>0&&<button className="kn-focus rounded-lg bg-brand p-3 text-white" onClick={()=>{void recoverWork().then(()=>{setLastActivity(undefined);void setWorkActivity(id,undefined);});}}>Restore unfinished work</button>}<button className="kn-focus rounded-lg border border-line p-3" onClick={()=>{const entries=recoveryEdits;void Promise.all(entries.map(e=>acknowledge(e.pageId,e.revision))).then(()=>{setRecoveryEdits([]);setLastActivity(undefined);void setWorkActivity(id,undefined);});}}>Keep saved pages</button></div></Dialog>}
-      {(modal === "themes" || modal === "board-tools" || modal === "backgrounds") && (
+      {modal === "themes" && (
+        <ThemeModal
+          onClose={() => setModal(null)}
+          onThemeSelect={pack => {
+            const primaryBoard = pack.boards[0];
+            if (primaryBoard) {
+              setBackground(primaryBoard.background);
+              bgRef.current = primaryBoard.background;
+              setPattern(primaryBoard.pattern);
+              patternRef.current = primaryBoard.pattern;
+              wb.setPen({ ...wb.pen, color: primaryBoard.ink });
+              void saveNow(wb.objects, wb.media, primaryBoard.background, primaryBoard.pattern);
+            }
+          }}
+        />
+      )}
+      {(modal === "board-tools" || modal === "backgrounds") && (
         <Dialog
           title={modal === "backgrounds" ? "Subject backgrounds" : "Board & tools"}
           icon={<Icon name="board" className="h-5 w-5 text-brand-light" />}

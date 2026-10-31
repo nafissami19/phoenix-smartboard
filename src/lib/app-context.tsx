@@ -1,7 +1,7 @@
 import {initializeDisplay} from './smartboard';
 import {interfaceSettings} from './interface-settings';
 "use client";
-import {BUILTIN_THEMES,parseThemePack,type ThemePack} from './theme-pack';
+import {BUILTIN_THEMES,parseThemePack,isLightTheme,type ThemePack} from './theme-pack';
 import { localRequest } from "@/lib/local-store";
 
 import {
@@ -113,15 +113,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [profile.accent]);
 
-  useEffect(()=>{
-    const t=profile.theme??BUILTIN_THEMES[0];
-    for(const [key,color] of Object.entries(t.colors))document.documentElement.style.setProperty(`--theme-${key}`,color);
-    const root=document.documentElement;
-    root.dataset.themeAppearance=t.appearance??'phoenix';
-    for(const [key,color] of Object.entries({panel:t.colors.panel,'panel-2':t.colors.surface,'base':t.colors.surface,'base-2':t.colors.surface,elevated:t.colors.surface,line:t.colors.line,ink:t.colors.ink,muted:t.colors.muted,faint:t.colors.muted}))root.style.setProperty(`--color-${key}`,color);
-    root.style.setProperty('--tool-popup-gap',`${interfaceSettings(profile.ui).popupGap}px`);
+  useEffect(() => {
+    const t = profile.theme ?? BUILTIN_THEMES[0];
+    const isLight = isLightTheme(t);
+    const root = document.documentElement;
+
+    root.dataset.themeAppearance = t.appearance ?? 'phoenix';
+    root.dataset.themeMode = isLight ? 'light' : 'dark';
+    root.style.colorScheme = isLight ? 'light' : 'dark';
+
+    for (const [key, color] of Object.entries(t.colors)) {
+      if (color) root.style.setProperty(`--theme-${key}`, color);
+    }
+
+    const base = t.colors.base ?? t.colors.surface;
+    const panel = t.colors.panel;
+    const surface = t.colors.surface;
+    const line = t.colors.line;
+    const ink = t.colors.ink;
+    const muted = t.colors.muted;
+
+    // Derived contrast-aware secondary tokens
+    const line2 = isLight
+      ? `color-mix(in srgb, ${line} 75%, black 12%)`
+      : `color-mix(in srgb, ${line} 75%, white 15%)`;
+    const elevated = isLight
+      ? `color-mix(in srgb, ${panel} 90%, black 5%)`
+      : `color-mix(in srgb, ${surface} 85%, white 10%)`;
+    const base2 = isLight
+      ? `color-mix(in srgb, ${base} 92%, black 6%)`
+      : `color-mix(in srgb, ${base} 85%, white 8%)`;
+    const faint = isLight
+      ? `color-mix(in srgb, ${muted} 75%, white)`
+      : `color-mix(in srgb, ${muted} 70%, black)`;
+
+    const colorTokens: Record<string, string> = {
+      base,
+      'base-2': base2,
+      panel,
+      'panel-2': surface,
+      elevated,
+      line,
+      'line-2': line2,
+      ink,
+      muted,
+      faint,
+    };
+
+    for (const [key, color] of Object.entries(colorTokens)) {
+      root.style.setProperty(`--color-${key}`, color);
+    }
+
+    // Background pattern texture (exam center uses subtle radial dots on warm cream)
+    if (t.id === 'warm-ivory' || base === '#f3e9dc') {
+      root.style.setProperty('--color-base-pattern', 'radial-gradient(#dec9b8 1px, transparent 1px)');
+      root.style.setProperty('--color-base-pattern-size', '32px 32px');
+    } else if (isLight) {
+      root.style.setProperty('--color-base-pattern', `radial-gradient(color-mix(in srgb, ${line} 40%, transparent) 1px, transparent 1px)`);
+      root.style.setProperty('--color-base-pattern-size', '32px 32px');
+    } else {
+      root.style.setProperty('--color-base-pattern', 'none');
+      root.style.setProperty('--color-base-pattern-size', 'auto');
+    }
+
+    root.style.setProperty('--tool-popup-gap', `${interfaceSettings(profile.ui).popupGap}px`);
     window.dispatchEvent(new Event('phoenix-popup-layout'));
-  },[profile.theme,profile.ui]);
+  }, [profile.theme, profile.ui]);
 
   const updateProfile = useCallback((patch: Partial<AppProfile>) => {
     const revision=++profileRevision.current;

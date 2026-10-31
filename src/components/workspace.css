@@ -41,12 +41,12 @@
 }
 .kn-library-summary > div {
   padding: 18px 22px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--color-line);
   border-radius: 18px;
-  background: radial-gradient(circle at top right, rgba(0, 98, 255, 0.08), transparent 70%), rgba(23, 23, 28, 0.72);
+  background: var(--color-panel);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), 0 8px 24px -4px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 8px 24px -4px rgba(0, 0, 0, 0.18);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .kn-library-summary > div:hover {
@@ -60,9 +60,7 @@
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
-  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--color-ink);
 }
 .kn-library-summary span {
   font-size: 13px;
@@ -80,12 +78,12 @@
 .kn-library-filters input {
   width: 100%;
   padding: 12px 40px 12px 14px;
-  background: rgba(23, 23, 28, 0.7);
+  background: var(--color-panel);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-line);
   border-radius: 12px;
-  color: #ffffff;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+  color: var(--color-ink);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.18s ease;
 }
 .kn-library-filters input:focus {
@@ -103,7 +101,7 @@
 .kn-lesson-card {
   min-width: 0;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--color-line);
   background: var(--color-panel);
   overflow: hidden;
   position: relative;
