@@ -15,6 +15,12 @@ export function penOutline(stroke:StrokeObject){
 // Small reusable pigment tiles, fixed in board coordinates: texture does not
 // crawl while drawing and remains identical in thumbnails and exports.
 const textures=new Map<string,HTMLCanvasElement>();
+function parseRgb(color:string):[number,number,number]{
+  let h=color.replace(/^#/,'');
+  if(h.length===3)h=h.split('').map(c=>c+c).join('');
+  if(h.length!==6)return [0,0,0];
+  return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0];
+}
 export function brushTexture(ctx:CanvasRenderingContext2D,brush:string,color:string){
   if(typeof document==='undefined')return null;
   const key=brush+color;let tile=textures.get(key);
@@ -25,7 +31,7 @@ export function brushTexture(ctx:CanvasRenderingContext2D,brush:string,color:str
     // Seeded pigment coverage with real paper gaps; no random redraw flicker.
     const wax=brush==='crayon'||brush==='oil-pastel';
     if(wax){
-      const rgb=color.slice(1).match(/../g)?.map(v=>parseInt(v,16))??[0,0,0],pixels=ink.createImageData(64,64);
+      const rgb=parseRgb(color),pixels=ink.createImageData(64,64);
       for(let y=0;y<64;y++)for(let x=0;x<64;x++){
         const i=(y*64+x)*4,noise=random(),groove=Math.sin(x*.73+Math.sin(y*.22)*2.4)*Math.sin(y*.51+x*.09);
         pixels.data[i]=rgb[0];pixels.data[i+1]=rgb[1];pixels.data[i+2]=rgb[2];
@@ -33,7 +39,7 @@ export function brushTexture(ctx:CanvasRenderingContext2D,brush:string,color:str
       }
       ink.putImageData(pixels,0,0);
     }else if(brush==='charcoal'){
-      const rgb=color.slice(1).match(/../g)?.map(v=>parseInt(v,16))??[0,0,0],pixels=ink.createImageData(64,64);
+      const rgb=parseRgb(color),pixels=ink.createImageData(64,64);
       for(let y=0;y<64;y++)for(let x=0;x<64;x++){
         const i=(y*64+x)*4,noise=random(),paper=Math.sin(x*.45)*Math.cos(y*.45)+noise*.7;
         pixels.data[i]=rgb[0];pixels.data[i+1]=rgb[1];pixels.data[i+2]=rgb[2];
@@ -41,7 +47,7 @@ export function brushTexture(ctx:CanvasRenderingContext2D,brush:string,color:str
       }
       ink.putImageData(pixels,0,0);
     }else if(brush==='airbrush'){
-      const rgb=color.slice(1).match(/../g)?.map(v=>parseInt(v,16))??[0,0,0],pixels=ink.createImageData(64,64);
+      const rgb=parseRgb(color),pixels=ink.createImageData(64,64);
       for(let y=0;y<64;y++)for(let x=0;x<64;x++){
         const i=(y*64+x)*4,noise=random();
         pixels.data[i]=rgb[0];pixels.data[i+1]=rgb[1];pixels.data[i+2]=rgb[2];
@@ -81,7 +87,11 @@ export function paintBristles(ctx:CanvasRenderingContext2D,stroke:StrokeObject,g
      const localSlope=slope+Math.sin(i*.045+phase)*grain*.22;
      const raw=paintShade(stroke.color,filteredX*localSlope,filteredY*localSlope,oil?.32:.58);
      // Small shade buckets batch bristle fragments into a few native vector paths.
-     const color='#'+(raw.slice(1).match(/../g)!).map(v=>Math.min(255,Math.round(parseInt(v,16)/8)*8).toString(16).padStart(2,'0')).join('');
+     let h=raw.replace(/^#/,'');
+     if(h.length===3)h=h.split('').map(c=>c+c).join('');
+     const parts=(h.match(/[a-f0-9]{2}/gi)??['00','00','00']).slice(0,3);
+     while(parts.length<3)parts.push('00');
+     const color='#'+parts.map(v=>Math.min(255,Math.round(parseInt(v,16)/8)*8).toString(16).padStart(2,'0')).join('');
      const groupKey=color+':'+width;let group=groups.get(groupKey);if(!group){group={path:new Path2D(),color,width};groups.set(groupKey,group);}
      group.path.moveTo(previous.x,previous.y);group.path.lineTo(position.x,position.y);
     }

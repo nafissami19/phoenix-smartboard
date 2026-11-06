@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Icon } from "../Icon";
+import { useApp } from "@/lib/app-context";
+import { BUILTIN_THEMES, isLightTheme, type ThemePack } from "@/lib/theme-pack";
+import { ThemeModal } from "../ThemeModal";
 import {
   ExamPreset,
   ExamSection,
@@ -21,7 +24,39 @@ interface ExamTimerModalProps {
   onClose: () => void;
 }
 
+function getContrastTextColor(hexColor: string): string {
+  const hex = (hexColor || "#0062ff").replace(/^#/, "");
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return lum > 0.55 ? "#0f172a" : "#ffffff";
+}
+
 export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
+  const { profile } = useApp();
+  const [themeModalOpen, setThemeModalOpen] = useState<boolean>(false);
+
+  const activeTheme: ThemePack = useMemo(() => {
+    return profile.theme ?? BUILTIN_THEMES[0];
+  }, [profile.theme]);
+
+  const isLight = isLightTheme(activeTheme);
+  const themeColors = activeTheme.colors;
+  const accentTextColor = useMemo(() => getContrastTextColor(themeColors.accent), [themeColors.accent]);
+
+  const modalBg = themeColors.base ?? (isLight ? "#fbf5ed" : "#0d1117");
+
+  const backgroundPattern = useMemo(() => {
+    if (activeTheme.id === "warm-ivory" || themeColors.base === "#f3e9dc") {
+      return "radial-gradient(#dec9b8 1.2px, transparent 1.2px)";
+    }
+    if (isLight) {
+      return `radial-gradient(${themeColors.line}60 1px, transparent 1px)`;
+    }
+    return "radial-gradient(rgba(255, 255, 255, 0.08) 1.2px, transparent 1.2px)";
+  }, [activeTheme.id, themeColors.base, themeColors.line, isLight]);
+
   const [presets, setPresets] = useState<ExamPreset[]>(() => loadExamPresets());
   const [activePresetId, setActivePresetId] = useState<string>(() => loadActiveExamPresetId());
 
@@ -49,9 +84,11 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
 
   // Add / Edit Preset Modal State
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
+  const [isEditingNew, setIsEditingNew] = useState<boolean>(false);
   const [editingPreset, setEditingPreset] = useState<ExamPreset | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const deadlineRef = useRef<number | null>(null);
 
   // Live wall-clock updater
   useEffect(() => {
@@ -71,12 +108,31 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
     return () => clearInterval(interval);
   }, []);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (themeModalOpen) {
+          setThemeModalOpen(false);
+        } else if (isEditorOpen) {
+          setIsEditorOpen(false);
+          setEditingPreset(null);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [themeModalOpen, isEditorOpen, onClose]);
+
   // Sync remainingSeconds when activePreset changes and not running
   const resetExam = useCallback(
     (preset: ExamPreset = activePreset) => {
       setIsRunning(false);
       setCurrentSectionIndex(0);
       setHasExamFinished(false);
+      deadlineRef.current = null;
       const firstSec = preset.sections[0];
       setRemainingSeconds(firstSec ? firstSec.durationMinutes * 60 : 0);
     },
@@ -114,36 +170,40 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
     }
   };
 
-  // Timer Tick Engine with Sequential Auto-Calling
+  // Synchronize deadline reference when running state changes
+  useEffect(() => {
+    if (isRunning && !hasExamFinished) {
+      deadlineRef.current = Date.now() + remainingSeconds * 1000;
+    } else {
+      deadlineRef.current = null;
+    }
+  }, [isRunning, hasExamFinished]);
+
+  // Wall-clock anchored timer tick engine to eliminate background drift
   useEffect(() => {
     if (!isRunning || hasExamFinished) return;
 
     const interval = setInterval(() => {
-      setRemainingSeconds((prev) => {
-        if (prev > 1) {
-          return prev - 1;
-        }
+      if (deadlineRef.current == null) return;
+      const left = Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000));
+      setRemainingSeconds(left);
 
-        // Section time reached 0: Advance to next section!
+      if (left <= 0) {
         const nextIndex = currentSectionIndex + 1;
         if (nextIndex < activePreset.sections.length) {
-          if (!isMuted) {
-            playSectionChangeChime();
-          }
+          if (!isMuted) playSectionChangeChime();
           setCurrentSectionIndex(nextIndex);
-          const nextSecDuration = activePreset.sections[nextIndex].durationMinutes * 60;
-          return nextSecDuration;
+          const nextSecDuration = (activePreset.sections[nextIndex]?.durationMinutes || 1) * 60;
+          setRemainingSeconds(nextSecDuration);
+          deadlineRef.current = Date.now() + nextSecDuration * 1000;
         } else {
-          // All sections ended!
-          if (!isMuted) {
-            playExamFinishedChime();
-          }
+          if (!isMuted) playExamFinishedChime();
           setHasExamFinished(true);
           setIsRunning(false);
-          return 0;
+          deadlineRef.current = null;
         }
-      });
-    }, 1000);
+      }
+    }, 250);
 
     return () => clearInterval(interval);
   }, [isRunning, hasExamFinished, currentSectionIndex, activePreset.sections, isMuted]);
@@ -152,14 +212,17 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
   const handleSkipNext = () => {
     if (currentSectionIndex < activePreset.sections.length - 1) {
       const nextIdx = currentSectionIndex + 1;
+      const dur = (activePreset.sections[nextIdx]?.durationMinutes || 1) * 60;
       setCurrentSectionIndex(nextIdx);
-      setRemainingSeconds(activePreset.sections[nextIdx].durationMinutes * 60);
+      setRemainingSeconds(dur);
+      if (isRunning) deadlineRef.current = Date.now() + dur * 1000;
       setHasExamFinished(false);
       if (!isMuted) playSectionChangeChime();
     } else {
       setHasExamFinished(true);
       setIsRunning(false);
       setRemainingSeconds(0);
+      deadlineRef.current = null;
       if (!isMuted) playExamFinishedChime();
     }
   };
@@ -167,8 +230,10 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
   const handlePrevSection = () => {
     if (currentSectionIndex > 0) {
       const prevIdx = currentSectionIndex - 1;
+      const dur = (activePreset.sections[prevIdx]?.durationMinutes || 1) * 60;
       setCurrentSectionIndex(prevIdx);
-      setRemainingSeconds(activePreset.sections[prevIdx].durationMinutes * 60);
+      setRemainingSeconds(dur);
+      if (isRunning) deadlineRef.current = Date.now() + dur * 1000;
       setHasExamFinished(false);
     }
   };
@@ -176,13 +241,19 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
   const handleResetCurrentSection = () => {
     const sec = activePreset.sections[currentSectionIndex];
     if (sec) {
-      setRemainingSeconds(sec.durationMinutes * 60);
+      const dur = sec.durationMinutes * 60;
+      setRemainingSeconds(dur);
+      if (isRunning) deadlineRef.current = Date.now() + dur * 1000;
       setHasExamFinished(false);
     }
   };
 
   const handleAdjustSeconds = (deltaSeconds: number) => {
-    setRemainingSeconds((prev) => Math.max(0, prev + deltaSeconds));
+    setRemainingSeconds((prev) => {
+      const next = Math.max(0, prev + deltaSeconds);
+      if (isRunning) deadlineRef.current = Date.now() + next * 1000;
+      return next;
+    });
   };
 
   const handleApplyManualAdjustment = (isAdd: boolean) => {
@@ -201,15 +272,17 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
       description: "Custom examination schedule",
       createdAt: Date.now(),
       sections: [
-        { id: "sec-1", name: "Section A", durationMinutes: 30 },
-        { id: "sec-2", name: "Section B", durationMinutes: 60 },
+        { id: "sec-" + Math.random().toString(36).substring(2, 9), name: "Section A", durationMinutes: 30 },
+        { id: "sec-" + Math.random().toString(36).substring(2, 9), name: "Section B", durationMinutes: 60 },
       ],
     };
+    setIsEditingNew(true);
     setEditingPreset(newPreset);
     setIsEditorOpen(true);
   };
 
   const openEditPreset = (presetToEdit: ExamPreset) => {
+    setIsEditingNew(false);
     setEditingPreset(JSON.parse(JSON.stringify(presetToEdit)));
     setIsEditorOpen(true);
   };
@@ -236,10 +309,12 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
     const updated = presets.filter((p) => p.id !== id);
     setPresets(updated);
     saveExamPresets(updated);
-    const nextPreset = updated[0];
-    setActivePresetId(nextPreset.id);
-    saveActiveExamPresetId(nextPreset.id);
-    resetExam(nextPreset);
+    if (id === activePresetId) {
+      const nextPreset = updated[0];
+      setActivePresetId(nextPreset.id);
+      saveActiveExamPresetId(nextPreset.id);
+      resetExam(nextPreset);
+    }
     setIsEditorOpen(false);
     setEditingPreset(null);
   };
@@ -265,32 +340,54 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[100] flex flex-col text-[#47322d] select-none overflow-y-auto"
+      className="fixed inset-0 z-[100] flex flex-col select-none overflow-y-auto"
       style={{
-        backgroundColor: "#f3e9dc",
-        colorScheme: "light",
-        backgroundImage: "radial-gradient(#dec9b8 1px, transparent 1px)",
+        backgroundColor: modalBg,
+        color: themeColors.ink,
+        colorScheme: isLight ? "light" : "dark",
+        backgroundImage: backgroundPattern,
         backgroundSize: "32px 32px",
       }}
     >
       {/* Top Header */}
-      <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-[#e2d2c1] bg-[#fbf5ed]/90 backdrop-blur-md shrink-0">
+      <header
+        style={{
+          backgroundColor: isLight
+            ? `color-mix(in srgb, ${themeColors.panel} 95%, transparent)`
+            : `color-mix(in srgb, ${themeColors.panel} 90%, transparent)`,
+          borderColor: themeColors.line,
+        }}
+        className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b backdrop-blur-md shrink-0"
+      >
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-[#a9746e] text-[#fbf7f4] shadow-sm">
+          <div
+            style={{
+              backgroundColor: themeColors.accent,
+              color: accentTextColor,
+            }}
+            className="flex items-center justify-center w-11 h-11 rounded-2xl shadow-sm shrink-0"
+          >
             <Icon name="timer" className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-[#47322d]">
+              <h1 style={{ color: themeColors.ink }} className="text-xl font-bold tracking-tight">
                 {isChoosingPreset ? "Exam Timer" : activePreset.title}
               </h1>
               {!isChoosingPreset && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-[#ebdcc9] text-[#78544c] border border-[#ddcbba]">
+                <span
+                  style={{
+                    backgroundColor: `${themeColors.accent}20`,
+                    color: isLight ? themeColors.ink : themeColors.accent,
+                    borderColor: `${themeColors.accent}40`,
+                  }}
+                  className="text-xs px-2.5 py-0.5 rounded-full font-semibold border"
+                >
                   {formatDurationLabel(totalExamMinutes)} Total
                 </span>
               )}
             </div>
-            <p className="text-xs text-[#8f6e66]">
+            <p style={{ color: themeColors.muted }} className="text-xs">
               {isChoosingPreset
                 ? "Select an exam timer or create a new one"
                 : `${activePreset.sections.length} Sections · Sequential Exam Timer`}
@@ -302,18 +399,29 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           {!isChoosingPreset ? (
             <button
+              type="button"
               onClick={() => setIsChoosingPreset(true)}
               title="Return to timer selection menu"
-              className="flex items-center gap-2 px-4 py-2 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] hover:bg-[#ebdcc9] text-[#6b4941] text-sm font-semibold transition-all min-h-[44px]"
+              style={{
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.line,
+                color: themeColors.ink,
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl border text-sm font-semibold shadow-xs hover:brightness-105 active:scale-[0.98] transition-all min-h-[44px]"
             >
-              <Icon name="chevronLeft" className="w-4 h-4 text-[#8f6e66]" />
+              <Icon name="chevronLeft" className="w-4 h-4 shrink-0" />
               <span>Change Timer</span>
             </button>
           ) : (
             <button
+              type="button"
               onClick={openNewPresetEditor}
               title="Add a new custom exam schedule"
-              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-[#a9746e] hover:bg-[#97645e] text-white text-sm font-semibold transition-all min-h-[44px] shadow-sm"
+              style={{
+                backgroundColor: themeColors.accent,
+                color: accentTextColor,
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold shadow-sm hover:brightness-110 active:scale-[0.98] transition-all min-h-[44px]"
             >
               <Icon name="plus" className="w-4 h-4" />
               <span>Add New Timer</span>
@@ -322,49 +430,102 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
 
           {!isChoosingPreset && (
             <button
+              type="button"
               onClick={() => openEditPreset(activePreset)}
               title="Edit this exam schedule"
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] hover:bg-[#ebdcc9] text-[#6b4941] text-sm font-medium transition-all min-h-[44px]"
+              style={{
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.line,
+                color: themeColors.ink,
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border text-sm font-semibold shadow-xs hover:brightness-105 active:scale-[0.98] transition-all min-h-[44px]"
             >
-              <Icon name="edit" className="w-4 h-4 text-[#8f6e66]" />
+              <Icon name="edit" className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Edit</span>
             </button>
           )}
 
+          {/* Quick Theme Selector Pill */}
+          <button
+            type="button"
+            onClick={() => setThemeModalOpen(true)}
+            title={`Active Theme: ${activeTheme.name}. Click to switch theme.`}
+            style={{
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.line,
+              color: themeColors.ink,
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl border text-xs font-semibold shadow-xs hover:brightness-105 active:scale-[0.98] transition-all min-h-[44px]"
+          >
+            <span
+              className="w-3.5 h-3.5 rounded-full border border-black/15 shrink-0 shadow-xs"
+              style={{
+                backgroundColor: themeColors.panel,
+                boxShadow: `0 0 0 2px ${themeColors.accent}55`,
+              }}
+            />
+            <span style={{ color: themeColors.muted }} className="hidden md:inline">Theme:</span>
+            <span className="font-bold truncate max-w-[110px]">{activeTheme.name}</span>
+          </button>
+
           {/* Live Wall Clock */}
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-[#ebdcc9]/80 border border-[#ddcbba] text-[#6b4941] font-mono text-sm shadow-inner min-h-[44px]">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#a9746e]" />
-            <span className="text-[#8f6e66] text-xs hidden md:inline">Clock:</span>
-            <span className="font-bold text-[#47322d] text-sm">{currentTimeStr}</span>
+          <div
+            style={{
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.line,
+              color: themeColors.ink,
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl border font-mono text-sm shadow-inner min-h-[44px]"
+          >
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: themeColors.accent }}
+            />
+            <span style={{ color: themeColors.muted }} className="text-xs hidden md:inline">Clock:</span>
+            <span className="font-bold text-sm">{currentTimeStr}</span>
           </div>
 
           {/* Mute Chime Toggle */}
           <button
+            type="button"
             onClick={() => setIsMuted((m) => !m)}
             title={isMuted ? "Unmute sound alert" : "Mute sound alert"}
-            className={`p-2.5 rounded-2xl border transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
-              isMuted
-                ? "border-[#c85a4b]/40 bg-[#f7e4e1] text-[#b34839]"
-                : "border-[#d9c7b4] bg-[#fbf5ed] text-[#6b4941] hover:bg-[#ebdcc9]"
-            }`}
+            style={{
+              backgroundColor: isMuted ? (isLight ? "#fee2e2" : "rgba(239, 68, 68, 0.2)") : themeColors.surface,
+              borderColor: isMuted ? (isLight ? "#fca5a5" : "rgba(239, 68, 68, 0.4)") : themeColors.line,
+              color: isMuted ? "#ef4444" : themeColors.ink,
+            }}
+            className="p-2.5 rounded-2xl border transition-all min-h-[44px] min-w-[44px] flex items-center justify-center hover:brightness-105 active:scale-[0.98] shadow-xs"
           >
             <Icon name={isMuted ? "bellOff" : "bell"} className="w-5 h-5" />
           </button>
 
           {/* Fullscreen Toggle */}
           <button
+            type="button"
             onClick={toggleFullscreen}
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-            className="p-2.5 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] hover:bg-[#ebdcc9] text-[#6b4941] transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+            style={{
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.line,
+              color: themeColors.ink,
+            }}
+            className="p-2.5 rounded-2xl border hover:brightness-105 active:scale-[0.98] transition-all min-h-[44px] min-w-[44px] flex items-center justify-center shadow-xs"
           >
             <Icon name={isFullscreen ? "shrink" : "expand"} className="w-5 h-5" />
           </button>
 
           {/* Close Modal Button */}
           <button
+            type="button"
             onClick={onClose}
             title="Exit Exam Timer"
-            className="p-2.5 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] hover:bg-[#f2dbd7] hover:text-[#a83224] text-[#6b4941] transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+            style={{
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.line,
+              color: themeColors.ink,
+            }}
+            className="p-2.5 rounded-2xl border hover:bg-rose-500/15 hover:text-rose-500 hover:border-rose-500/30 active:scale-[0.98] transition-all min-h-[44px] min-w-[44px] flex items-center justify-center shadow-xs"
           >
             <Icon name="close" className="w-5 h-5" />
           </button>
@@ -375,7 +536,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
       {isChoosingPreset ? (
         <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12 flex flex-col justify-start gap-8">
           <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-[#47322d] tracking-tight">
+            <h2 style={{ color: themeColors.ink }} className="text-3xl font-extrabold tracking-tight">
               Select Exam Timer
             </h2>
           </div>
@@ -389,31 +550,47 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
               return (
                 <div
                   key={preset.id}
-                  className="flex flex-col justify-between p-6 rounded-2xl border border-[#d9c7b4] bg-[#fbf5ed] shadow-md hover:border-[#a9746e] transition-all"
+                  style={{
+                    backgroundColor: themeColors.panel,
+                    borderColor: themeColors.line,
+                  }}
+                  className="flex flex-col justify-between p-6 rounded-2xl border shadow-md hover:border-brand transition-all"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-3">
-                      <h3 className="text-xl font-bold text-[#47322d]">{preset.title}</h3>
+                      <h3 style={{ color: themeColors.ink }} className="text-xl font-bold">{preset.title}</h3>
                       {isNsu && (
-                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#a9746e]/15 text-[#8f5a52] border border-[#a9746e]/30">
+                        <span
+                          style={{
+                            backgroundColor: `${themeColors.accent}20`,
+                            color: themeColors.accent,
+                            borderColor: `${themeColors.accent}40`,
+                          }}
+                          className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border"
+                        >
                           Standard
                         </span>
                       )}
                     </div>
+                    {preset.description && (
+                      <p style={{ color: themeColors.muted }} className="text-xs mb-4 leading-relaxed">
+                        {preset.description}
+                      </p>
+                    )}
 
-                    <p className="text-sm text-[#8f6e66] mb-5">
-                      {preset.sections.length} Sections · Total Duration: {formatDurationLabel(totalMins)}
-                    </p>
-
-                    {/* Section Breakdown List */}
-                    <div className="grid grid-cols-2 gap-2 mb-6">
+                    <div className="space-y-2 mb-6">
                       {preset.sections.map((sec, idx) => (
                         <div
                           key={sec.id || idx}
-                          className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#f3e9dc] border border-[#e2d2c1] text-xs text-[#6b4941]"
+                          style={{
+                            backgroundColor: themeColors.surface,
+                            borderColor: themeColors.line,
+                            color: themeColors.muted,
+                          }}
+                          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs"
                         >
-                          <span className="font-medium">{sec.name}</span>
-                          <span className="font-mono font-bold text-[#47322d]">
+                          <span style={{ color: themeColors.ink }} className="font-semibold">{sec.name}</span>
+                          <span style={{ color: themeColors.ink }} className="font-mono font-bold">
                             {sec.durationMinutes}m
                           </span>
                         </div>
@@ -422,19 +599,33 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                   </div>
 
                   {/* Card Action Buttons */}
-                  <div className="flex items-center gap-2.5 pt-4 border-t border-[#e2d2c1]">
+                  <div
+                    style={{ borderColor: themeColors.line }}
+                    className="flex items-center gap-2.5 pt-4 border-t"
+                  >
                     <button
+                      type="button"
                       onClick={() => handleLaunchPreset(preset.id)}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 px-5 rounded-2xl font-bold text-sm bg-[#a9746e] hover:bg-[#97645e] text-white transition-all shadow-sm min-h-[46px]"
+                      style={{
+                        backgroundColor: themeColors.accent,
+                        color: accentTextColor,
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 px-5 rounded-2xl font-bold text-sm shadow-sm hover:brightness-110 active:scale-[0.98] transition-all min-h-[46px]"
                     >
-                      <Icon name="play" className="w-4 h-4" />
+                      <Icon name="play" className="w-4 h-4" filled />
                       <span>Start {preset.title}</span>
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => openEditPreset(preset)}
                       title="Edit timer sections"
-                      className="p-3 rounded-2xl border border-[#d9c7b4] bg-[#faf4ec] hover:bg-[#ebdcc9] text-[#6b4941] transition-all min-h-[46px] min-w-[46px] flex items-center justify-center"
+                      style={{
+                        backgroundColor: themeColors.surface,
+                        borderColor: themeColors.line,
+                        color: themeColors.ink,
+                      }}
+                      className="p-3 rounded-2xl border hover:brightness-105 active:scale-[0.98] transition-all min-h-[46px] min-w-[46px] flex items-center justify-center shadow-xs"
                     >
                       <Icon name="edit" className="w-4 h-4" />
                     </button>
@@ -446,15 +637,25 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             {/* "+ Add New Exam Timer" Card */}
             <div
               onClick={openNewPresetEditor}
-              className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-[#d9c7b4] hover:border-[#a9746e] bg-[#fbf5ed]/50 hover:bg-[#fbf5ed] cursor-pointer transition-all text-center min-h-[260px] group"
+              style={{
+                backgroundColor: `${themeColors.panel}90`,
+                borderColor: themeColors.line,
+              }}
+              className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed hover:border-brand hover:bg-panel cursor-pointer transition-all text-center min-h-[260px] group shadow-xs"
             >
-              <div className="w-12 h-12 rounded-2xl bg-[#ebdcc9] group-hover:bg-[#a9746e] text-[#6b4941] group-hover:text-white flex items-center justify-center mb-3 transition-colors">
+              <div
+                style={{
+                  backgroundColor: themeColors.surface,
+                  color: themeColors.ink,
+                }}
+                className="w-12 h-12 rounded-2xl group-hover:scale-110 flex items-center justify-center mb-3 transition-transform shadow-xs"
+              >
                 <Icon name="plus" className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-[#47322d] group-hover:text-[#a9746e] transition-colors">
+              <h3 style={{ color: themeColors.ink }} className="text-lg font-bold group-hover:text-brand transition-colors">
                 Add New Exam Timer
               </h3>
-              <p className="text-xs text-[#8f6e66] mt-1 max-w-xs">
+              <p style={{ color: themeColors.muted }} className="text-xs mt-1 max-w-xs">
                 Set up a custom examination with your own sections and durations.
               </p>
             </div>
@@ -466,10 +667,10 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
           {/* Section Sequence Horizontal Stepper */}
           <div className="w-full">
             <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#8f6e66]">
+              <span style={{ color: themeColors.muted }} className="text-xs font-bold uppercase tracking-[0.2em]">
                 Exam Sections
               </span>
-              <span className="text-xs text-[#8f6e66] font-medium">
+              <span style={{ color: themeColors.muted }} className="text-xs font-medium">
                 Section {currentSectionIndex + 1} of {activePreset.sections.length}
               </span>
             </div>
@@ -482,45 +683,65 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                 return (
                   <div
                     key={section.id || idx}
-                    className={`p-3.5 rounded-2xl border transition-all duration-300 ${
-                      isEnded
-                        ? "bg-[#ede2d5]/90 border-[#dfcebe] text-[#78574f]"
+                    style={{
+                      backgroundColor: isEnded
+                        ? themeColors.surface
                         : isActive
-                        ? "bg-[#fbf5ed] border-2 border-[#a9746e] shadow-[0_4px_16px_rgba(169,116,110,0.12)] text-[#47322d]"
-                        : "bg-[#f7efe5]/70 border-[#e8d9cc] text-[#9b7b72]"
-                    }`}
+                        ? themeColors.panel
+                        : isLight
+                        ? themeColors.surface
+                        : themeColors.panel,
+                      borderColor: isActive
+                        ? themeColors.accent
+                        : themeColors.line,
+                      borderWidth: isActive ? "2px" : "1px",
+                      boxShadow: isActive ? `0 4px 16px ${themeColors.accent}33` : "none",
+                    }}
+                    className="p-3.5 rounded-2xl border transition-all duration-300"
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm font-bold truncate pr-1">{section.name}</span>
                       <span
-                        className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full shrink-0 ${
-                          isEnded
-                            ? "bg-[#dccbc0] text-[#543b35]"
+                        style={{ color: isActive ? themeColors.ink : themeColors.muted }}
+                        className="text-sm font-bold truncate pr-1"
+                      >
+                        {section.name}
+                      </span>
+                      <span
+                        style={{
+                          backgroundColor: isEnded
+                            ? `${themeColors.line}`
                             : isActive
-                            ? "bg-[#a9746e] text-white"
-                            : "bg-[#eae0d3] text-[#85655d]"
-                        }`}
+                            ? themeColors.accent
+                            : `${themeColors.surface}`,
+                          color: isActive
+                            ? accentTextColor
+                            : themeColors.muted,
+                          borderColor: themeColors.line,
+                        }}
+                        className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full shrink-0 border"
                       >
                         {isEnded ? "Ended" : isActive ? "Active" : "Pending"}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-[#8f6e66]">
-                      <span>{section.durationMinutes}m</span>
+                    <div className="flex items-center justify-between text-xs" style={{ color: themeColors.muted }}>
+                      <span className="font-medium">{section.durationMinutes}m</span>
                       {isActive && (
-                        <span className="font-mono font-bold text-[#a9746e]">
+                        <span className="font-mono font-bold" style={{ color: themeColors.accent }}>
                           {formatTimeRemaining(remainingSeconds)}
                         </span>
                       )}
                     </div>
 
                     {/* Mini Progress Bar */}
-                    <div className="w-full bg-[#ead9c7] h-1.5 rounded-full mt-2.5 overflow-hidden">
+                    <div
+                      style={{ backgroundColor: `${themeColors.line}80` }}
+                      className="w-full h-1.5 rounded-full mt-2.5 overflow-hidden"
+                    >
                       <div
-                        className={`h-full transition-all duration-300 ${
-                          isEnded ? "w-full bg-[#a9746e]/60" : isActive ? "bg-[#a9746e]" : "w-0"
-                        }`}
+                        className="h-full transition-all duration-300"
                         style={{
+                          backgroundColor: isEnded ? `${themeColors.accent}70` : themeColors.accent,
                           width: isEnded
                             ? "100%"
                             : isActive
@@ -535,11 +756,18 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             </div>
           </div>
 
-          {/* Center Stage: Minimalist Pomodoro-Style Countdown (Image 2 Aesthetic) */}
+          {/* Center Stage: Minimalist Pomodoro-Style Countdown */}
           <div className="flex-1 flex flex-col items-center justify-center my-4 sm:my-6 text-center">
             {/* Prominent Section Headline */}
             <div className="mb-2 sm:mb-4">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-[0.2em] text-[#704b43] select-none drop-shadow-[0_1px_4px_rgba(112,75,67,0.12)]">
+              <h2
+                style={{
+                  color: isLight
+                    ? `color-mix(in srgb, ${themeColors.ink} 90%, black)`
+                    : themeColors.ink,
+                }}
+                className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-[0.2em] select-none"
+              >
                 {hasExamFinished ? "All Exam Sections Completed" : currentSection.name}
               </h2>
             </div>
@@ -547,35 +775,54 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             {/* Massive Digital Countdown */}
             <div className="my-2">
               <div
-                className={`font-mono tabular-nums font-bold tracking-tight leading-none text-8xl sm:text-9xl md:text-[11rem] lg:text-[12.5rem] transition-colors drop-shadow-[0_2px_12px_rgba(169,116,110,0.18)] ${
-                  hasExamFinished
-                    ? "text-[#5a8067]"
+                style={{
+                  color: hasExamFinished
+                    ? "#10b981"
                     : isDangerTime
-                    ? "text-[#c85a4b] animate-pulse"
+                    ? "#ef4444"
                     : isWarningTime
-                    ? "text-[#c07d4b]"
-                    : "text-[#a9746e]"
+                    ? "#f59e0b"
+                    : themeColors.accent,
+                  filter: `drop-shadow(0 2px 14px ${
+                    hasExamFinished
+                      ? "rgba(16,185,129,0.3)"
+                      : isDangerTime
+                      ? "rgba(239,68,68,0.4)"
+                      : isWarningTime
+                      ? "rgba(245,158,11,0.3)"
+                      : `${themeColors.accent}33`
+                  })`,
+                }}
+                className={`font-mono tabular-nums font-extrabold tracking-tight leading-none text-8xl sm:text-9xl md:text-[11rem] lg:text-[12.5rem] transition-colors ${
+                  isDangerTime ? "animate-pulse" : ""
                 }`}
               >
                 {hasExamFinished ? "00:00" : formatTimeRemaining(remainingSeconds)}
               </div>
             </div>
 
-            {/* Primary Action Buttons (Directly below timer, matching Image 2) */}
+            {/* Primary Action Buttons (Solid, High-Contrast across ALL Themes) */}
             <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-6 sm:mt-8">
               {/* Previous Section */}
               <button
+                type="button"
                 onClick={handlePrevSection}
                 disabled={currentSectionIndex === 0}
                 title="Return to previous section"
-                className="flex items-center gap-1.5 px-5 py-3.5 rounded-2xl border border-[#a9746e] bg-transparent hover:bg-[#a9746e]/10 active:scale-[0.98] text-[#a9746e] disabled:opacity-35 disabled:pointer-events-none font-semibold text-base transition-all min-h-[50px]"
+                style={{
+                  backgroundColor: isLight ? themeColors.panel : themeColors.surface,
+                  borderColor: themeColors.line,
+                  color: themeColors.ink,
+                }}
+                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl border shadow-sm hover:brightness-105 active:scale-[0.98] font-bold text-base transition-all min-h-[52px] min-w-[110px] justify-center disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Icon name="chevronLeft" className="w-4 h-4" />
+                <Icon name="chevronLeft" className="w-5 h-5 shrink-0" />
                 <span>Prev</span>
               </button>
 
               {/* Main Start / Pause Button */}
               <button
+                type="button"
                 onClick={() => {
                   if (hasExamFinished) {
                     resetExam();
@@ -584,17 +831,24 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                   }
                 }}
                 title={isRunning ? "Pause exam timer" : "Start exam timer"}
-                className={`flex items-center justify-center gap-2.5 px-9 py-3.5 rounded-2xl font-semibold text-base sm:text-lg transition-all shadow-md active:scale-[0.98] min-h-[50px] min-w-[150px] ${
-                  hasExamFinished
-                    ? "bg-[#5a8067] hover:bg-[#4d6f58] text-white"
+                style={{
+                  backgroundColor: hasExamFinished
+                    ? "#10b981"
                     : isRunning
-                    ? "bg-[#c07d4b] hover:bg-[#ac6f41] text-white"
-                    : "bg-[#a9746e] hover:bg-[#97645e] text-white"
-                }`}
+                    ? "#f59e0b"
+                    : themeColors.accent,
+                  color: hasExamFinished
+                    ? "#ffffff"
+                    : isRunning
+                    ? "#ffffff"
+                    : accentTextColor,
+                }}
+                className="flex items-center justify-center gap-2.5 px-10 py-3.5 rounded-2xl font-bold text-base sm:text-lg transition-all shadow-lg hover:brightness-110 active:scale-[0.98] min-h-[52px] min-w-[170px]"
               >
                 <Icon
                   name={hasExamFinished ? "reset" : isRunning ? "pause" : "play"}
-                  className="w-5 h-5"
+                  className="w-5 h-5 shrink-0"
+                  filled
                 />
                 <span>
                   {hasExamFinished
@@ -607,34 +861,59 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
 
               {/* Reset Current Section */}
               <button
+                type="button"
                 onClick={handleResetCurrentSection}
                 title="Reset current section to starting duration"
-                className="flex items-center justify-center gap-1.5 px-6 py-3.5 rounded-2xl border border-[#a9746e] bg-transparent hover:bg-[#a9746e]/10 active:scale-[0.98] text-[#a9746e] font-semibold text-base transition-all min-h-[50px] min-w-[100px]"
+                style={{
+                  backgroundColor: isLight ? themeColors.panel : themeColors.surface,
+                  borderColor: themeColors.line,
+                  color: themeColors.ink,
+                }}
+                className="flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl border shadow-sm hover:brightness-105 active:scale-[0.98] font-bold text-base transition-all min-h-[52px] min-w-[120px]"
               >
+                <Icon name="reset" className="w-4 h-4 shrink-0" />
                 <span>Reset</span>
               </button>
 
               {/* Skip to Next Section */}
               <button
+                type="button"
                 onClick={handleSkipNext}
                 disabled={hasExamFinished}
                 title="Finish current section and advance to next"
-                className="flex items-center gap-1.5 px-5 py-3.5 rounded-2xl border border-[#a9746e] bg-transparent hover:bg-[#a9746e]/10 active:scale-[0.98] text-[#a9746e] disabled:opacity-35 disabled:pointer-events-none font-semibold text-base transition-all min-h-[50px]"
+                style={{
+                  backgroundColor: isLight ? themeColors.panel : themeColors.surface,
+                  borderColor: themeColors.line,
+                  color: themeColors.ink,
+                }}
+                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl border shadow-sm hover:brightness-105 active:scale-[0.98] font-bold text-base transition-all min-h-[52px] min-w-[110px] justify-center disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <span>Next</span>
-                <Icon name="chevronRight" className="w-4 h-4" />
+                <Icon name="chevronRight" className="w-5 h-5 shrink-0" />
               </button>
             </div>
           </div>
 
-          {/* Secondary Quick Adjustments Row (Subtle, Clean, Non-intrusive) */}
-          <div className="w-full max-w-2xl mx-auto px-5 py-3 rounded-2xl bg-[#fbf5ed]/80 border border-[#dfcebe] shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+          {/* Secondary Quick Adjustments Row */}
+          <div
+            style={{
+              backgroundColor: isLight ? themeColors.panel : themeColors.surface,
+              borderColor: themeColors.line,
+            }}
+            className="w-full max-w-2xl mx-auto px-5 py-3 rounded-2xl border shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs"
+          >
             {/* Quick Adjustments */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-[#8f6e66] mr-1 uppercase tracking-wider text-[11px]">
+              <span style={{ color: themeColors.muted }} className="font-bold mr-1 uppercase tracking-wider text-[11px]">
                 Adjust:
               </span>
-              <div className="flex items-center gap-1.5 bg-[#f3e9dc] border border-[#d9c7b4] rounded-xl px-2.5 py-1">
+              <div
+                style={{
+                  backgroundColor: themeColors.base ?? (isLight ? "#fbf5ed" : "#11141a"),
+                  borderColor: themeColors.line,
+                }}
+                className="flex items-center gap-1.5 border rounded-xl px-2.5 py-1"
+              >
                 <input
                   type="number"
                   min="0"
@@ -644,12 +923,13 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                   aria-label="Adjust Minutes"
                   style={{
                     backgroundColor: "transparent",
-                    color: "#47322d",
-                    colorScheme: "light",
+                    color: themeColors.ink,
+                    colorScheme: isLight ? "light" : "dark",
                   }}
-                  className="w-8 !bg-transparent !text-[#47322d] font-mono text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-8 !bg-transparent font-mono text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
-                <span className="text-[11px] text-[#8f6e66] font-medium">m</span>
+                <span style={{ color: themeColors.muted }} className="text-[10px] font-semibold">m</span>
+                <span style={{ color: themeColors.line }} className="text-xs">|</span>
                 <input
                   type="number"
                   min="0"
@@ -659,61 +939,77 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                   aria-label="Adjust Seconds"
                   style={{
                     backgroundColor: "transparent",
-                    color: "#47322d",
-                    colorScheme: "light",
+                    color: themeColors.ink,
+                    colorScheme: isLight ? "light" : "dark",
                   }}
-                  className="w-8 !bg-transparent !text-[#47322d] font-mono text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-8 !bg-transparent font-mono text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
-                <span className="text-[11px] text-[#8f6e66] font-medium">s</span>
+                <span style={{ color: themeColors.muted }} className="text-[10px] font-semibold">s</span>
               </div>
 
               <button
+                type="button"
                 onClick={() => handleApplyManualAdjustment(true)}
                 disabled={hasExamFinished}
                 title="Add entered time"
-                className="px-2.5 py-1 rounded-xl bg-[#a9746e]/15 hover:bg-[#a9746e]/25 text-[#7a4e46] font-bold border border-[#a9746e]/30 transition-all"
+                style={{
+                  backgroundColor: themeColors.accent,
+                  color: accentTextColor,
+                }}
+                className="px-3 py-1.5 rounded-xl font-bold shadow-xs hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-40"
               >
                 + Add
               </button>
               <button
+                type="button"
                 onClick={() => handleApplyManualAdjustment(false)}
                 disabled={hasExamFinished || remainingSeconds <= 1}
                 title="Subtract entered time"
-                className="px-2.5 py-1 rounded-xl bg-[#f3e9dc] hover:bg-[#ebdcc9] text-[#7a4e46] font-bold border border-[#d9c7b4] transition-all disabled:opacity-40"
+                style={{
+                  backgroundColor: isLight ? themeColors.surface : themeColors.panel,
+                  borderColor: themeColors.line,
+                  color: themeColors.ink,
+                }}
+                className="px-3 py-1.5 rounded-xl font-bold border hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-40"
               >
                 - Deduct
               </button>
 
-              <div className="flex items-center gap-1 ml-1">
-                <button
-                  onClick={() => handleAdjustSeconds(30)}
-                  disabled={hasExamFinished}
-                  className="px-2 py-1 rounded-xl bg-[#f3e9dc] hover:bg-[#ebdcc9] border border-[#d9c7b4] text-[#7a4e46] font-mono text-[11px] transition-all"
-                >
-                  +30s
-                </button>
-                <button
-                  onClick={() => handleAdjustSeconds(60)}
-                  disabled={hasExamFinished}
-                  className="px-2 py-1 rounded-xl bg-[#f3e9dc] hover:bg-[#ebdcc9] border border-[#d9c7b4] text-[#7a4e46] font-mono text-[11px] transition-all"
-                >
-                  +1m
-                </button>
-                <button
-                  onClick={() => handleAdjustSeconds(300)}
-                  disabled={hasExamFinished}
-                  className="px-2 py-1 rounded-xl bg-[#f3e9dc] hover:bg-[#ebdcc9] border border-[#d9c7b4] text-[#7a4e46] font-mono text-[11px] transition-all"
-                >
-                  +5m
-                </button>
+              <div className="flex items-center gap-1.5 ml-1">
+                {[
+                  { label: "+30s", delta: 30 },
+                  { label: "+1m", delta: 60 },
+                  { label: "+5m", delta: 300 },
+                ].map((adj) => (
+                  <button
+                    key={adj.label}
+                    type="button"
+                    onClick={() => handleAdjustSeconds(adj.delta)}
+                    disabled={hasExamFinished}
+                    style={{
+                      backgroundColor: isLight ? themeColors.surface : themeColors.panel,
+                      borderColor: themeColors.line,
+                      color: themeColors.ink,
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl border font-mono text-xs font-bold hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-40"
+                  >
+                    {adj.label}
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Reset Exam */}
             <button
+              type="button"
               onClick={() => resetExam()}
               title="Reset entire exam from Section A"
-              className="px-3 py-1 rounded-xl bg-[#f5e3e0] hover:bg-[#eed3cf] border border-[#e5bdb6] text-[#9e463b] font-semibold text-xs transition-all"
+              style={{
+                backgroundColor: isLight ? "#fee2e2" : "rgba(239, 68, 68, 0.15)",
+                borderColor: isLight ? "#fca5a5" : "rgba(239, 68, 68, 0.35)",
+                color: isLight ? "#b91c1c" : "#fca5a5",
+              }}
+              className="px-3.5 py-1.5 rounded-xl border font-bold text-xs hover:brightness-105 active:scale-[0.98] transition-all shadow-xs"
             >
               Reset All
             </button>
@@ -725,6 +1021,10 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
       {isEditorOpen && editingPreset && (
         <PresetEditorModal
           preset={editingPreset}
+          isNew={isEditingNew}
+          themeColors={themeColors}
+          isLight={isLight}
+          accentTextColor={accentTextColor}
           onSave={handleSaveEditedPreset}
           onDelete={handleDeletePreset}
           onClose={() => {
@@ -733,6 +1033,11 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
           }}
         />
       )}
+
+      {/* Theme Selector Modal */}
+      {themeModalOpen && (
+        <ThemeModal onClose={() => setThemeModalOpen(false)} />
+      )}
     </div>
   );
 }
@@ -740,25 +1045,35 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
 // Preset Editor Modal Component
 function PresetEditorModal({
   preset,
+  isNew,
+  themeColors,
+  isLight,
+  accentTextColor,
   onSave,
   onDelete,
   onClose,
 }: {
   preset: ExamPreset;
+  isNew: boolean;
+  themeColors: ThemePack["colors"];
+  isLight: boolean;
+  accentTextColor: string;
   onSave: (preset: ExamPreset) => void;
   onDelete: (presetId: string) => void;
   onClose: () => void;
 }) {
   const [title, setTitle] = useState(preset.title);
   const [description, setDescription] = useState(preset.description || "");
-  const [sections, setSections] = useState<ExamSection[]>(preset.sections);
+  const [sections, setSections] = useState<Array<Omit<ExamSection, "durationMinutes"> & { durationMinutes: number | string }>>(() =>
+    preset.sections.map((s) => ({ ...s }))
+  );
 
   const handleAddSection = () => {
     const nextLetter = String.fromCharCode(65 + sections.length);
     setSections([
       ...sections,
       {
-        id: "sec-" + Date.now(),
+        id: "sec-" + Math.random().toString(36).substring(2, 9),
         name: `Section ${nextLetter}`,
         durationMinutes: 30,
       },
@@ -773,60 +1088,88 @@ function PresetEditorModal({
   const handleUpdateSection = (
     index: number,
     field: "name" | "durationMinutes",
-    value: string | number
+    value: string
   ) => {
     setSections(
       sections.map((s, i) => {
         if (i !== index) return s;
-        return {
-          ...s,
-          [field]: field === "durationMinutes" ? Math.max(1, Number(value) || 1) : value,
-        };
+        if (field === "durationMinutes") {
+          return { ...s, durationMinutes: value };
+        }
+        return { ...s, [field]: value };
       })
     );
   };
 
-  const totalMins = sections.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+  const handleBlurDuration = (index: number) => {
+    setSections(
+      sections.map((s, i) => {
+        if (i !== index) return s;
+        const val = Math.max(1, Math.min(360, parseInt(String(s.durationMinutes), 10) || 1));
+        return { ...s, durationMinutes: val };
+      })
+    );
+  };
+
+  const totalMins = sections.reduce((acc, s) => acc + (parseInt(String(s.durationMinutes), 10) || 0), 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || sections.length === 0) return;
+    const sanitizedSections: ExamSection[] = sections.map((s) => ({
+      id: s.id,
+      name: s.name.trim() || "Section",
+      durationMinutes: Math.max(1, Math.min(360, parseInt(String(s.durationMinutes), 10) || 1)),
+    }));
     onSave({
       ...preset,
       title: title.trim(),
       description: description.trim(),
-      sections,
+      sections: sanitizedSections,
     });
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-xl bg-[#fbf5ed] border border-[#d9c7b4] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-[#47322d]">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div
+        style={{
+          backgroundColor: themeColors.panel,
+          borderColor: themeColors.line,
+          color: themeColors.ink,
+        }}
+        className="w-full max-w-xl border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e2d2c1] bg-[#f4ebe0]">
+        <div
+          style={{
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.line,
+          }}
+          className="flex items-center justify-between px-6 py-4 border-b"
+        >
           <div>
-            <h3 className="text-lg font-bold text-[#47322d]">
-              {preset.id.startsWith("preset-")
-                ? "Create Exam Timer"
-                : "Edit Exam Schedule"}
+            <h3 style={{ color: themeColors.ink }} className="text-lg font-bold">
+              {isNew ? "Create Exam Timer" : "Edit Exam Schedule"}
             </h3>
-            <p className="text-xs text-[#8f6e66]">
+            <p style={{ color: themeColors.muted }} className="text-xs">
               Set section names and minute durations
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-[#8f6e66] hover:text-[#47322d] hover:bg-[#ebdcc9] transition-colors"
+            style={{ color: themeColors.muted }}
+            className="p-2 rounded-xl hover:text-ink hover:bg-elevated transition-colors"
           >
             <Icon name="close" className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scrollable Form Content */}
+        {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Title */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#78544c] mb-1.5">
+            <label style={{ color: themeColors.muted }} className="block text-xs font-semibold uppercase tracking-wider mb-1.5">
               Exam Title
             </label>
             <input
@@ -835,14 +1178,19 @@ function PresetEditorModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. NSU Final Examination"
-              style={{ backgroundColor: "#f3e9dc", color: "#47322d", colorScheme: "light" }}
-              className="w-full px-4 py-2.5 rounded-xl !bg-[#f3e9dc] border border-[#d9c7b4] !text-[#47322d] placeholder-[#a4847b] focus:outline-none focus:border-[#a9746e] text-sm font-medium"
+              style={{
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.line,
+                color: themeColors.ink,
+                colorScheme: isLight ? "light" : "dark",
+              }}
+              className="w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:border-brand text-sm font-semibold"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#78544c] mb-1.5">
+            <label style={{ color: themeColors.muted }} className="block text-xs font-semibold uppercase tracking-wider mb-1.5">
               Description (Optional)
             </label>
             <input
@@ -850,18 +1198,23 @@ function PresetEditorModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. 4-section exam with automated transitions"
-              style={{ backgroundColor: "#f3e9dc", color: "#47322d", colorScheme: "light" }}
-              className="w-full px-4 py-2 rounded-xl !bg-[#f3e9dc] border border-[#d9c7b4] !text-[#47322d] placeholder-[#a4847b] focus:outline-none focus:border-[#a9746e] text-xs"
+              style={{
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.line,
+                color: themeColors.ink,
+                colorScheme: isLight ? "light" : "dark",
+              }}
+              className="w-full px-4 py-2 rounded-xl border focus:outline-none focus:border-brand text-xs"
             />
           </div>
 
           {/* Sections List */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-[#78544c]">
+              <label style={{ color: themeColors.muted }} className="text-xs font-semibold uppercase tracking-wider">
                 Sections & Durations ({sections.length})
               </label>
-              <span className="text-xs font-mono font-bold text-[#a9746e]">
+              <span style={{ color: themeColors.accent }} className="text-xs font-mono font-bold">
                 Total: {totalMins}m ({formatDurationLabel(totalMins)})
               </span>
             </div>
@@ -870,9 +1223,13 @@ function PresetEditorModal({
               {sections.map((section, idx) => (
                 <div
                   key={section.id || idx}
-                  className="flex items-center gap-2 p-2 rounded-xl bg-[#f3e9dc] border border-[#e2d2c1]"
+                  style={{
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.line,
+                  }}
+                  className="flex items-center gap-2 p-2 rounded-xl border"
                 >
-                  <span className="text-xs font-bold text-[#8f6e66] w-6 text-center">
+                  <span style={{ color: themeColors.muted }} className="text-xs font-bold w-6 text-center">
                     #{idx + 1}
                   </span>
                   <input
@@ -881,8 +1238,13 @@ function PresetEditorModal({
                     value={section.name}
                     onChange={(e) => handleUpdateSection(idx, "name", e.target.value)}
                     placeholder="Section Name"
-                    style={{ backgroundColor: "#fbf5ed", color: "#47322d", colorScheme: "light" }}
-                    className="flex-1 px-3 py-1.5 rounded-lg !bg-[#fbf5ed] border border-[#d9c7b4] !text-[#47322d] text-sm focus:outline-none focus:border-[#a9746e]"
+                    style={{
+                      backgroundColor: themeColors.panel,
+                      borderColor: themeColors.line,
+                      color: themeColors.ink,
+                      colorScheme: isLight ? "light" : "dark",
+                    }}
+                    className="flex-1 px-3 py-1.5 rounded-lg border text-sm font-medium focus:outline-none focus:border-brand"
                   />
                   <div className="flex items-center gap-1.5">
                     <input
@@ -894,17 +1256,23 @@ function PresetEditorModal({
                       onChange={(e) =>
                         handleUpdateSection(idx, "durationMinutes", e.target.value)
                       }
-                      style={{ backgroundColor: "#fbf5ed", color: "#47322d", colorScheme: "light" }}
-                      className="w-20 px-3 py-1.5 rounded-lg !bg-[#fbf5ed] border border-[#d9c7b4] !text-[#47322d] text-sm font-mono text-center focus:outline-none focus:border-[#a9746e]"
+                      onBlur={() => handleBlurDuration(idx)}
+                      style={{
+                        backgroundColor: themeColors.panel,
+                        borderColor: themeColors.line,
+                        color: themeColors.ink,
+                        colorScheme: isLight ? "light" : "dark",
+                      }}
+                      className="w-20 px-3 py-1.5 rounded-lg border text-sm font-mono text-center focus:outline-none focus:border-brand font-bold"
                     />
-                    <span className="text-xs text-[#8f6e66]">min</span>
+                    <span style={{ color: themeColors.muted }} className="text-xs font-semibold">min</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveSection(idx)}
                     disabled={sections.length <= 1}
                     title="Delete this section"
-                    className="p-2 rounded-lg text-[#b85447] hover:bg-[#f3dbd7] disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                    className="p-2 rounded-lg text-rose-500 hover:bg-rose-500/15 disabled:opacity-25 disabled:pointer-events-none transition-colors"
                   >
                     <Icon name="trash" className="w-4 h-4" />
                   </button>
@@ -915,7 +1283,12 @@ function PresetEditorModal({
             <button
               type="button"
               onClick={handleAddSection}
-              className="mt-3 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-[#d9c7b4] hover:border-[#a9746e] hover:bg-[#a9746e]/10 text-[#a9746e] text-xs font-medium transition-colors w-full justify-center"
+              style={{
+                borderColor: themeColors.line,
+                color: themeColors.accent,
+                backgroundColor: `${themeColors.accent}12`,
+              }}
+              className="mt-3 flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-dashed font-semibold text-xs hover:brightness-110 transition-all w-full justify-center"
             >
               <Icon name="plus" className="w-4 h-4" />
               Add Another Section
@@ -923,12 +1296,15 @@ function PresetEditorModal({
           </div>
 
           {/* Footer Controls */}
-          <div className="flex items-center justify-between pt-4 border-t border-[#e2d2c1]">
+          <div
+            style={{ borderColor: themeColors.line }}
+            className="flex items-center justify-between pt-4 border-t"
+          >
             {!preset.isBuiltin && (
               <button
                 type="button"
                 onClick={() => onDelete(preset.id)}
-                className="px-3 py-2 rounded-xl bg-[#f5e3e0] hover:bg-[#eed3cf] text-[#9e463b] text-xs font-semibold transition-colors"
+                className="px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border border-rose-500/30 text-xs font-bold transition-colors"
               >
                 Delete
               </button>
@@ -937,13 +1313,22 @@ function PresetEditorModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl border border-[#d9c7b4] hover:bg-[#ebdcc9] text-[#6b4941] text-sm font-medium transition-colors"
+                style={{
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.line,
+                  color: themeColors.ink,
+                }}
+                className="px-4 py-2 rounded-xl border hover:brightness-105 text-sm font-semibold transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-[#a9746e] hover:bg-[#97645e] text-white text-sm font-bold transition-colors shadow-sm"
+                style={{
+                  backgroundColor: themeColors.accent,
+                  color: accentTextColor,
+                }}
+                className="px-5 py-2 rounded-xl font-bold text-sm transition-all shadow-sm hover:brightness-110 active:scale-[0.98]"
               >
                 Save
               </button>

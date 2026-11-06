@@ -1,7 +1,8 @@
+"use client";
+
 import {CustomSelect} from '@/components/CustomSelect';
 import {SideSettings} from './SideSettings';
 import type {ObjectTransform} from '@/lib/object-transform';
-"use client";
 import './selection-properties.css';
 import {useLayoutEffect,useRef,useState,type ReactNode} from 'react';
 

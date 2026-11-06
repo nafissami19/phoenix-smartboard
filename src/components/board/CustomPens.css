@@ -13,7 +13,7 @@
 .custom-pens button {
   min-height: 40px;
   padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-line);
   border-radius: 9px;
   background: var(--color-panel-2);
   color: inherit;
@@ -22,7 +22,7 @@
 }
 .custom-pens button:hover {
   background: var(--color-elevated);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--color-line-2);
 }
 .custom-pens button:focus-visible,
 .custom-pens input:focus-visible {
@@ -75,7 +75,7 @@
 .custom-pen-editor input:not([type=range]):not([type=checkbox]) {
   min-height: 40px;
   max-width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-line);
   border-radius: 9px;
   background: var(--color-panel-2);
   color: inherit;
@@ -124,17 +124,17 @@
   gap: 10px;
   min-height: 68px;
   padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-panel-2);
   font-size: 12px;
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .pen-store-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--color-elevated);
+  border-color: var(--color-line-2);
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
 }
@@ -172,9 +172,9 @@
 .custom-pen-menu button {
   display: flex;
   align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-line);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-panel-2);
   color: var(--color-ink);
   padding: 8px 12px;
   min-height: 44px;
@@ -184,8 +184,8 @@
   transition: all 0.16s ease;
 }
 .custom-pen-menu button:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.22);
+  background: var(--color-elevated);
+  border-color: var(--color-line-2);
   transform: translateY(-1px);
 }
 .custom-pen-menu button[aria-pressed=true] {

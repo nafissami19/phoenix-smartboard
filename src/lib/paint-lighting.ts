@@ -16,6 +16,9 @@ export function paintLight(slopeX:number,slopeY:number,roughness=.38){
 }
 export function paintShade(hex:string,slopeX:number,slopeY:number,roughness=.38){
  const {diffuse,specular}=paintLight(slopeX,slopeY,roughness);
- const channels=(hex.match(/[a-f0-9]{2}/gi)??['00','00','00']).map(v=>parseInt(v,16));
+ let h = hex.replace(/^#/, '');
+ if (h.length === 3) h = h.split('').map(c => c + c).join('');
+ const channels = (h.match(/[a-f0-9]{2}/gi) ?? ['00', '00', '00']).slice(0, 3).map(v => parseInt(v, 16));
+ while (channels.length < 3) channels.push(0);
  return '#'+channels.map(v=>Math.max(0,Math.min(255,Math.round(v*diffuse+255*specular))).toString(16).padStart(2,'0')).join('');
 }

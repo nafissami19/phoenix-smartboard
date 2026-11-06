@@ -56,6 +56,9 @@ export const DICTIONARY: Record<Locale, Record<string, string>> = {
     restore: "Restore",
     delete: "Delete",
     delete_permanent: "Delete permanently",
+    delete_all: "Delete all",
+    delete_all_permanent: "Delete all permanently",
+    refresh: "Refresh",
 
     // Recorder
     record: "Record",
@@ -120,6 +123,9 @@ export const DICTIONARY: Record<Locale, Record<string, string>> = {
     restore: "পুনরুদ্ধার করুন",
     delete: "মুছে ফেলুন",
     delete_permanent: "স্থায়ীভাবে মুছুন",
+    delete_all: "সব মুছে ফেলুন",
+    delete_all_permanent: "স্থায়ীভাবে সব মুছুন",
+    refresh: "রিফ্রেশ",
 
     // Recorder
     record: "রেকর্ড করুন",

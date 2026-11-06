@@ -34,7 +34,10 @@ export function CustomPens(){
 }
 function PenTest({pen}:{pen:CustomPen}){
  const [dark,setDark]=useState<boolean|null>(null);
- const rgb=pen.color.slice(1).match(/../g)?.map(v=>parseInt(v,16))??[0,0,0];const darkPaper=dark??(rgb[0]*.299+rgb[1]*.587+rgb[2]*.114>170);
+ let h=pen.color.replace(/^#/,'');
+ if(h.length===3)h=h.split('').map(c=>c+c).join('');
+ const rgb=h.match(/../g)?.map(v=>parseInt(v,16))??[0,0,0];
+ const darkPaper=dark??(rgb[0]*.299+rgb[1]*.587+rgb[2]*.114>170);
  const canvas=useRef<HTMLCanvasElement>(null),draft=useRef<StrokeObject|null>(null),strokes=useRef<StrokeObject[]>([]),active=useRef<number|null>(null),current=useRef(pen);current.current=pen;
  function redraw(){const c=canvas.current,ctx=c?.getContext('2d');if(!c||!ctx)return;ctx.clearRect(0,0,c.width,c.height);for(const stroke of strokes.current)drawStroke(ctx,stroke);if(draft.current)drawStroke(ctx,draft.current);}
  useEffect(()=>{const c=canvas.current;if(!c)return;let frame=0;const resize=()=>{const rect=c.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1),width=Math.max(1,Math.round(rect.width*dpr)),height=Math.max(1,Math.round(rect.height*dpr));if(c.width!==width||c.height!==height){c.width=width;c.height=height;c.getContext('2d')?.setTransform(dpr,0,0,dpr,0,0);redraw();}};const observer=new ResizeObserver(()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(resize);});observer.observe(c);resize();return()=>{observer.disconnect();cancelAnimationFrame(frame);};},[]);

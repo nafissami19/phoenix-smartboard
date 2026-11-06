@@ -2,7 +2,7 @@
   display: grid;
   gap: 12px;
   margin-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--color-line);
   padding-bottom: 16px;
 }
 .board-lab-palette > p {
@@ -19,9 +19,9 @@
 .board-lab-palette button {
   display: grid;
   gap: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-panel-2);
   padding: 12px 8px;
   min-height: 74px;
   color: var(--color-ink);
@@ -31,8 +31,8 @@
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .board-lab-palette button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--color-elevated);
+  border-color: var(--color-line-2);
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
 }
@@ -45,7 +45,7 @@
   display: grid;
   gap: 12px;
   padding: 12px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--color-line);
 }
 .board-lab-controls > strong {
   display: flex;
@@ -62,7 +62,7 @@
 .board-lab-controls input:not([type=range]) {
   min-height: 40px;
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-line);
   background: var(--color-panel-2);
   border-radius: 9px;
   padding: 8px 10px;
@@ -80,7 +80,7 @@
 }
 .board-lab-buttons button {
   flex: 1;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-line);
   border-radius: 9px;
   background: var(--color-panel-2);
   white-space: nowrap;
@@ -92,7 +92,7 @@
 }
 .board-lab-buttons button:hover {
   background: var(--color-elevated);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--color-line-2);
 }
 .board-lab-object {
   position: fixed;
@@ -132,7 +132,7 @@
   left: 50%;
   transform: translateX(-50%);
   max-width: calc(100vw - 24px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--color-line);
   background: rgba(18, 20, 28, 0.88);
   backdrop-filter: blur(24px) saturate(190%);
   -webkit-backdrop-filter: blur(24px) saturate(190%);

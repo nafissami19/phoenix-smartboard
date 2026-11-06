@@ -245,3 +245,8 @@ export async function deleteTrashSnapshot(id: string): Promise<void> {
   const { deleteSnapshot } = await import('./recovery');
   return deleteSnapshot(id);
 }
+
+export async function clearTrashSnapshots(): Promise<void> {
+  const { clearAllSnapshots } = await import('./recovery');
+  return clearAllSnapshots();
+}

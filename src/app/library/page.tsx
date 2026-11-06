@@ -7,7 +7,7 @@ import { CustomSelect } from '@/components/CustomSelect';
 import { localRequest } from "@/lib/local-store";
 import { useRouter, useSearchParams } from "@/lib/navigation";
 import { useApp } from "@/lib/app-context";
-import { useI18n, LanguageToggle } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
 import { Icon } from "@/components/Icon";
 import { BrandMark } from '@/components/BrandMark';
@@ -150,6 +150,22 @@ function LibraryInner() {
     }
   };
 
+  const handleDeleteAllTrash = async () => {
+    if (trashList.length === 0) return;
+    if (!confirm(`Permanently delete all ${trashList.length} recovery snapshot${trashList.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      const { clearTrashSnapshots } = await import('@/lib/local-store');
+      await clearTrashSnapshots();
+      push('All recovery snapshots permanently deleted.', 'info');
+      await loadTrash();
+    } catch (err) {
+      push(err instanceof Error ? err.message : 'Could not delete snapshots.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleNewLesson = () => {
     if (busy) return;
     fileInputRef.current?.click();
@@ -231,7 +247,6 @@ function LibraryInner() {
             </div>
           </div>
           <div className="kn-workspace-actions">
-            <LanguageToggle />
             <button
               onClick={() => router.push("/onboarding")}
               className="kn-focus flex items-center gap-2 rounded-xl border border-line px-4 py-2.5 text-sm text-muted hover:bg-elevated hover:text-ink"
@@ -307,20 +322,33 @@ function LibraryInner() {
 
         {activeTab === 'trash' ? (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">Deleted Lessons & Automatic Recovery Snapshots</h2>
                 <p className="text-xs text-muted mt-0.5">
                   Phoenix preserves up to 3 generations of deleted lessons in your device recovery store.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => void loadTrash()}
-                className="kn-focus flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:text-ink"
-              >
-                <Icon name="sync" className="h-3.5 w-3.5" /> Refresh
-              </button>
+              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                <button
+                  type="button"
+                  disabled={busy || trashLoading || trashList.length === 0}
+                  onClick={() => void handleDeleteAllTrash()}
+                  className="kn-focus flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/20 hover:border-red-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={t("delete_all_permanent", "Permanently delete all backup snapshots")}
+                >
+                  <Icon name="trash" className="h-3.5 w-3.5" />
+                  {t("delete_all", "Delete all")}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || trashLoading}
+                  onClick={() => void loadTrash()}
+                  className="kn-focus flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:text-ink transition-colors disabled:opacity-50"
+                >
+                  <Icon name="sync" className={`h-3.5 w-3.5 ${trashLoading ? 'animate-spin' : ''}`} /> {t("refresh", "Refresh")}
+                </button>
+              </div>
             </div>
             {trashLoading ? (
               <div className="p-8 text-center text-sm text-muted">Checking recovery store...</div>

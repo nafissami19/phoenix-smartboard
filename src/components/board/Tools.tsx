@@ -640,7 +640,9 @@ export function ConverterPanel({ onStamp }: { onStamp?: (text: string) => void }
               <button
                 key={c}
                 type="button"
-                className={`flex-1 rounded p-1 font-semibold ${category === c ? 'bg-brand text-white' : 'bg-elevated text-muted'}`}
+                className={`flex-1 rounded p-1 font-semibold border transition-colors ${
+                  category === c ? 'bg-brand text-white border-brand' : 'bg-elevated text-muted border-line hover:text-ink hover:border-line-2'
+                }`}
                 onClick={() => setCategory(c)}
               >
                 {c.toUpperCase()}
@@ -891,7 +893,7 @@ export function CountdownTimer() {
             setRunning(false);
             setRemaining(null);
           }}
-          className="kn-focus flex items-center gap-1.5 rounded-lg bg-elevated px-3 py-2 text-sm hover:bg-line"
+          className="kn-focus flex items-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-semibold text-ink hover:bg-line hover:border-line-2 transition-colors"
         >
           <Icon name="reset" className="h-4 w-4" />
           Reset
@@ -957,7 +959,7 @@ export function Stopwatch() {
             setRunning(false);
             setMs(0);
           }}
-          className="kn-focus flex items-center gap-1.5 rounded-lg bg-elevated px-3 py-2 text-sm hover:bg-line"
+          className="kn-focus flex items-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-semibold text-ink hover:bg-line hover:border-line-2 transition-colors"
         >
           <Icon name="reset" className="h-4 w-4" />
           Reset
@@ -1261,7 +1263,7 @@ function RotationControls({
     <div className="mt-2 flex items-center gap-2">
       <button
         onClick={() => setRotation(rotation - 15)}
-        className="kn-focus grid h-7 w-7 place-items-center rounded-md bg-elevated hover:bg-line"
+        className="kn-focus grid h-7 w-7 place-items-center rounded-md border border-line bg-elevated text-ink hover:bg-line hover:border-line-2 transition-colors"
         aria-label="Rotate left"
       >
         <Icon name="redo" className="h-4 w-4" />
@@ -1269,7 +1271,7 @@ function RotationControls({
       <span className="text-xs tabular-nums text-muted">{rotation}°</span>
       <button
         onClick={() => setRotation(rotation + 15)}
-        className="kn-focus grid h-7 w-7 place-items-center rounded-md bg-elevated hover:bg-line"
+        className="kn-focus grid h-7 w-7 place-items-center rounded-md border border-line bg-elevated text-ink hover:bg-line hover:border-line-2 transition-colors"
         aria-label="Rotate right"
       >
         <Icon name="undo" className="h-4 w-4" />
@@ -1379,8 +1381,8 @@ export function MagnifierOverlay({
               key={z}
               type="button"
               onClick={() => setZoom(z)}
-              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                zoom === z ? 'bg-brand text-white shadow-md' : 'bg-elevated text-muted hover:text-ink'
+              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all border ${
+                zoom === z ? 'bg-brand text-white border-brand shadow-md' : 'bg-elevated text-muted border-line hover:text-ink hover:border-line-2'
               }`}
             >
               {z}x
@@ -1391,7 +1393,7 @@ export function MagnifierOverlay({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full bg-red-500/20 px-3 py-1 font-semibold text-red-400 hover:bg-red-500/30 transition-all"
+          className="rounded-full bg-red-500/15 border border-red-500/30 px-3 py-1 font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/25 transition-all"
         >
           Exit
         </button>

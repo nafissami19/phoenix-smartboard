@@ -37,3 +37,15 @@ test('snapshot preflight includes page metadata and successful encoding leaves o
  assert.deepEqual(records.pages,[{id:'page',text:'editable'}]);assert.equal(records.preferences['phoenix-test'],'original');
  assert.equal('dataBase64' in records.assets[0],false);
 });
+
+test('smartboard 4K Ultra HD profile allocates full 3840px raster width and unconstrained canvas backing store',()=>{
+ const ultra=profileForMemory(undefined,'4k');
+ assert.equal(ultra.tier,'ultra');
+ assert.equal(ultra.pdfRenderWidth,3840);
+ assert.equal(ultra.maxCanvasPixels,12_000_000);
+ assert.equal(ultra.pdfPagePixels,9_000_000);
+ const high=profileForMemory(undefined,'8gb');
+ assert.equal(high.tier,'high');
+ assert.equal(high.pdfRenderWidth,3840);
+ assert.ok(high.maxCanvasPixels>=9_500_000);
+});

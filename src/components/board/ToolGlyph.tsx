@@ -20,6 +20,7 @@ export const TOOL_GLYPH_PATHS: Record<string, string> = {
   "noise-meter": "M4 11h5l6-5v20l-6-5H4zM22 10a8 8 0 0 1 0 12m4-16a13 13 0 0 1 0 20",
   pin: "M16 3l4 6h-8zM16 9v14M16 23l-3 6h6z",
   blind: "M4 4h24v24H4zM4 10h24M4 16h24M4 22h24",
+  "exam-timer": "M8 4h16v24H8zM12 9h8M12 14h8M12 19h5",
 };
 export function ToolGlyph({id}:{id:string}) {
   return <svg aria-hidden="true" width="34" height="34" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

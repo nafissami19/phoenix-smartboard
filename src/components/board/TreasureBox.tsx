@@ -10,20 +10,22 @@ import { ToolGlyph } from './ToolGlyph';
 export function TreasureBox({
   onSubjectTool,
   onOpenBackgrounds,
+  onOpenExamTimer,
   openTools,
   onToggle,
   onClose,
 }: {
   onSubjectTool: (tool: SubjectTool) => void;
   onOpenBackgrounds: () => void;
+  onOpenExamTimer?: () => void;
   openTools: Set<FloatingToolId>;
   onToggle: (id: FloatingToolId) => void;
   onClose: () => void;
 }) {
   const [search,setSearch]=useState('');
   const subjects:{id:SubjectTool;label:string;group:string}[]=[{id:'graph',label:'Graphs',group:'Mathematics'},{id:'solids',label:'3D shapes',group:'Mathematics'},{id:'chemistry',label:'Chemistry',group:'Chemistry'},{id:'periodic',label:'Periodic table',group:'Chemistry'},{id:'physics',label:'Physics',group:'Physics'}];
-  const entries=[...FLOATING_TOOLS.map(t=>({id:t.id,label:t.label,category:'Tools',group:t.group==='Math'?'Instruments':t.group==='Time'?'Time':'General tools',active:openTools.has(t.id),run:()=>onToggle(t.id)})),...subjects.map(t=>({...t,category:'Subjects',active:false,run:()=>onSubjectTool(t.id)})),{id:"backgrounds",label:"Subject backgrounds",category:"Subjects",group:"Backgrounds",active:false,run:onOpenBackgrounds}];
-  const keywords:Record<string,string>={physics:'circuits electricity resistor switch voltage current lens optics buoyancy water',chemistry:'equation balance reaction dilution concentration solution beaker colour color indicator ph acid base',periodic:'elements atoms chemistry',backgrounds:'discipline teaching sports courts football basketball backgrounds textures','noise-meter':'sound decibel volume microphone silence quiet classroom'};
+  const entries=[...FLOATING_TOOLS.map(t=>({id:t.id,label:t.label,category:'Tools',group:t.group==='Math'?'Instruments':t.group==='Time'?'Time':'General tools',active:openTools.has(t.id),run:()=>onToggle(t.id)})),...(onOpenExamTimer?[{id:'exam-timer',label:'Exam timer',category:'Tools',group:'Time',active:false,run:()=>{onClose();onOpenExamTimer();}}]:[]),...subjects.map(t=>({...t,category:'Subjects',active:false,run:()=>onSubjectTool(t.id)})),{id:"backgrounds",label:"Subject backgrounds",category:"Subjects",group:"Backgrounds",active:false,run:onOpenBackgrounds}];
+  const keywords:Record<string,string>={physics:'circuits electricity resistor switch voltage current lens optics buoyancy water',chemistry:'equation balance reaction dilution concentration solution beaker colour color indicator ph acid base',periodic:'elements atoms chemistry',backgrounds:'discipline teaching sports courts football basketball backgrounds textures','noise-meter':'sound decibel volume microphone silence quiet classroom','exam-timer':'exam test timer schedule sections bell countdown assessment'};
   const query=search.trim().toLowerCase();
   const filtered=entries.filter(t=>(t.label+' '+t.group+' '+(keywords[t.id]??'')).toLowerCase().includes(query));
   const groups=['Chemistry','Physics','Mathematics','Backgrounds','Instruments','Time','General tools'];

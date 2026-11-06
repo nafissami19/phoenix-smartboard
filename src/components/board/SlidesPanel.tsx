@@ -1,7 +1,8 @@
+"use client";
+
 import {isSpecial,drawSpecialPreview} from '@/lib/special-objects';
 import {loadBackgroundImage} from '@/lib/background-image';
 import {drawBackground} from '@/lib/render';
-"use client";
 import {memo,useEffect,useRef,useState,type PointerEvent} from "react";
 import type {Page} from "@/db/schema";
 import {drawObject} from "@/lib/render";

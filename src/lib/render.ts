@@ -680,11 +680,12 @@ export function drawBackground(
 }
 
 export function isColorDark(hex: string): boolean {
-  const c = hex.replace("#", "");
+  let c = hex.replace("#", "");
+  if (c.length === 3) c = c.split("").map((ch) => ch + ch).join("");
   if (c.length < 6) return true;
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
+  const r = parseInt(c.slice(0, 2), 16) || 0;
+  const g = parseInt(c.slice(2, 4), 16) || 0;
+  const b = parseInt(c.slice(4, 6), 16) || 0;
   return (r * 299 + g * 587 + b * 114) / 1000 < 128;
 }
 

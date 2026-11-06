@@ -1,3 +1,5 @@
+"use client";
+
 import type {SelectionSettings} from '@/lib/selection-region';
 import {SOLIDS,projectedSolid,type SolidKind} from '@/lib/solid-shapes';
 import {loadPenMenu,loadCustomPens,PEN_STORE_ITEMS} from '@/lib/brush-presets';
@@ -15,8 +17,6 @@ import {PenIllustration} from './PenIllustration';
 import {ToolPopover} from './ToolPopover';
 import type {LessonRecorderHandle} from './LessonRecorder';
 import {useI18n} from '@/lib/i18n';
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import "./ShapePalette.css";
 import { Icon, type IconName } from "@/components/Icon";
@@ -256,8 +256,8 @@ export function Toolbar({
                     type="button"
                     onClick={() => recorder.setMicEnabled((prev) => !prev)}
                     aria-label={recorder.micEnabled ? "Microphone enabled (click to mute)" : "Microphone disabled (click to enable)"}
-                    className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
-                      recorder.micEnabled ? "bg-brand/20 text-brand-light" : "bg-elevated text-muted line-through"
+                    className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      recorder.micEnabled ? "border-brand/30 bg-brand/20 text-brand-light" : "border-line bg-elevated text-muted line-through"
                     }`}
                   >
                     <Icon name={recorder.micEnabled ? "mic" : "micOff"} className="h-3.5 w-3.5" />

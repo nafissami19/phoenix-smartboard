@@ -1,8 +1,9 @@
+"use client";
+
 import {useI18n, LanguageToggle} from '@/lib/i18n';
 import {BoardFullscreen} from './BoardFullscreen';
 import {ThemeIcon} from './ThemeIcon';
 import {createPortal} from 'react-dom';
-"use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
@@ -37,6 +38,7 @@ const FILE_ITEMS: { id: string; key: string; label: string; icon: IconName }[] =
   { id: "special", key: "insert_object", label: "Insert object", icon: "play" },
   { id: "import", key: "import_file", label: "Import", icon: "import" },
   { id: "export", key: "export", label: "Export", icon: "export" },
+  { id: "exam-timer", key: "exam_timer", label: "Exam timer", icon: "timer" },
   { id: "print", key: "print", label: "Print", icon: "print" },
   { id: "settings", key: "settings", label: "Settings", icon: "settings" },
   { id: "themes", key: "themes", label: "Themes", icon: "board" },
@@ -47,7 +49,7 @@ const FILE_ITEMS: { id: string; key: string; label: string; icon: IconName }[] =
 
 const FILE_GROUPS=[
   {label:'Lesson',ids:['new','open','save','saveas']},
-  {label:'Import & share',ids:['special','import','export','print']},
+  {label:'Import & share',ids:['special','import','export','exam-timer','print']},
   {label:'Application',ids:['settings','themes','help','about','exit']},
 ];
 
@@ -109,7 +111,7 @@ export function FileMenu({
             style={{display:'flex',width:'100%',height:'auto',minHeight:44}}
             onClick={() => {
               onAction(item.id);
-              if(!['special','import','export','settings','themes','help','about'].includes(item.id))onClose();
+              if(!['special','import','export','settings','themes','help','about','exam-timer'].includes(item.id))onClose();
             }}
             className="kn-focus flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-elevated"
           >

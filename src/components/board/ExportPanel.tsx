@@ -1,7 +1,7 @@
-import {LoadingOverlay} from '@/components/LoadingOverlay';
-import {CustomSelect} from '@/components/CustomSelect';
 "use client";
 
+import {LoadingOverlay} from '@/components/LoadingOverlay';
+import {CustomSelect} from '@/components/CustomSelect';
 import {useEffect, useRef, useState} from 'react';
 import {Icon} from '@/components/Icon';
 import {Modal} from '@/components/board/Panels';

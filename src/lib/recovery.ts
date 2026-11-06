@@ -8,6 +8,7 @@ const recoveryDB=async()=>{
 };
 export async function snapshots(lessonId?:string):Promise<Snapshot[]>{const db=await recoveryDB();try{return (await db.getAll('snapshots')).filter((s:Snapshot)=>(!lessonId||s.lessonId===lessonId)).sort((a:Snapshot,b:Snapshot)=>b.savedAt-a.savedAt);}finally{db.close();}}
 export async function deleteSnapshot(id:string):Promise<void>{const db=await recoveryDB();try{await db.delete('snapshots',id);}finally{db.close();}}
+export async function clearAllSnapshots():Promise<void>{const db=await recoveryDB();try{await db.clear('snapshots');}finally{db.close();}}
 export type BackupTarget={label:string;directory:BackupDirectory};
 export async function backupTargets():Promise<BackupTarget[]>{const db=await recoveryDB();try{const targets=await db.get('settings','targets');if(targets)return targets;const old=await db.get('settings','directory');return old?[{label:'Local folder',directory:old}]:[];}finally{db.close();}}
 export async function backupDirectory(label='Local folder'){return (await backupTargets()).find(target=>target.label===label)?.directory;}

@@ -47,7 +47,9 @@
 .kn-theme-settings button,
 .kn-theme-actions a {
   min-height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-line);
+  background: var(--color-panel-2);
+  color: var(--color-ink);
   border-radius: 10px;
   padding: 8px 14px;
   font-weight: 550;
@@ -56,10 +58,11 @@
 .kn-theme-settings button:hover,
 .kn-theme-actions a:hover {
   background: var(--color-elevated);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--color-brand);
+  color: var(--color-ink);
 }
 .kn-theme-settings details {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--color-line);
   padding-top: 10px;
 }
 .kn-theme-settings summary {
@@ -115,7 +118,9 @@
 .kn-theme-save input {
   flex: 1;
   min-width: 140px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-line);
+  background: var(--color-base);
+  color: var(--color-ink);
   border-radius: 10px;
   padding: 10px 12px;
 }
@@ -186,6 +191,8 @@
 .kn-store-filters button {
   min-height: 40px;
   border: 1px solid var(--color-line);
+  background: var(--color-panel);
+  color: var(--color-muted);
   border-radius: 10px;
   padding: 8px 14px;
   font-size: 12px;
@@ -194,6 +201,7 @@
 }
 .kn-store-filters button:hover:not([aria-pressed=true]) {
   background: var(--color-elevated);
+  color: var(--color-ink);
 }
 .kn-store-filters button[aria-pressed=true] {
   background: var(--color-brand);

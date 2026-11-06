@@ -472,6 +472,18 @@ export function convertBase(input: string, fromBase: 10 | 16 | 2 | 8 = 10): Base
     return { dec: '0', hex: '0', bin: '0', oct: '0', formattedBin: '0000 0000' };
   }
 
+  const basePatterns: Record<number, RegExp> = {
+    2: /^[01]+$/,
+    8: /^[0-7]+$/,
+    10: /^-?[0-9]+$/,
+    16: /^[0-9a-fA-F]+$/,
+  };
+
+  const pattern = basePatterns[fromBase];
+  if (pattern && !pattern.test(clean)) {
+    throw new Error(`Invalid number "${clean}" for base ${fromBase}`);
+  }
+
   const num = parseInt(clean, fromBase);
   if (isNaN(num)) {
     throw new Error(`Invalid number "${clean}" for base ${fromBase}`);

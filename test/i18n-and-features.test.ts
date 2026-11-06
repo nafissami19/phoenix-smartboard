@@ -14,6 +14,7 @@ import {
   listTrashSnapshots,
   restoreTrashSnapshot,
   deleteTrashSnapshot,
+  clearTrashSnapshots,
   localRequest,
 } from '../src/lib/local-store';
 import { exportLesson } from '../src/lib/lesson-bundle';
@@ -126,4 +127,9 @@ test('trash recovery operations list, restore, and delete snapshots', async () =
   await deleteTrashSnapshot(snapshot.id);
   const remaining = await listTrashSnapshots();
   assert.ok(!remaining.some(item => item.id === snapshot.id));
+
+  // Test clearTrashSnapshots (delete all)
+  await clearTrashSnapshots();
+  const cleared = await listTrashSnapshots();
+  assert.equal(cleared.length, 0);
 });

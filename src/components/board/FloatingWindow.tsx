@@ -1,6 +1,6 @@
-import {controlCoordinates,CONTROL_LAYOUT_KEY,parseControlLayout} from '@/lib/control-layout';
 "use client";
 
+import {controlCoordinates,CONTROL_LAYOUT_KEY,parseControlLayout} from '@/lib/control-layout';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/Icon";
 

@@ -1,6 +1,7 @@
+"use client";
+
 import {initializeDisplay} from './smartboard';
 import {interfaceSettings} from './interface-settings';
-"use client";
 import {BUILTIN_THEMES,parseThemePack,isLightTheme,type ThemePack} from './theme-pack';
 import { localRequest } from "@/lib/local-store";
 

@@ -1,10 +1,10 @@
+"use client";
+
 import {getPerformanceProfile,subscribePerformance} from './performance';
 import {isSpecial,drawSpecialPreview} from './special-objects';
 import {readSelectionSettings,rectangleRegion,selectRegion,regionContainsBounds,type SelectionSettings} from './selection-region';
 import {readEraserMode,eraseSelection,type EraserMode} from './eraser-modes';
 import {transformObject,transformMedia,type ObjectTransform} from './object-transform';
-"use client";
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {mediaBounds,placeMediaInFrame} from "@/lib/media-layout";
 import {persistentObjects} from './pen-strokes';
@@ -29,6 +29,7 @@ import {
   setMediaWorkingSet,
   DOCX_RENDER_WIDTH,
   PDF_RENDER_WIDTH,
+  hasExactPdfPage,
   loadImage,
   loadPdf,
   peekDocx,
@@ -223,10 +224,28 @@ export function useWhiteboard(options: {
   const drawMediaItem = useCallback(
     (ctx: CanvasRenderingContext2D, m: MediaItem) => {
       if(isSpecial(m)){drawSpecialPreview(ctx,m);return;}
-      const cached=m.kind==='image'?peekImage(m.assetId):m.kind==='pdf'?peekPdfPage(m.assetId,m.pageNumber):peekDocx(m.assetId);
+      const profile = performanceProfile.current;
+      const canvas = canvasRef.current;
+      const currentDpr = canvas && canvas.clientWidth > 0 ? canvas.width / canvas.clientWidth : (typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1);
+      const neededWidth = Math.round(m.width * (viewRef.current?.scale ?? 1) * currentDpr);
+      let targetW = profile.pdfRenderWidth;
+      if (neededWidth <= 1200) targetW = Math.min(profile.pdfRenderWidth, 1200);
+      else if (neededWidth <= 1600) targetW = Math.min(profile.pdfRenderWidth, 1600);
+      else if (neededWidth <= 2400) targetW = Math.min(profile.pdfRenderWidth, 2400);
+      else targetW = profile.pdfRenderWidth;
+      targetW = Math.max(1200, targetW);
+
+      const cached = m.kind === 'image'
+        ? peekImage(m.assetId)
+        : m.kind === 'pdf'
+        ? peekPdfPage(m.assetId, m.pageNumber, targetW)
+        : peekDocx(m.assetId);
+
       if(!cached){ctx.save();ctx.fillStyle=backgroundRef.current;ctx.fillRect(m.x,m.y,m.width,m.height);ctx.strokeStyle='#7d8d99';ctx.strokeRect(m.x,m.y,m.width,m.height);ctx.fillStyle=parseInt(backgroundRef.current.slice(1),16)>0x888888?'#263c4b':'#ffffff';ctx.font='16px Arial';ctx.fillText(mediaErrors.current.get(m.id)?.message??'Loading document…',m.x+18,m.y+35,Math.max(100,m.width-36));ctx.restore();}
       const place = (source: CanvasImageSource) => {
         ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
         ctx.translate(m.x + m.width / 2, m.y + m.height / 2);
         ctx.rotate(m.rotation);
         ctx.scale(m.mirrorX?-1:1,m.mirrorY?-1:1);
@@ -249,10 +268,18 @@ export function useWhiteboard(options: {
         if (img) place(img);
         else kick(`img:${m.assetId}`, () => loadImage(m.assetId));
       } else if (m.kind === "pdf") {
-        const key = `pdf:${m.assetId}:${m.pageNumber}`;
-        const c = peekPdfPage(m.assetId, m.pageNumber);
-        if (c) place(c);
-        else kick(key, () => renderPdfPage(m.assetId, m.pageNumber, PDF_RENDER_WIDTH));
+        const hasExact = hasExactPdfPage(m.assetId, m.pageNumber, targetW);
+        const c = peekPdfPage(m.assetId, m.pageNumber, targetW);
+        if (c) {
+          place(c);
+          if (!hasExact) {
+            const key = `pdf:${m.assetId}:${m.pageNumber}:${Math.round(targetW)}`;
+            kick(key, () => renderPdfPage(m.assetId, m.pageNumber, targetW));
+          }
+        } else {
+          const key = `pdf:${m.assetId}:${m.pageNumber}:${Math.round(targetW)}`;
+          kick(key, () => renderPdfPage(m.assetId, m.pageNumber, targetW));
+        }
       } else if (m.kind === "docx") {
         const c = peekDocx(m.assetId);
         if (c) place(c);
@@ -264,6 +291,8 @@ export function useWhiteboard(options: {
 
   const paintScene = useCallback(
     (ctx: CanvasRenderingContext2D, v: View, cssW: number, cssH: number, dpr: number, excludeLaser = false) => {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       drawBackground(ctx, cssW, cssH, backgroundRef.current, patternRef.current, dpr,backgroundPicture.current);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const watermark=watermarkRef.current;
@@ -295,7 +324,10 @@ export function useWhiteboard(options: {
     const profile=performanceProfile.current;
     const cssW = canvas.clientWidth;
     const cssH = canvas.clientHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, profile.canvasDpr, Math.sqrt(profile.maxCanvasPixels / Math.max(1,cssW*cssH)));
+    const rawDpr = window.devicePixelRatio || 1;
+    const budgetDpr = Math.sqrt(profile.maxCanvasPixels / Math.max(1,cssW*cssH));
+    const minDpr = (profile.tier === 'high' || profile.tier === 'ultra') ? 1.0 : 0.75;
+    const dpr = Math.max(minDpr, Math.min(rawDpr, profile.canvasDpr, budgetDpr));
     if (cssW === 0 || cssH === 0) return;
     const bw = Math.floor(cssW * dpr);
     const bh = Math.floor(cssH * dpr);
@@ -303,6 +335,8 @@ export function useWhiteboard(options: {
       canvas.width = bw;
       canvas.height = bh;
     }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     const v = viewRef.current;
     if(draft.current&&performance.now()-draftCheckpoint.current>=profile.checkpointMs){draftCheckpoint.current=performance.now();draftCallback.current?.([...objectsRef.current,draft.current],mediaRef.current);}

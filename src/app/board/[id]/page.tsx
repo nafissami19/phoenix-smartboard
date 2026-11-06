@@ -1,3 +1,5 @@
+"use client";
+
 import {getPerformanceProfile} from '@/lib/performance';
 import {BRANDING} from '@/config/branding';
 import {InsertSpecialObject,SpecialObjectsLayer} from '@/components/board/SpecialObjects';
@@ -20,8 +22,8 @@ import {BoardPresets} from '@/components/BoardPresets';
 import {ControlLayoutEditor} from '@/components/board/ControlLayoutEditor';
 import {TeachingPreferences} from '@/components/TeachingPreferences';
 import {useLessonRecorder} from '@/components/board/LessonRecorder';
+import {ExamTimerModal} from '@/components/exam/ExamTimerModal';
 
-"use client";
 import { LocalAssistant } from "@/components/board/LocalAssistant";
 import { ResizeHandles } from "@/components/board/ResizeHandles";
 import { GeometryOverlay } from "@/components/board/GeometryOverlay";
@@ -64,7 +66,7 @@ import {
 import {FLOATING_TOOLS, type FloatingToolId, type MediaItem } from "@/lib/constants";
 import type { Notebook, Page } from "@/db/schema";
 
-type Modal = "special" | "backgrounds" | "themes" | "settings" | "help" | "about" | "import" | "export" | "board-tools" | null;
+type Modal = "special" | "backgrounds" | "themes" | "settings" | "help" | "about" | "import" | "export" | "board-tools" | "exam-timer" | null;
 
 export default function BoardPage() {
   const params = useParams();
@@ -657,6 +659,9 @@ export default function BoardPage() {
         case "about":
           setModal("about");
           break;
+        case "exam-timer":
+          setModal("exam-timer");
+          break;
       }
     },
     [router, flushSave, push, exportJSON, printPage],
@@ -1090,7 +1095,7 @@ export default function BoardPage() {
               )}
             </div>
             {panel === "treasure" && (
-              <TreasureBox onOpenBackgrounds={()=>{setPanel(null);setModal("backgrounds");}} onSubjectTool={tool=>setSubjectTool(tool)} openTools={openTools} onToggle={toggleTool} onClose={() => setPanel(null)} />
+              <TreasureBox onOpenBackgrounds={()=>{setPanel(null);setModal("backgrounds");}} onOpenExamTimer={()=>{setPanel(null);setModal("exam-timer");}} onSubjectTool={tool=>setSubjectTool(tool)} openTools={openTools} onToggle={toggleTool} onClose={() => setPanel(null)} />
             )}
           </>
         )}
@@ -1247,6 +1252,9 @@ export default function BoardPage() {
           onENB={exportENB}
           onPrint={printPage}
         />
+      )}
+      {modal === "exam-timer" && (
+        <ExamTimerModal onClose={() => setModal(null)} />
       )}
       </MenuScreenContext.Provider>
     </div>

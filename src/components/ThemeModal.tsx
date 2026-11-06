@@ -222,10 +222,10 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
                 role="tab"
                 aria-selected={activeCategory === cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap border ${
                   activeCategory === cat.id
-                    ? "bg-brand text-white shadow-sm"
-                    : "bg-panel-2 text-muted hover:text-ink hover:bg-elevated"
+                    ? "bg-brand text-white border-brand shadow-sm"
+                    : "bg-panel-2 text-muted border-line hover:text-ink hover:bg-elevated hover:border-line-2"
                 }`}
               >
                 {cat.label}
@@ -403,10 +403,10 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
                       <button
                         type="button"
                         disabled={savingThemeId === pack.id}
-                        className={`ml-auto text-xs px-3 py-1 rounded-lg font-semibold transition-colors ${
+                        className={`ml-auto text-xs px-3 py-1 rounded-lg font-semibold transition-colors border ${
                           isActive
-                            ? "bg-brand/15 text-brand"
-                            : "bg-panel text-ink group-hover:bg-brand group-hover:text-white"
+                            ? "bg-brand/15 text-brand border-brand/30"
+                            : "bg-panel text-ink border-line shadow-xs group-hover:bg-brand group-hover:text-white group-hover:border-brand"
                         }`}
                       >
                         {isActive ? "Active" : savingThemeId === pack.id ? "Applying..." : "Select"}

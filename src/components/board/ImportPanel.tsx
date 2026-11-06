@@ -1,9 +1,10 @@
+"use client";
+
 import './ImportPanel.css';
 import {database} from '@/lib/local-store';
 import {setWorkActivity} from '@/lib/work-journal';
 import {LoadingOverlay} from '@/components/LoadingOverlay';
 import {CustomSelect} from '@/components/CustomSelect';
-"use client";
 import { importPdfPages } from "@/lib/pdf-pages";
 import { importLesson } from "@/lib/lesson-bundle";
 import { useRouter } from "@/lib/navigation";
@@ -277,7 +278,21 @@ export function ImportPanel({
         </div>
       )}
 
-      {picked.some(p=>p.kind==='pdf')&&(<label className="mb-4 block text-sm">PDF import mode<CustomSelect aria-label="PDF import mode" value={pdfMode} onChange={e=>setPdfMode(e.target.value)} className="mt-1 block w-full rounded border border-line p-2"><option value="pages">Separate slides - one per PDF page</option><option value="object">Current slide - browse PDF pages here</option></CustomSelect><span className="kn-import-mode-hint">Textbooks: up to 1500 pages. Only the current and nearby pages are rendered.</span></label>)}
+      {picked.some(p=>p.kind==='pdf')&&(
+        <div className="mb-4 space-y-2">
+          <label className="block text-sm">PDF import mode
+            <CustomSelect aria-label="PDF import mode" value={pdfMode} onChange={e=>setPdfMode(e.target.value)} className="mt-1 block w-full rounded border border-line p-2">
+              <option value="pages">Separate slides - one per PDF page</option>
+              <option value="object">Current slide - browse PDF pages here</option>
+            </CustomSelect>
+            <span className="kn-import-mode-hint mt-1 block">Textbooks: up to 1500 pages. Only the current and nearby pages are rendered.</span>
+          </label>
+          <div className="rounded-lg border border-brand/30 bg-brand/10 p-2.5 text-xs text-ink flex items-center gap-2">
+            <span className="font-semibold text-brand">✨ Smart Board 4K Ultra-Crisp Active:</span>
+            <span>Vector text & graphics render at native display resolution for zero blurriness on large screens.</span>
+          </div>
+        </div>
+      )}
       {picked.some(p=>p.kind==='presentation')&&<fieldset disabled={busy} className="mb-4 rounded-xl border border-line p-3"><legend className="px-2 text-sm font-semibold">Presentation</legend><div className="grid grid-cols-2 gap-2">{(['editable','flattened'] as const).map(mode=><button type="button" key={mode} aria-pressed={presentationMode===mode} onClick={()=>setPresentationMode(mode)} className={`min-h-16 rounded-lg border p-3 text-left text-sm ${presentationMode===mode?'border-brand bg-brand/10':'border-line'}`}><strong className="block">{mode==='editable'?'Editable elements':'Flattened slides'}</strong><span className="mt-1 block text-xs text-muted">{mode==='editable'?'Edit text, shapes, images and supported media':'One image per slide; write over it'}</span></button>)}</div><p className="mt-2 text-xs text-muted">Editable mode detects embedded audio/video, YouTube links and Excel worksheets. Flattened mode keeps static previews. Complex layouts may differ; use PDF for closer fidelity.</p></fieldset>}
 
       {!archive&&picked.some(p=>p.kind!=="unsupported")&&<>

@@ -1,3 +1,5 @@
+"use client";
+
 import {SettingsSections} from '@/components/SettingsSections';
 import {DeviceStorage} from '@/components/DeviceStorage';
 import {PenStore} from '@/components/PenStore';
@@ -5,8 +7,7 @@ import {MenuScreen,MenuScreenContext} from './MenuScreen';
 import {BackupConnections} from '@/components/BackupConnections';
 import {BRANDING} from '@/config/branding';
 import {BrandMark} from '@/components/BrandMark';
-"use client";
-
+import {LanguageToggle} from '@/lib/i18n';
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { TeachingPreferences } from "@/components/TeachingPreferences";
 import packageInfo from "../../../package.json";
@@ -147,6 +148,9 @@ export function SettingsPanel({
           />
         </Field>
         <Field label="Opening screen text"><input value={splashText} maxLength={120} onChange={e=>setSplashText(e.target.value)} className="kn-focus w-full rounded-xl border border-line bg-base-2 px-4 py-2.5"/></Field>
+        <Field label="Language" hint="Switch application language between English and বাংলা (Bangla).">
+          <LanguageToggle />
+        </Field>
         <Field label="Your app icon" hint="PNG, JPEG or WebP. Installer icons are customized in the project build settings.">
           {iconData && <img src={iconData} alt="Your icon" className="mb-2 h-14 w-14 object-contain"/>}
           <input type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>5*1024*1024){setSaveError('Choose an image under 5 MB.');return;}const image=await createImageBitmap(file);const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;const scale=Math.min(256/image.width,256/image.height);canvas.getContext('2d')!.drawImage(image,(256-image.width*scale)/2,(256-image.height*scale)/2,image.width*scale,image.height*scale);image.close();setIconData(canvas.toDataURL('image/png'));}} className="w-full text-sm"/>
@@ -172,7 +176,12 @@ export function SettingsPanel({
           {id:'pens',label:'Pen store',description:'Manage the pens in your toolbar.',content:<PenStore/>},
           {id:'storage',label:'Storage & backup',description:'Save device copies and manage connected backups.',content:<><DeviceStorage/><BackupConnections/></>},
         ]}/>
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted">Language:</span>
+            <LanguageToggle />
+          </div>
+          <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
             className="kn-focus rounded-xl border border-line px-4 py-2.5 text-sm hover:bg-elevated"
@@ -186,6 +195,7 @@ export function SettingsPanel({
           >
             {saving ? "Saving…" : "Save"}
           </button>
+        </div>
         </div>
       </div>
     </Modal>

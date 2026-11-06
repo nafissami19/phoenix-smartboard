@@ -64,6 +64,13 @@ function trimMediaCanvases(protectedCanvas?:HTMLCanvasElement){
   for(const cache of caches)for(const [key,canvas] of cache){if(pixels<=getPerformanceProfile().mediaCachePixels&&cache.size<=16)break;if(canvas===protectedCanvas||isPinnedCanvas(cache,key))continue;cache.delete(key);pixels-=canvas.width*canvas.height;canvas.width=canvas.height=0;}
 }
 function keepPdfCanvas(key:string,canvas:HTMLCanvasElement){
+  const prefix=key.split(':').slice(0,2).join(':')+':';
+  for(const [k,old] of pageCanvasCache){
+    if(k!==key&&k.startsWith(prefix)&&old.width*old.height<=canvas.width*canvas.height){
+      pageCanvasCache.delete(k);
+      old.width=0;old.height=0;
+    }
+  }
   pageCanvasCache.delete(key);pageCanvasCache.set(key,canvas);
   trimMediaCanvases(canvas);
 }
@@ -98,11 +105,34 @@ export const DOCX_RENDER_WIDTH = 1400;
 export function peekImage(assetId: string): HTMLImageElement | undefined {
   return touchImage(assetId);
 }
+export function hasExactPdfPage(
+  assetId: string,
+  pageNumber: number,
+  targetW: number,
+): boolean {
+  return pageCanvasCache.has(`${assetId}:${pageNumber}:${Math.round(targetW)}`);
+}
 export function peekPdfPage(
   assetId: string,
   pageNumber: number,
+  targetW?: number,
 ): HTMLCanvasElement | undefined {
-  return cachedPdf(`${assetId}:${pageNumber}:${Math.round(PDF_RENDER_WIDTH)}`);
+  if (targetW !== undefined) {
+    const exact = cachedPdf(`${assetId}:${pageNumber}:${Math.round(targetW)}`);
+    if (exact) return exact;
+  }
+  const standard = cachedPdf(`${assetId}:${pageNumber}:${Math.round(PDF_RENDER_WIDTH)}`);
+  if (standard && (!targetW || standard.width >= targetW * 0.85)) return standard;
+  const prefix = `${assetId}:${pageNumber}:`;
+  let best: HTMLCanvasElement | undefined;
+  let bestPixels = 0;
+  for (const [key, canvas] of pageCanvasCache) {
+    if (key.startsWith(prefix) && canvas.width * canvas.height > bestPixels) {
+      best = canvas;
+      bestPixels = canvas.width * canvas.height;
+    }
+  }
+  return best ?? standard;
 }
 export function peekDocx(assetId: string): HTMLCanvasElement | undefined {
   return docxCanvasCache.get(assetId);
@@ -171,11 +201,14 @@ export async function renderPdfPage(
     try{
     const doc=await loadPdf(assetId);page=await doc.getPage(pageNumber);
     const base=page.getViewport({scale:1});
-    // Bound memory on tablets instead of multiplying every page by DPR twice.
-    const scale=Math.min(targetW/base.width,Math.sqrt(pdfPixelLimit()/(base.width*base.height)),4096/Math.max(base.width,base.height));
+    // Support native 4K UHD smartboard presentations and HiDPI screens
+    const maxDimension=Math.max(4096,Math.round(targetW));
+    const scale=Math.min(targetW/base.width,Math.sqrt(pdfPixelLimit()/(base.width*base.height)),maxDimension/Math.max(base.width,base.height));
     const viewport=page.getViewport({scale});canvas=document.createElement('canvas');
     canvas.width=Math.max(1,Math.ceil(viewport.width));canvas.height=Math.max(1,Math.ceil(viewport.height));
     const ctx=canvas.getContext('2d');if(!ctx)throw new Error('The document renderer is temporarily unavailable.');
+    ctx.imageSmoothingEnabled=true;
+    ctx.imageSmoothingQuality='high';
     await page.render({canvas,canvasContext:ctx,viewport,background:'rgba(0,0,0,0)'}).promise;
     keepPdfCanvas(key,canvas);return canvas;
     }catch(error){if(canvas)canvas.width=canvas.height=0;throw error;}finally{page?.cleanup();activePdfRenders.set(assetId,Math.max(0,(activePdfRenders.get(assetId)??1)-1));}
