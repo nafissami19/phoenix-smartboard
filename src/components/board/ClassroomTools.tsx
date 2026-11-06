@@ -9,25 +9,34 @@ export function NoiseMeter({ onClose }: { onClose: () => void }) {
   const [threshold, setThreshold] = useState<number>(65);
   const [isAlert, setIsAlert] = useState(false);
   const [error, setError] = useState('');
+  // Read by the analyser loop so moving the slider never re-acquires the microphone.
+  const thresholdRef = useRef(threshold);
+  useEffect(() => { thresholdRef.current = threshold; }, [threshold]);
 
   useEffect(() => {
     let audioCtx: AudioContext | undefined;
     let stream: MediaStream | undefined;
     let timer: number | undefined;
+    let cancelled = false;
 
     async function initAudio() {
       try {
         const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         audioCtx = new AudioContextClass();
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const granted = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Unmounted (or effect re-run) while the permission prompt was open: release the mic and stop.
+        if (cancelled) { granted.getTracks().forEach(t => t.stop()); return; }
+        stream = granted;
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
         source.connect(analyser);
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        let smoothed = 30, lastPaint = 0;
 
-        const check = () => {
+        const check = (now = performance.now()) => {
+          if (cancelled) return;
           analyser.getByteFrequencyData(dataArray);
           let sum = 0;
           for (let i = 0; i < dataArray.length; i++) {
@@ -36,12 +45,12 @@ export function NoiseMeter({ onClose }: { onClose: () => void }) {
           const avg = sum / dataArray.length;
           // Scale roughly to 20 - 100 dB
           const approxDb = Math.round(20 + (avg / 255) * 80);
-          setLevel(prev => Math.round(prev * 0.7 + approxDb * 0.3));
-
-          if (approxDb > threshold) {
-            setIsAlert(true);
-          } else {
-            setIsAlert(false);
+          smoothed = smoothed * 0.7 + approxDb * 0.3;
+          // Sample every frame but re-render only ~10x/second.
+          if (now - lastPaint >= 100) {
+            lastPaint = now;
+            setLevel(Math.round(smoothed));
+            setIsAlert(approxDb > thresholdRef.current);
           }
 
           timer = window.requestAnimationFrame(check);
@@ -54,11 +63,12 @@ export function NoiseMeter({ onClose }: { onClose: () => void }) {
 
     void initAudio();
     return () => {
+      cancelled = true;
       if (timer) window.cancelAnimationFrame(timer);
       stream?.getTracks().forEach(t => t.stop());
       void audioCtx?.close();
     };
-  }, [threshold]);
+  }, []);
 
   const trafficState = level > threshold ? 'red' : level > threshold - 15 ? 'yellow' : 'green';
 
@@ -67,15 +77,15 @@ export function NoiseMeter({ onClose }: { onClose: () => void }) {
       <div className="noise-meter-container select-none p-2">
         <div className="noise-meter-traffic-light">
           <div
-            className={`noise-light bg-emerald-500 text-emerald-400 ${trafficState === 'green' ? 'is-active' : ''}`}
+            className={`noise-light bg-success text-success ${trafficState === 'green' ? 'is-active' : ''}`}
             title="Quiet / Good Study Level"
           />
           <div
-            className={`noise-light bg-amber-400 text-amber-300 ${trafficState === 'yellow' ? 'is-active' : ''}`}
+            className={`noise-light bg-warn text-warn ${trafficState === 'yellow' ? 'is-active' : ''}`}
             title="Moderate Whispering"
           />
           <div
-            className={`noise-light bg-red-500 text-red-400 ${trafficState === 'red' ? 'is-active animate-pulse' : ''}`}
+            className={`noise-light bg-danger text-danger ${trafficState === 'red' ? 'is-active motion-safe:animate-pulse' : ''}`}
             title="Too Noisy!"
           />
         </div>
@@ -85,7 +95,7 @@ export function NoiseMeter({ onClose }: { onClose: () => void }) {
         </div>
 
         {isAlert && (
-          <div className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-400 animate-bounce">
+          <div role="status" className="rounded-full bg-danger-subtle px-3 py-1 text-xs font-bold text-danger motion-safe:animate-bounce">
             🤫 Shh! Quiet Please!
           </div>
         )}
@@ -99,6 +109,8 @@ export function NoiseMeter({ onClose }: { onClose: () => void }) {
             type="range"
             min={40}
             max={90}
+            aria-label="Noise threshold"
+            aria-valuetext={`${threshold} dB`}
             value={threshold}
             onChange={e => setThreshold(Number(e.target.value))}
             className="kn-range w-full"
@@ -109,7 +121,7 @@ export function NoiseMeter({ onClose }: { onClose: () => void }) {
           Adjust the threshold slider to match your classroom's quiet study expectations.
         </p>
 
-        {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
+        {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       </div>
     </FloatingWindow>
   );
@@ -153,7 +165,7 @@ export function SpotlightDimmer({ onClose }: { onClose: () => void }) {
   const rectH = Math.round(size * 0.65);
 
   return (
-    <div className="fixed inset-0 z-40 select-none overflow-hidden" role="dialog" aria-label="Cinema Spotlight Dimmer">
+    <div className="fixed inset-0 z-(--z-panel) select-none overflow-hidden" role="dialog" aria-label="Cinema Spotlight Dimmer">
       {/* Darkened backdrop with aperture mask */}
       <svg className="fixed inset-0 h-full w-full pointer-events-none z-40">
         <defs>
@@ -204,7 +216,7 @@ export function SpotlightDimmer({ onClose }: { onClose: () => void }) {
 
       {/* Floating control pill */}
       <div
-        className="fixed z-50 flex items-center gap-2.5 rounded-full border border-white/20 bg-slate-900/90 backdrop-blur-xl px-4 py-2 text-white shadow-2xl pointer-events-auto"
+        className="fixed z-50 flex items-center gap-2.5 rounded-full border border-line-2 bg-panel/90 backdrop-blur-md px-4 py-2 text-ink shadow-3 pointer-events-auto"
         style={{
           left: Math.max(16, Math.min(window.innerWidth - 380, pos.x - 170)),
           top: pos.y + (shape === 'circle' ? size / 2 : rectH / 2) + 16 > window.innerHeight - 70
@@ -215,14 +227,16 @@ export function SpotlightDimmer({ onClose }: { onClose: () => void }) {
         <div className="flex items-center rounded-lg bg-white/10 p-0.5 text-xs font-semibold">
           <button
             type="button"
-            className={`px-2.5 py-1 rounded-md transition ${shape === 'circle' ? 'bg-brand text-white shadow' : 'text-white/70 hover:text-white'}`}
+            aria-pressed={shape === 'circle'}
+            className={`px-2.5 py-1 rounded-md transition ${shape === 'circle' ? 'bg-brand text-on-brand shadow' : 'text-white/70 hover:text-white'}`}
             onClick={() => setShape('circle')}
           >
             Circle
           </button>
           <button
             type="button"
-            className={`px-2.5 py-1 rounded-md transition ${shape === 'rect' ? 'bg-brand text-white shadow' : 'text-white/70 hover:text-white'}`}
+            aria-pressed={shape === 'rect'}
+            className={`px-2.5 py-1 rounded-md transition ${shape === 'rect' ? 'bg-brand text-on-brand shadow' : 'text-white/70 hover:text-white'}`}
             onClick={() => setShape('rect')}
           >
             Rect
@@ -235,6 +249,7 @@ export function SpotlightDimmer({ onClose }: { onClose: () => void }) {
             type="range"
             min={140}
             max={560}
+            aria-label="Spotlight size"
             value={size}
             onChange={(e) => setSize(Number(e.target.value))}
             className="kn-range w-20 accent-brand-light"
@@ -248,6 +263,8 @@ export function SpotlightDimmer({ onClose }: { onClose: () => void }) {
             min={0.4}
             max={0.92}
             step={0.05}
+            aria-label="Dim amount"
+            aria-valuetext={`${Math.round(opacity * 100)}%`}
             value={opacity}
             onChange={(e) => setOpacity(Number(e.target.value))}
             className="kn-range w-16 accent-brand-light"
@@ -258,7 +275,7 @@ export function SpotlightDimmer({ onClose }: { onClose: () => void }) {
           type="button"
           onClick={onClose}
           aria-label="Close Spotlight"
-          className="ml-1 rounded-full p-1 text-white/70 hover:bg-white/15 hover:text-white transition"
+          className="ml-1 grid min-h-11 min-w-11 place-items-center rounded-full p-1 text-white/70 hover:bg-white/15 hover:text-white transition"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />

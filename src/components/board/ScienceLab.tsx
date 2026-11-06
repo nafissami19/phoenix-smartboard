@@ -133,7 +133,7 @@ export function ScienceLab({onInsert}:{onInsert:(url:string,width:number,height:
       <div className="flex items-center justify-between rounded-xl border border-line bg-base px-3 py-2 text-xs text-muted">
         <span>Displacement: <strong className="font-mono text-ink">{displacement.toFixed(1)} mL</strong></span>
         <span>Buoyant force: <strong className="font-mono text-ink">{(displacement*fluidDensity*9.81/1000).toFixed(2)} N</strong></span>
-        {total > 500 && <span className="font-semibold text-amber-400">Overflow: {(total-500).toFixed(1)} mL</span>}
+        {total > 500 && <span className="font-semibold text-warn">Overflow: {(total-500).toFixed(1)} mL</span>}
       </div>
 
       <div className="flex gap-2">
@@ -144,7 +144,7 @@ export function ScienceLab({onInsert}:{onInsert:(url:string,width:number,height:
           Insert diagram
         </button>
       </div>
-      {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

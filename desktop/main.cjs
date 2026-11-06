@@ -21,6 +21,10 @@ app.whenReady().then(async () => {
   const display=require('./display-annotation.cjs').install({app,BrowserWindow,ipcMain,getMain:()=>mainWindow,getFolder:()=>folder});
 
   session.defaultSession.on('will-download',(_event,item)=>{const name=path.basename(item.getFilename()).replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,180)||'export';const folder=path.join(library.root,'Exports');try{require('node:fs').mkdirSync(folder,{recursive:true});item.setSavePath(path.join(folder,`${Date.now()}-${name}`));}catch{/* Let Electron offer the normal save dialog if the device folder is unavailable. */}});
+  // Containment by path.relative: a sibling such as "dist-evil" is not inside "dist".
+  const inside = (root, target) => { const relative = path.relative(root, target); return relative === '' || (relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative)); };
+  // Only plain web links leave the app; credentials in a URL are refused.
+  const externalLink = value => { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : undefined; } catch { return undefined; } };
   const appDistDir = path.resolve(__dirname, '../dist');
   const desktopDir = path.resolve(__dirname);
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => {
@@ -28,7 +32,7 @@ app.whenReady().then(async () => {
     if (!url.startsWith('file://')) return callback(false);
     try {
       const resolved = path.resolve(fileURLToPath(url));
-      const allowed = resolved.startsWith(appDistDir) || resolved.startsWith(desktopDir);
+      const allowed = inside(appDistDir, resolved) || inside(desktopDir, resolved);
       callback(allowed && ['media', 'fullscreen'].includes(permission));
     } catch {
       callback(false);
@@ -65,6 +69,9 @@ app.whenReady().then(async () => {
       window.webContents.send('phoenix-device-flush');
       if(!closeTimer)closeTimer=setTimeout(()=>{closingAllowed=true;window.close();},15000);
     });
+    // Once the flush finished or the 15s fallback fired, a renderer beforeunload veto
+    // (for example saves that keep failing) must not cancel the close forever.
+    window.webContents.on('will-prevent-unload',event=>{if(closingAllowed||!ready)event.preventDefault();});
     window.on('closed',()=>{
       clearTimeout(closeTimer);
       ipcMain.removeListener('phoenix-device-close-ready',saved);
@@ -72,9 +79,8 @@ app.whenReady().then(async () => {
     window.center(); window.setMenuBarVisibility(false);
     const appDistFile = path.resolve(__dirname, '../dist/index.html');
     window.webContents.setWindowOpenHandler(({ url }) => {
-      if (url.startsWith('https://') || url.startsWith('http://')) {
-        void shell.openExternal(url);
-      }
+      const link = externalLink(url);
+      if (link) void shell.openExternal(link);
       return { action: 'deny' };
     });
     window.webContents.on('will-navigate', (event, url) => {

@@ -1,7 +1,10 @@
 import {getPerformanceProfile,isUserInteracting} from './performance';
 import {encodeDeviceSnapshot,preflightDeviceSnapshot,type SnapshotRecords} from './device-snapshot-encoding';
 import {Capacitor,registerPlugin} from '@capacitor/core';
-import {database} from './local-store';
+import {database,sanitizeProfile} from './local-store';
+import {DEFAULT_PROFILE} from './profile-defaults';
+import {uid} from './constants';
+import type {AppProfile} from '../db/schema';
 export type DeviceStatus={available:boolean;folder?:string|null;savedAt?:number|null;error?:string;restored?:boolean};
 type NativeLibrary={onFlush?:(callback:()=>Promise<void>)=>()=>void;status:()=>Promise<DeviceStatus>;choose:()=>Promise<DeviceStatus>;read:()=>Promise<{data:string|null}>;write:(data:string)=>Promise<{savedAt:number;folder?:string}>};
 declare global{interface Window{phoenixDeviceLibrary?:NativeLibrary;phoenixDisplay?:{start:()=>Promise<unknown>;command:(action:string,value?:unknown)=>Promise<unknown>;onState:(callback:(state:unknown)=>void)=>()=>void};}}
@@ -10,7 +13,7 @@ export function deviceBridge():NativeLibrary|undefined{
  if(window.phoenixDeviceLibrary)return window.phoenixDeviceLibrary;
  if(Capacitor.getPlatform()==='android')return {...android,status:()=>android.status(),choose:()=>android.choose(),read:()=>android.read(),write:data=>android.write({data})};
 }
-let status:DeviceStatus={available:false},initialized=false,dirty=false,timer:ReturnType<typeof setTimeout>|undefined,writing:Promise<void>|undefined;
+let status:DeviceStatus={available:false},initialized=false,dirty=false,dirtySince=0,timer:ReturnType<typeof setTimeout>|undefined,writing:Promise<void>|undefined;
 const publish=(next:DeviceStatus)=>{status=next;window.dispatchEvent(new CustomEvent('phoenix-device-status',{detail:status}));};
 export const deviceStatus=()=>status;
 async function encodeOffThread(records:SnapshotRecords):Promise<string>{
@@ -38,8 +41,12 @@ export async function restoreDeviceSnapshot(data:string){
  for(const page of value.pages)if(typeof page.id!=='string'||!ids.has(page.notebookId)||!Array.isArray(page.objects)||!Array.isArray(page.media)||page.media.some((m:any)=>!assetIds.has(m.assetId)))throw new Error('Invalid pages in device copy.');
  const assets=value.assets.map((asset:any)=>{if(typeof asset.id!=='string'||!ids.has(asset.notebookId)||typeof asset.dataBase64!=='string'||asset.dataBase64.length>36*1024*1024||!(/^[A-Za-z0-9+/]*={0,2}$/).test(asset.dataBase64))throw new Error('Invalid attachment in device copy.');const {dataBase64,...record}=asset;return {...record,blob:new Blob([Uint8Array.from(atob(dataBase64),c=>c.charCodeAt(0))],{type:record.mimeType})};});
  const dates=(record:any)=>({...record,createdAt:new Date(record.createdAt),updatedAt:new Date(record.updatedAt)});
+ // The profile passes the same sanitiser as PUT /api/profile; a bad theme is dropped rather than failing recovery.
+ let profile:AppProfile|undefined;if(value.profile&&typeof value.profile==='object'){const now=new Date(),created=new Date(value.profile.createdAt),base={...DEFAULT_PROFILE,createdAt:Number.isFinite(created.getTime())?created:now};try{profile=sanitizeProfile(base,value.profile,now);}catch{const {theme:_theme,themePacks:_packs,...rest}=value.profile;profile=sanitizeProfile(base,rest,now);}}
+ // Every lesson needs a slide to open; give an empty restored lesson one blank page.
+ const paged=new Set(value.pages.map((p:any)=>p.notebookId)),blanks=value.notebooks.filter((n:any)=>!paged.has(n.id)).map((n:any)=>({id:uid(),notebookId:n.id,position:0,background:profile?.boardBg??DEFAULT_PROFILE.boardBg,pattern:profile?.boardPattern??DEFAULT_PROFILE.boardPattern,objects:[],media:[],createdAt:new Date(),updatedAt:new Date()}));
  const db=await database();try{const tx=db.transaction(['profile','notebooks','pages','assets'],'readwrite',{durability:'strict'});if(await tx.objectStore('notebooks').count()){tx.abort();await tx.done.catch(()=>{});throw new Error('Existing lessons were kept. Device recovery only fills an empty library.');}
-  if(value.profile)await tx.objectStore('profile').put({...dates(value.profile),id:1});for(const n of value.notebooks)await tx.objectStore('notebooks').put(dates(n));for(const p of value.pages)await tx.objectStore('pages').put(dates(p));for(const a of assets)await tx.objectStore('assets').put(a);await tx.done;
+  if(profile)await tx.objectStore('profile').put({...profile,id:1});for(const n of value.notebooks)await tx.objectStore('notebooks').put({...dates(n),...(paged.has(n.id)?{}:{pageCount:1})});for(const p of value.pages)await tx.objectStore('pages').put(dates(p));for(const p of blanks)await tx.objectStore('pages').put(p);for(const a of assets)await tx.objectStore('assets').put(a);await tx.done;
  }finally{db.close();}
  if(value.preferences&&typeof value.preferences==='object')for(const [key,item] of Object.entries(value.preferences))if(key.startsWith('phoenix-')&&typeof item==='string'){try{localStorage.setItem(key,item);}catch{}}
 }
@@ -47,21 +54,26 @@ export async function initializeDeviceLibrary(){
  const bridge=deviceBridge();if(!bridge){initialized=true;return;}
  try{status=await bridge.status();if(status.folder){const db=await database();const count=await db.count('notebooks');db.close();if(!count){const copy=await bridge.read();if(copy.data){await restoreDeviceSnapshot(copy.data);status={...status,restored:true};}}}publish(status);}catch(error){publish({...status,available:true,error:error instanceof Error?error.message:'Device recovery failed. Your device files were kept.'});}finally{initialized=true;}
  if(status.folder&&!status.error)scheduleDeviceSave();
- window.addEventListener('phoenix-preferences-changed',scheduleDeviceSave);
+ // Preferences live in localStorage and are read when each snapshot is built. Lesson
+ // edits schedule saves through localRequest; preference edits call markPreferencesChanged.
+ for(const name of ['phoenix-preferences-changed','phoenix-pen-store-updated','phoenix-layout-updated','phoenix-display-changed'])window.addEventListener(name,markPreferencesChanged);
  const isPrefKey=(k:string)=>k.startsWith('phoenix-')&&!k.includes('-view:')&&!k.includes('-last-page:');
- if(!(Storage.prototype as any).__phoenixPatched){
-  (Storage.prototype as any).__phoenixPatched=true;
-  const originalSet=Storage.prototype.setItem,originalRemove=Storage.prototype.removeItem;
-  Storage.prototype.setItem=function(key,value){originalSet.call(this,key,value);if(this===localStorage&&isPrefKey(key))scheduleDeviceSave();};
-  Storage.prototype.removeItem=function(key){originalRemove.call(this,key);if(this===localStorage&&isPrefKey(key))scheduleDeviceSave();};
- }
  bridge.onFlush?.(async()=>{const detail:{pending:Promise<unknown>[]}={pending:[]};window.dispatchEvent(new CustomEvent('phoenix-flush-board',{detail}));await Promise.all(detail.pending);scheduleDeviceSave();await flushDeviceSave();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)void flushDeviceSave();});
  window.addEventListener('pagehide',()=>{void flushDeviceSave();});
  window.addEventListener('storage',event=>{if(event.key&&isPrefKey(event.key))scheduleDeviceSave();});
 }
 function idleDeviceSave(){timer=undefined;if(isUserInteracting()&&!document.hidden){timer=setTimeout(idleDeviceSave,2000);return;}void flushDeviceSave();}
-export function scheduleDeviceSave(){if(!initialized||!deviceBridge()||!status.folder||status.error)return;dirty=true;if(!timer&&!writing)timer=setTimeout(idleDeviceSave,getPerformanceProfile().tier==='low'?30000:15000);}
+// Each full device copy re-reads every lesson and file, so saves are debounced: they
+// wait for a quiet spell, but never longer than maxWait after the first unsaved edit.
+// A save in progress is never overlapped; its completion reschedules pending edits.
+export function scheduleDeviceSave(){
+ if(!initialized||!deviceBridge()||!status.folder||status.error)return;if(!dirty)dirtySince=Date.now();dirty=true;if(writing)return;
+ const low=getPerformanceProfile().tier==='low',quiet=low?20000:8000,maxWait=low?120000:60000;
+ if(timer)clearTimeout(timer);timer=setTimeout(idleDeviceSave,Math.max(0,Math.min(quiet,dirtySince+maxWait-Date.now())));
+}
+/** Call after writing a phoenix-* preference that belongs in the device copy. */
+export function markPreferencesChanged(){scheduleDeviceSave();}
 export function flushDeviceSave():Promise<void>{
  if(writing)return writing.then(()=>dirty&&!status.error?flushDeviceSave():undefined);if(timer){clearTimeout(timer);timer=undefined;}
  const bridge=deviceBridge();if(!bridge||!status.folder||!dirty)return Promise.resolve();dirty=false;

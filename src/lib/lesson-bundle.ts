@@ -12,15 +12,24 @@ const safeParse = (source: string) => JSON.parse(source, (key, value) => {
   if (key === '__proto__' || key === 'constructor' || key === 'prototype') return undefined;
   return value;
 });
+// Formats this app (and its earlier Kopy Notes builds) wrote, with their versions.
+const FORMATS: Record<string, readonly number[]> = {'phoenix-smartboard': [1, 2], 'kopy-notes': [1, 2]};
+const SHAPES = ['line','rect','ellipse','arrow','triangle','star','diamond','pentagon','hexagon','circle','righttriangle','parallelogram','trapezoid'];
+const bounded = (value: unknown, limit = 1000000) => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit;
+const optionalBounded = (value: unknown, limit = 1000000) => value === undefined || bounded(value, limit);
 
 
-export async function exportLesson(id: string): Promise<Blob> {
+/** With pageIds, only those slides and the files they reference are exported. */
+export async function exportLesson(id: string, options: {pageIds?: readonly string[]} = {}): Promise<Blob> {
   const db=await database();
   try {
     const tx=db.transaction(['notebooks','pages','assets'],'readonly');
     const notebook=await tx.objectStore('notebooks').get(id); if(!notebook)throw new Error('Lesson not found');
-    const pages=(await tx.objectStore('pages').index('notebookId').getAll(id)).sort((a,b)=>a.position-b.position);
-    const assets=await tx.objectStore('assets').index('notebookId').getAll(id);await tx.done;
+    // A slide export reads only those slides and their files, not the whole lesson.
+    const selected=options.pageIds&&(await Promise.all(options.pageIds.map(pageId=>tx.objectStore('pages').get(pageId)))).filter((page):page is Page=>page?.notebookId===id);
+    if(selected&&!selected.length)throw new Error('Slide not found');
+    const pages=(selected||await tx.objectStore('pages').index('notebookId').getAll(id)).sort((a,b)=>a.position-b.position);
+    const assets=selected?(await Promise.all([...new Set(selected.flatMap(page=>page.media.map(item=>item.assetId)))].map(assetId=>tx.objectStore('assets').get(assetId)))).filter((asset):asset is NonNullable<typeof asset>=>asset?.notebookId===id):await tx.objectStore('assets').index('notebookId').getAll(id);await tx.done;
     const files=[];
     for(const {blob,...asset} of assets){const bytes=new Uint8Array(await toArrayBuffer(blob));let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));files.push({...asset,dataBase64:btoa(binary)});}
     const file=new Blob([JSON.stringify({
@@ -56,7 +65,7 @@ export async function importLesson(file: Blob | unknown): Promise<string> {
     if(!validVersion)throw new Error('Unsupported lesson version');
     readAsset=async asset=>{const encoded=asset.dataBase64;if(typeof encoded!=='string'||encoded.length>36*1024*1024||!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded))throw new Error('Invalid attachment data');return Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));};
   }
-  const isSupportedFormat = data.format === 'phoenix-smartboard' || typeof data.format === 'string';
+  const isSupportedFormat = typeof data.format === 'string' && Object.hasOwn(FORMATS, data.format) && FORMATS[data.format].includes(data.version);
   if(!isSupportedFormat||typeof data.notebook?.title!=='string'||!Array.isArray(data.pages)||!data.pages.length||data.pages.length>500||!Array.isArray(data.assets)||data.assets.length>500)throw new Error('Invalid lesson format');
   const notebookId=crypto.randomUUID(),now=new Date(),assetIds=new Map<string,string>();
   const assets=[];let total=0;
@@ -70,10 +79,13 @@ export async function importLesson(file: Blob | unknown): Promise<string> {
     if(frame!==undefined&&(!frame||![frame.x,frame.y,frame.width,frame.height].every(value=>Number.isFinite(value)&&Math.abs(value)<=1000000)||frame.width<=0||frame.height<=0))throw new Error('Invalid imported page frame');
     if(!Array.isArray(page.objects)||!Array.isArray(page.media)||page.objects.length>10000||page.media.length>500||!/^#[\da-f]{6}$/i.test(page.background)||!['none','grid','dots','lines','staff','handwriting','isometric'].includes(page.pattern)||(page.backgroundImage!==undefined&&!isRasterData(page.backgroundImage)))throw new Error('Invalid page data');
     for(const object of page.objects){
+      if(!object||typeof object!=='object')throw new Error('Unsupported board object');
       if(object.kind==='shape'&&object.solid!==undefined&&!validSolidData(object.solid))throw new Error('Invalid 3D shape');
       if(object.kind==='shape'&&object.chemistry!==undefined&&!validEquipmentData(object.chemistry))throw new Error('Invalid chemistry equipment');
       if(!['stroke','shape','text'].includes(object.kind))throw new Error('Unsupported board object');
       if(object.kind==='stroke'&&((object.brush!==undefined&&!isBrushKind(object.brush))||(object.brushSettings!==undefined&&!validBrushSettings(object.brushSettings))||(object.opacity!==undefined&&(!Number.isFinite(object.opacity)||object.opacity<0||object.opacity>1))))throw new Error('Invalid brush settings');
+      if(object.kind==='text'&&(typeof object.text!=='string'||object.text.length>100000||!bounded(object.x)||!bounded(object.y)||!bounded(object.fontSize,4000)||object.fontSize<=0||typeof object.color!=='string'||(object.fontFamily!==undefined&&(typeof object.fontFamily!=='string'||object.fontFamily.length>200))||!optionalBounded(object.rotation,1000)))throw new Error('Invalid text object');
+      if(object.kind==='shape'&&(!SHAPES.includes(object.shape)||![object.x,object.y,object.w,object.h].every(value=>bounded(value))||!bounded(object.width,1000)||object.width<0||typeof object.color!=='string'||!optionalBounded(object.rotation,1000)||!optionalBounded(object.roundness)||(object.fillColor!==undefined&&typeof object.fillColor!=='string')))throw new Error('Invalid shape');
       if(object.kind==='stroke'&&(!Array.isArray(object.points)||object.points.length>100000||object.points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y))))throw new Error('Invalid pen stroke');
     }
     return {

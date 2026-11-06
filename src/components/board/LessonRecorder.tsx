@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/lib/toast";
@@ -276,7 +274,7 @@ export function LessonRecorder({
             className="kn-focus flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold text-ink hover:bg-elevated transition-colors"
             title="Start lesson recording (captures 1080p slide & mic)"
           >
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-sm animate-pulse" />
+            <span className="h-2.5 w-2.5 rounded-full bg-danger shadow-sm motion-safe:animate-pulse" />
             <span>Record</span>
           </button>
           <button
@@ -296,7 +294,7 @@ export function LessonRecorder({
           <div className="flex items-center gap-1.5 px-1.5 py-0.5">
             <span
               className={`h-2.5 w-2.5 rounded-full ${
-                recorder.state === "recording" ? "bg-red-500 animate-ping" : "bg-amber-400"
+                recorder.state === "recording" ? "bg-danger motion-safe:animate-ping" : "bg-warn"
               }`}
             />
             <span className="font-mono text-xs font-bold tabular-nums text-ink">
@@ -319,7 +317,7 @@ export function LessonRecorder({
             onClick={recorder.stop}
             aria-label="Stop recording and download"
             title="Stop & save"
-            className="kn-focus flex items-center gap-1 rounded-full bg-red-600/90 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-600 transition-colors"
+            className="kn-focus flex items-center gap-1 rounded-full bg-danger px-2.5 py-1 text-xs font-semibold text-white hover:brightness-110 transition-colors"
           >
             <span className="h-2 w-2 rounded-sm bg-white" />
             <span>Done</span>

@@ -1,5 +1,3 @@
-"use client";
-
 import './ImportPanel.css';
 import {database} from '@/lib/local-store';
 import {setWorkActivity} from '@/lib/work-journal';
@@ -49,6 +47,10 @@ export function ImportPanel({
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [progress,setProgress]=useState("");
+  // Fraction 0..1 when known (file i of n, slide j of m); null = indeterminate.
+  const [fraction,setFraction]=useState<number|null>(null);
+  // Cancel stops before the next file; the file in flight finishes so nothing is left half-written.
+  const cancelRequested=useRef(false),[cancellable,setCancellable]=useState(false);
   const [selectionError,setSelectionError]=useState("");
   const [archive,setArchive]=useState<File|null>(null);
   const guardClose=()=>{if(!busy)onClose();};
@@ -102,9 +104,12 @@ export function ImportPanel({
     try{await beforeImport();}catch{setBusy(false);void setWorkActivity(notebookId,undefined).catch(()=>{});push("Save failed. Resolve storage issues before importing.","error");return;}
 
     let completed=0;
+    cancelRequested.current=false;setCancellable(usable.length>1);setFraction(0);
     for (const p of usable) {
+      if(cancelRequested.current)break;
       let stagedAsset:string|undefined;
-      setProgress("Importing "+(usable.indexOf(p)+1)+" of "+usable.length+": "+p.file.name);
+      const fileIndex=usable.indexOf(p);
+      setProgress("Importing "+(fileIndex+1)+" of "+usable.length+": "+p.file.name);setFraction(fileIndex/usable.length);
       try {
         if(p.kind==="pdf"&&pdfMode==="pages"){addedPages+=await importPdfPages(notebookId,p.file,false,{layout,center});completed++;setPicked(list=>list.map(item=>item===p?{...item,status:"done",error:undefined}:item));continue;}
         if (p.kind === 'presentation') {
@@ -112,7 +117,7 @@ export function ImportPanel({
             setProgress(`Converting ${p.file.name} to high-fidelity PDF…`);
             const { convertPptxToPdf } = await import('@/lib/pptx-to-pdf');
             const result = await convertPptxToPdf(p.file, (cur, tot) => {
-              setProgress(`Converting slide ${cur}/${tot}: ${p.file.name}`);
+              setProgress(`Converting slide ${cur}/${tot}: ${p.file.name}`);setFraction((fileIndex+(tot?cur/tot:0))/usable.length);
             });
             addedPages += await importPdfPages(notebookId, result.pdfBlob, false, { layout, center });
             completed++;
@@ -219,9 +224,10 @@ export function ImportPanel({
       if(items.length){onImport(items,combineImportFrames(frames));await beforeImport();}
       if(addedPages)await onPagesImported();
       if(completed===usable.length){push("Imported "+completed+" file"+(completed===1?"":"s")+".","success");onClose();}
+      else if(cancelRequested.current)setSelectionError(`Import cancelled. ${completed} of ${usable.length} files were imported. Choose Import to continue with the rest.`);
       else setSelectionError(completed?"Some files were imported. Review the remaining errors and retry.":"No files were imported. Review the errors below.");
     }catch(error){setSelectionError(error instanceof Error?error.message:"The files were saved. Reopen this lesson to view them.");}
-    finally{setBusy(false);setProgress("");void setWorkActivity(notebookId,undefined).catch(()=>{});}
+    finally{setBusy(false);setProgress("");setFraction(null);setCancellable(false);cancelRequested.current=false;void setWorkActivity(notebookId,undefined).catch(()=>{});}
   }
 
   return (
@@ -234,7 +240,7 @@ export function ImportPanel({
       <div className="kn-import-panel" aria-busy={busy}>
       <p className="kn-import-intro">Bring a lesson onto your board. Documents stay on this device.</p>
       {selectionError&&<p role="alert" className="kn-import-error">{selectionError}</p>}
-      {busy&&<LoadingOverlay detail={progress||"Preparing import"}/>}
+      {busy&&<LoadingOverlay detail={progress||"Preparing import"} progress={fraction} onCancel={cancellable?()=>{cancelRequested.current=true;setProgress(p=>p+" — cancelling after this file");}:undefined}/>}
       <fieldset disabled={busy} className="kn-import-controls">
       <div
         onDragOver={(e) => {
@@ -324,7 +330,7 @@ export function ImportPanel({
             >
               <div className="flex items-center gap-1.5 font-bold text-ink">
                 <span>✨ High-Fidelity PDF Pages</span>
-                <span className="text-[10px] bg-brand text-white px-1.5 py-0.5 rounded font-medium">Recommended</span>
+                <span className="text-[10px] bg-brand text-on-brand px-1.5 py-0.5 rounded font-medium">Recommended</span>
               </div>
               <span className="mt-1 block text-xs text-muted">
                 Exact PowerPoint visual match, 2x Retina clarity, zero font or layout shifts. Writes over as teacher whiteboard.
@@ -346,7 +352,7 @@ export function ImportPanel({
       )}
 
       {!archive&&picked.some(p=>p.kind!=="unsupported")&&<>
-      {placementError&&<p role="alert" className="mb-3 rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-200">{placementError}</p>}
+      {placementError&&<p role="alert" className="mb-3 rounded-lg border border-danger/40 bg-danger-subtle p-3 text-sm text-danger">{placementError}</p>}
       <fieldset disabled={busy} className="mb-4 rounded-xl border border-line p-4"><legend className="px-2 text-sm font-semibold">Page layout</legend>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <label>Size<CustomSelect aria-label="Import size" value={layout.sizing} onChange={e=>setLayout(v=>({...v,sizing:e.target.value as ImportLayout['sizing']}))} className="mt-1 block w-full rounded border border-line p-2"><option value="fill">Fill (stretch)</option><option value="fit">Fit (keep ratio)</option><option value="original">Original size</option></CustomSelect></label>
@@ -373,7 +379,7 @@ export function ImportPanel({
         <button
           onClick={uploadAll}
           disabled={busy || (!archive && (!!placementError || picked.filter((p) => p.kind !== "unsupported" && p.status!=="done").length === 0))}
-          className="kn-focus rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
+          className="kn-focus rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-50"
         >
           {busy ? "Importing..." : archive ? "Open lesson" : "Import"}
         </button>

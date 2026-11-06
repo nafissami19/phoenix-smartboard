@@ -1,3 +1,4 @@
+import {notifyPreferencesChanged} from '@/lib/preferences';
 export type PerformanceMode='auto'|'2gb'|'4gb'|'8gb'|'4k';
 export type PerformanceTier='low'|'balanced'|'high'|'ultra';
 export type PerformanceProfile={tier:PerformanceTier;label:string;canvasDpr:number;maxCanvasPixels:number;pdfRenderWidth:number;pdfPagePixels:number;mediaCachePixels:number;imageCachePixels:number;maxPdfDocuments:number;thumbnailWidth:number;prefetchPages:number;undoSteps:number;checkpointMs:number;autosaveMs:number};
@@ -25,7 +26,7 @@ export function readPerformancePreferences():{mode:PerformanceMode}{let value:st
 export function getPerformanceProfile(){const browserMemory=typeof navigator==='undefined'?undefined:(navigator as Navigator&{deviceMemory?:number}).deviceMemory;return profileForMemory(memoryHint??browserMemory,readPerformancePreferences().mode,pressure);}
 export function effectivePerformanceTier(){return getPerformanceProfile().tier;}
 function notify(){for(const listener of listeners)listener();if(typeof window!=='undefined'){document.documentElement.dataset.performance=getPerformanceProfile().tier;window.dispatchEvent(new Event('phoenix-performance-changed'));}}
-export function setPerformanceMode(mode:PerformanceMode){if(!['auto','2gb','4gb','8gb','4k'].includes(mode))return;try{localStorage.setItem('phoenix-performance-mode',mode);}catch{}pressure=false;notify();}
+export function setPerformanceMode(mode:PerformanceMode){if(!['auto','2gb','4gb','8gb','4k'].includes(mode))return;try{localStorage.setItem('phoenix-performance-mode',mode);notifyPreferencesChanged();}catch{}pressure=false;notify();}
 export function setDeviceMemoryHint(gb:number){if(!Number.isFinite(gb)||gb<=0)return;memoryHint=gb;notify();}
 export function subscribePerformance(listener:()=>void){listeners.add(listener);return()=>{listeners.delete(listener);};}
 if(typeof window!=='undefined'){window.addEventListener('phoenix-memory-pressure',()=>{pressure=true;notify();});document.documentElement.dataset.performance=getPerformanceProfile().tier;}

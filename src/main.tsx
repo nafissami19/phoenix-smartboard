@@ -1,6 +1,7 @@
 import {initializeAndroidDisplay} from '@/lib/display-annotation';
 import {initializeDeviceLibrary} from '@/lib/device-library';
 import {SmartKeyboard} from '@/components/SmartKeyboard';
+import {ErrorBoundary} from '@/components/ErrorBoundary';
 import { createRoot } from 'react-dom/client';
 import { lazy, Suspense, useEffect } from 'react';
 import { AppProvider } from '@/lib/app-context';
@@ -22,6 +23,6 @@ function App() {
   const location = useLocation();
   useEffect(() => { void navigator.storage?.persist?.(); }, []);
   const page = location.startsWith('/board/') ? <Board key={location.split('?')[0]}/> : location.startsWith('/library') ? <Library/> : location === '/onboarding' ? <Onboarding/> : <Home/>;
-  return <I18nProvider><AppProvider><ToastProvider><Suspense fallback={<div role="status" className="grid h-dvh place-items-center bg-base text-ink">Opening your board...</div>}>{page}</Suspense><SmartKeyboard/></ToastProvider></AppProvider></I18nProvider>;
+  return <I18nProvider><AppProvider><ToastProvider><ErrorBoundary key={location.split('?')[0]}><Suspense fallback={<div role="status" className="grid h-dvh place-items-center bg-base text-ink">Opening your board...</div>}>{page}</Suspense></ErrorBoundary><SmartKeyboard/></ToastProvider></AppProvider></I18nProvider>;
 }
 void Promise.allSettled([initializeDeviceLibrary(),initializeAndroidDisplay()]).then(()=>createRoot(document.getElementById('root')!).render(<App/>));

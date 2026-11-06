@@ -1,10 +1,14 @@
+@layer theme, base, components, utilities, kn-base, kn-components, kn-themes, kn-overrides;
+@layer kn-components {
 .kn-workspace {
   padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
 }
+/* Large-panel scaling: the scroll container stays viewport-sized, its content scales. */
 .kn-workspace-inner {
   max-width: 1200px;
   margin: auto;
   min-width: 0;
+  zoom: var(--ui-scale, 1);
 }
 .kn-workspace-header {
   display: flex;
@@ -28,11 +32,11 @@
 .kn-workspace input:not([type=color]):not([type=checkbox]):not([type=range]) {
   min-height: 44px;
 }
-.kn-workspace button:active {
+.kn-workspace button:active:not(:disabled) {
   transform: scale(.98);
 }
 
-/* Glassmorphic Overview Stat Cards with Gradient Fill */
+/* Overview stat cards */
 .kn-library-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -42,17 +46,10 @@
 .kn-library-summary > div {
   padding: 18px 22px;
   border: 1px solid var(--color-line);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--color-panel);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 8px 24px -4px rgba(0, 0, 0, 0.18);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.kn-library-summary > div:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  transform: translateY(-2px);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 12px 32px -4px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-1);
+  transition: border-color var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
 }
 .kn-library-summary strong {
   display: block;
@@ -79,16 +76,15 @@
   width: 100%;
   padding: 12px 40px 12px 14px;
   background: var(--color-panel);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
   color: var(--color-ink);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: all 0.18s ease;
+  box-shadow: none;
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 .kn-library-filters input:focus {
   border-color: var(--color-brand);
-  box-shadow: 0 0 0 3px rgba(0, 98, 255, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-focus);
 }
 
 .kn-lesson-grid {
@@ -97,23 +93,16 @@
   gap: 20px;
 }
 
-/* 3D perspective hover cards */
+/* Lesson cards: flat surface, one hairline, one soft shadow. */
 .kn-lesson-card {
   min-width: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-line);
   background: var(--color-panel);
   overflow: hidden;
   position: relative;
-  transform-style: preserve-3d;
-  will-change: transform;
-  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s ease, border-color 0.2s ease;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
-}
-.kn-lesson-card:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  transform: translateY(-4px) scale(1.015);
-  box-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+  transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+  box-shadow: var(--shadow-1);
 }
 .kn-lesson-cover {
   height: 154px;
@@ -125,14 +114,14 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(140deg, transparent, rgba(0, 0, 0, 0.4));
+  background: linear-gradient(140deg, transparent, color-mix(in srgb, var(--color-base) 40%, transparent));
 }
 .kn-lesson-cover:after {
   content: '';
   position: absolute;
   inset: 20px 30px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 8px;
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-md);
   transform: rotate(-6deg);
 }
 .kn-lesson-cover.has-thumbnail:before {
@@ -160,12 +149,8 @@
   bottom: 12px;
   min-width: 44px;
   color: var(--color-muted);
-  border-radius: 10px;
-  transition: all 0.15s ease;
-}
-.kn-lesson-delete:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+  border-radius: var(--radius-md);
+  transition: var(--transition-colors);
 }
 
 .kn-lesson-list {
@@ -216,20 +201,16 @@
   min-height: 44px;
   padding: 10px 12px;
   text-align: left;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--color-muted);
   font-size: 14px;
-  transition: all 0.15s ease;
-}
-.kn-settings-nav button:hover {
-  background: var(--color-elevated);
-  color: var(--color-ink);
+  transition: var(--transition-colors);
 }
 .kn-settings-nav button[aria-current] {
-  background: var(--color-brand);
-  color: white;
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-text);
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 98, 255, 0.35);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand) 40%, transparent);
 }
 .kn-settings-content {
   min-width: 0;
@@ -264,9 +245,28 @@
 }
 .kn-settings-preview {
   border: 1px solid var(--color-line);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   margin-bottom: 20px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .kn-library-summary > div:hover {
+    border-color: var(--color-line-2);
+  }
+  .kn-lesson-card:hover {
+    border-color: var(--color-line-2);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
+  }
+  .kn-lesson-delete:hover {
+    background: var(--color-danger-subtle);
+    color: var(--color-danger);
+  }
+  .kn-settings-nav button:hover:not([aria-current]) {
+    background: var(--color-elevated);
+    color: var(--color-ink);
+  }
 }
 
 @media(min-width: 1600px) {
@@ -351,6 +351,7 @@
 .kn-lesson-info {
   color: var(--color-ink);
 }
+/* [hidden] must beat display utilities (flex/grid) on tab panels. */
 .kn-settings-layout [hidden] {
   display: none !important;
 }
@@ -373,4 +374,14 @@
     min-height: 48px;
     font-size: 18px;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kn-library-summary > div, .kn-library-filters input, .kn-lesson-card, .kn-lesson-delete, .kn-settings-nav button {
+    transition: none;
+  }
+  .kn-lesson-card:hover, .kn-workspace button:active:not(:disabled) {
+    transform: none;
+  }
+}
 }

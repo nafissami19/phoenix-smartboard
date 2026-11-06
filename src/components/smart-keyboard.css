@@ -1,14 +1,15 @@
-.kn-smart-keyboard{position:fixed;z-index:10000;--color-panel:var(--theme-panel,#202b36);--color-ink:var(--theme-ink,#f2f5f7);--color-line:var(--theme-line,#536573);background:var(--color-panel);color:var(--color-ink);border:1px solid var(--color-line);box-shadow:0 -5px 24px #0003;border-radius:14px 14px 0 0;-webkit-user-select:none;user-select:none;max-height:65dvh;overflow:auto;width:min(860px,100vw)}
-.kn-smart-keyboard.is-bottom{bottom:0;left:50%;transform:translateX(-50%);width:min(1100px,100vw)}.kn-smart-keyboard.is-floating{width:min(760px,calc(100vw - 16px));border-radius:14px}
-.kn-smart-keyboard header{display:flex;align-items:center;gap:8px;padding:4px 12px;touch-action:none}.kn-smart-keyboard header>span{flex:1;font-size:12px}.kn-smart-keyboard header button{min-width:44px;min-height:44px;display:grid;place-items:center;border-radius:8px}.kn-smart-keyboard.is-floating header{cursor:move}
-.kn-smart-keyboard .hg-theme-default{background:transparent;padding:8px}.kn-smart-keyboard .hg-button{height:44px;min-width:20px;border:1px solid var(--color-line);box-shadow:none;background:var(--theme-surface,#2b3947);color:var(--color-ink);border-radius:8px;font-size:16px;touch-action:manipulation}.kn-smart-keyboard .hg-button:active{background:var(--color-brand);color:white}.kn-smart-keyboard .hg-row{margin-bottom:6px}.kn-smart-keyboard .hg-button-space{min-width:30%}
+@layer theme, base, components, utilities, kn-base, kn-components, kn-themes, kn-overrides;
+/* Intentionally unlayered: these rules must out-rank simple-keyboard's own unlayered stylesheet (imported just before this file). All selectors are scoped to the keyboard. */
+.kn-smart-keyboard{position:fixed;z-index:var(--z-keyboard,10000);--color-panel:var(--theme-panel,#111827);--color-ink:var(--theme-ink,#e6e9ef);--color-line:var(--theme-line,#334155);background:var(--color-panel);color:var(--color-ink);border:1px solid var(--color-line-2,var(--color-line));box-shadow:var(--shadow-4);border-radius:var(--radius-xl) var(--radius-xl) 0 0;-webkit-user-select:none;user-select:none;max-height:65dvh;overflow:auto;width:min(860px,100vw)}
+.kn-smart-keyboard.is-bottom{bottom:0;left:50%;transform:translateX(-50%);width:min(1100px,100vw)}.kn-smart-keyboard.is-floating{width:min(760px,calc(100vw - 16px));border-radius:var(--radius-xl)}
+.kn-smart-keyboard header{display:flex;align-items:center;gap:8px;padding:4px 12px;touch-action:none}.kn-smart-keyboard header>span{flex:1;font-size:12px}.kn-smart-keyboard header button{min-width:44px;min-height:44px;display:grid;place-items:center;border-radius:var(--radius-md)}.kn-smart-keyboard.is-floating header{cursor:move}
+.kn-smart-keyboard .hg-theme-default{background:transparent;padding:8px}.kn-smart-keyboard .hg-button{height:44px;min-width:20px;border:1px solid var(--color-line);box-shadow:none;background:var(--theme-surface,var(--color-panel-2,#172033));color:var(--color-ink);border-radius:var(--radius-md);font-size:16px;touch-action:manipulation}.kn-smart-keyboard .hg-button:active{background:var(--color-brand);color:var(--color-on-brand,#fff)}.kn-smart-keyboard .hg-row{margin-bottom:6px}.kn-smart-keyboard .hg-button-space{min-width:30%}
 @media(max-width:600px){.kn-smart-keyboard .hg-button{height:40px;font-size:13px;padding:0 3px}.kn-smart-keyboard .hg-row>button:not(:last-child){margin-right:3px}.kn-smart-keyboard header{padding:4px 8px}}
 
 body:has(.kn-smart-keyboard.is-bottom) .kn-layout-settings{max-height:calc(100dvh - var(--keyboard-height,310px) - 24px)}
 
-body:has(.kn-smart-keyboard.is-bottom) [data-layout-panel]:has(.live-comments){top:12px!important;max-height:calc(100dvh - var(--keyboard-height,310px) - 24px)!important}
-
 body:has(.kn-smart-keyboard.is-bottom) .kn-scroll.h-dvh{height:calc(100dvh - var(--keyboard-height,310px));scroll-padding-bottom:16px}
 
-/* Keep subject tools usable while their input opens the docked keyboard. */
+/* Keep subject tools usable while their input opens the docked keyboard (covers the live-comments panel too).
+   !important: floating panels are positioned with inline styles from JS. */
 body:has(.kn-smart-keyboard.is-bottom) [data-layout-panel]{top:12px!important;max-height:calc(100dvh - var(--keyboard-height,310px) - 24px)!important;scroll-padding-block:12px}

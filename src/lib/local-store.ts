@@ -2,10 +2,12 @@ import {interfaceSettings} from './interface-settings';
 import {newPageStyle} from './new-page-style';
 import {parseThemePack,isRasterData} from './theme-pack';
 import {validateBoardPresets} from './board-presets';
-import { openDB, type IDBPTransaction, type DBSchema } from 'idb';
+import { openDB, type IDBPDatabase, type IDBPTransaction, type DBSchema } from 'idb';
 import type { AppProfile, Notebook, Page } from '../db/schema';
 import { BRANDING } from '@/config/branding';
 import { uid } from './constants';
+import { DEFAULT_PROFILE, withCurrentBoard, withCurrentBrand } from './profile-defaults';
+export { DEFAULT_PROFILE } from './profile-defaults';
 
 type Asset = { id: string; notebookId: string; name: string; mimeType: string; blob: Blob };
 interface Store extends DBSchema {
@@ -14,84 +16,105 @@ interface Store extends DBSchema {
   pages: { key: string; value: Page; indexes: { notebookId: string } };
   assets: { key: string; value: Asset; indexes: { notebookId: string } };
 }
-export const DEFAULT_PROFILE: AppProfile = {
-  id: 1,
-  appName: BRANDING.APP_NAME,
-  teacherName: '',
-  institution: '',
-  accent: BRANDING.COLORS.PRIMARY,
-  boardBg: '#18212b',
-  boardPattern: 'dots',
-  defaultPenColor: '#f4f4f5',
-  onboarded: 0,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  splashText: BRANDING.APP_SLOGAN
-};
 
 let migrationAttempted = false;
-export const database = async () => {
-  const db = await openDB<Store>(BRANDING.DB_NAME, 1, {
-    upgrade(db) {
-      db.createObjectStore('profile', { keyPath: 'id' });
-      db.createObjectStore('notebooks', { keyPath: 'id' });
-      db.createObjectStore('pages', { keyPath: 'id' }).createIndex('notebookId', 'notebookId');
-      db.createObjectStore('assets', { keyPath: 'id' }).createIndex('notebookId', 'notebookId');
-    }
-  });
+const openStore = (release?: () => void) => openDB<Store>(BRANDING.DB_NAME, 1, {
+  upgrade(db) {
+    db.createObjectStore('profile', { keyPath: 'id' });
+    db.createObjectStore('notebooks', { keyPath: 'id' });
+    db.createObjectStore('pages', { keyPath: 'id' }).createIndex('notebookId', 'notebookId');
+    db.createObjectStore('assets', { keyPath: 'id' }).createIndex('notebookId', 'notebookId');
+  },
+  blocking: release, terminated: release
+});
+/** Opens a separate connection; the caller closes it. */
+export const database = () => openStore();
 
-  return db;
-};
+// localRequest shares one connection. It closes itself as soon as another
+// connection upgrades or deletes the database, so those are never blocked.
+let shared: Promise<IDBPDatabase<Store>> | undefined;
+function connection() {
+  if (!shared) {
+    let db: IDBPDatabase<Store> | undefined;
+    const drop = () => { if (shared === opening) shared = undefined; db?.close(); };
+    const opening: Promise<IDBPDatabase<Store>> = openStore(drop).then(value => db = value);
+    shared = opening; opening.catch(drop);
+  }
+  return shared;
+}
+type StoreTx = IDBPTransaction<Store, ['profile','notebooks','pages','assets'], 'readwrite'>;
+// Read-only transactions are only used by GET handlers; the cast exposes writes to TypeScript.
+async function begin(mode: 'readonly' | 'readwrite'): Promise<StoreTx> {
+  for (let attempt = 0; ; attempt++) {
+    const current = connection(), db = await current;
+    try { return db.transaction(['profile', 'notebooks', 'pages', 'assets'], mode, {durability:'strict'}) as unknown as StoreTx; }
+    catch (error) { if (attempt || !(error instanceof DOMException && error.name === 'InvalidStateError')) throw error; if (shared === current) shared = undefined; db.close(); }
+  }
+}
 
 const text = (value: unknown, fallback: string, max = 120) => typeof value === 'string' ? value.slice(0, max) : fallback;
 const color = (value: unknown, fallback: string) => typeof value === 'string' && /^#[\da-f]{6}$/i.test(value) ? value : fallback;
 const patterns = ['none', 'grid', 'dots', 'lines', 'staff', 'handwriting', 'isometric'];
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: {'Content-Type':'application/json'} });
+const devWarn = (message: string, error: unknown) => { if (import.meta.env?.DEV) console.warn(message, error); };
+const storedProfile = async (tx: StoreTx, now: Date) => withCurrentBrand(withCurrentBoard(await tx.objectStore('profile').get(1) || {...DEFAULT_PROFILE, createdAt: now, updatedAt: now}));
+
+/** The profile sanitiser shared by PUT /api/profile and device-copy restores. */
+export function sanitizeProfile(current: AppProfile, body: Record<string, unknown>, now = new Date()): AppProfile {
+  return { ...current, ui:body.ui===undefined?current.ui:interfaceSettings({...current.ui,...(body.ui as object)}), theme:body.theme===undefined?current.theme:parseThemePack(body.theme),themePacks:body.themePacks===undefined?current.themePacks:(Array.isArray(body.themePacks)?body.themePacks.slice(0,8).map(parseThemePack):[]),boardImage:body.boardImage===undefined?current.boardImage:(isRasterData(body.boardImage)?body.boardImage:undefined), boardPresets:body.boardPresets===undefined?current.boardPresets:validateBoardPresets(body.boardPresets), appName: text(body.appName, current.appName, 60) || BRANDING.APP_NAME, teacherName: text(body.teacherName,current.teacherName,60), institution: text(body.institution,current.institution,60), accent: color(body.accent,current.accent), boardBg: color(body.boardBg,current.boardBg), boardPattern: typeof body.boardPattern === 'string' && patterns.includes(body.boardPattern) ? body.boardPattern : current.boardPattern, defaultPenColor: color(body.defaultPenColor,current.defaultPenColor), onboarded: body.onboarded === 1 ? 1 : current.onboarded, splashText: text(body.splashText,current.splashText || '',120), watermark: body.watermark && typeof body.watermark==='object'?{enabled:Boolean((body.watermark as any).enabled),text:text((body.watermark as any).text,current.watermark?.text??'',120),position:['center','top-left','top-right','bottom-left','bottom-right'].includes((body.watermark as any).position)?(body.watermark as any).position:'bottom-right',opacity:Math.max(.02,Math.min(.5,Number((body.watermark as any).opacity)||.12))}:current.watermark, calibrationPxPerMm: Number.isFinite(body.calibrationPxPerMm)?Math.max(.1,Math.min(50,Number(body.calibrationPxPerMm))):current.calibrationPxPerMm, ai:body.ai && typeof body.ai==='object'?{enabled:Boolean((body.ai as any).enabled),endpoint:text((body.ai as any).endpoint,current.ai?.endpoint??'http://127.0.0.1:11434',300),model:text((body.ai as any).model,current.ai?.model??'llama3.2',100)}:current.ai, iconData: typeof body.iconData === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(body.iconData) && body.iconData.length < 750000 ? body.iconData : current.iconData, updatedAt: now };
+}
+
+// Recovery copies are best effort: a failed or oversized snapshot never blocks a
+// delete the teacher already confirmed. Slide deletes copy only that slide.
+async function snapshotBeforeDelete(parts: string[]) {
+  try {
+    if (parts[1] === 'notebooks' && parts[2] && !parts[3]) { const {saveRecovery} = await import('./recovery'); await saveRecovery(parts[2]); }
+    else if (parts[1] === 'pages' && parts[2] && !parts[3]) {
+      const tx = await begin('readonly'), page = await tx.objectStore('pages').get(parts[2]);
+      const count = page ? await tx.objectStore('pages').index('notebookId').count(page.notebookId) : 0; await tx.done;
+      if (page && count > 1) { const {savePageRecovery} = await import('./recovery'); await savePageRecovery(page.notebookId, page.id); }
+    }
+  } catch (error) { devWarn('Recovery snapshot skipped before delete', error); }
+}
 
 // A local persistence adapter, not an HTTP request or global fetch interception.
 // All multi-record edits commit as a single IndexedDB transaction.
 export async function localRequest(path: string, options: RequestInit = {}): Promise<Response> {
-  // Keep a full portable snapshot before destructive edits, including binaries.
-  if (options.method === 'DELETE') {
-    const parts=path.split('?')[0].split('/').filter(Boolean);
-    let lessonId=parts[1]==='notebooks'?parts[2]:undefined;
-    if(parts[1]==='pages'&&parts[2]){const lookup=await database();try{lessonId=(await lookup.get('pages',parts[2]))?.notebookId;}finally{lookup.close();}}
-    if(lessonId){const {saveRecovery}=await import('./recovery');await saveRecovery(lessonId);}
-  }
-  const db = await database();
   const method = options.method || 'GET';
   const parts = path.split('?')[0].split('/').filter(Boolean);
   const kind = parts[1], id = parts[2];
-  const body: Record<string, unknown> = typeof options.body === 'string' ? JSON.parse(options.body) : {};
+  // Parse before any transaction starts so malformed input cannot leave one open.
+  const parsed: unknown = typeof options.body === 'string' ? JSON.parse(options.body) : {};
+  const body: Record<string, unknown> = parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {};
+  // Keep a portable snapshot before destructive edits, including binaries.
+  if (method === 'DELETE') await snapshotBeforeDelete(parts);
   // GET uses a shared read lock; mutations serialize edits across tabs.
-  // Writes below are guarded by method; the cast exposes them to TypeScript.
-  const tx = db.transaction(['profile', 'notebooks', 'pages', 'assets'], method==='GET'?'readonly':'readwrite', {durability:'strict'}) as IDBPTransaction<Store, ['profile','notebooks','pages','assets'], 'readwrite'>;
+  const tx = await begin(method==='GET'?'readonly':'readwrite');
   const now = new Date();
   try {
     let result: Response;
     if (kind === 'profile') {
-      let current = await tx.objectStore('profile').get(1) || DEFAULT_PROFILE;
-      if (!current.boardBg || current.boardBg === BRANDING.COLORS.CHALKBOARD_GREEN || current.boardBg === '#83d131') {
-        current = { ...current, boardBg: '#18212b', boardPattern: current.boardPattern === 'none' ? 'dots' : current.boardPattern, defaultPenColor: current.defaultPenColor === '#ffffff' ? '#f4f4f5' : current.defaultPenColor };
-      }
+      const current = await storedProfile(tx, now);
       if (method === 'PUT') {
-        const updated: AppProfile = { ...current, ui:body.ui===undefined?current.ui:interfaceSettings({...current.ui,...(body.ui as object)}), theme:body.theme===undefined?current.theme:parseThemePack(body.theme),themePacks:body.themePacks===undefined?current.themePacks:(Array.isArray(body.themePacks)?body.themePacks.slice(0,8).map(parseThemePack):[]),boardImage:body.boardImage===undefined?current.boardImage:(isRasterData(body.boardImage)?body.boardImage:undefined), boardPresets:body.boardPresets===undefined?current.boardPresets:validateBoardPresets(body.boardPresets), appName: text(body.appName, current.appName, 60) || BRANDING.APP_NAME, teacherName: text(body.teacherName,current.teacherName,60), institution: text(body.institution,current.institution,60), accent: color(body.accent,current.accent), boardBg: color(body.boardBg,current.boardBg), boardPattern: typeof body.boardPattern === 'string' && patterns.includes(body.boardPattern) ? body.boardPattern : current.boardPattern, defaultPenColor: color(body.defaultPenColor,current.defaultPenColor), onboarded: body.onboarded === 1 ? 1 : current.onboarded, splashText: text(body.splashText,current.splashText || '',120), watermark: body.watermark && typeof body.watermark==='object'?{enabled:Boolean((body.watermark as any).enabled),text:text((body.watermark as any).text,current.watermark?.text??'',120),position:['center','top-left','top-right','bottom-left','bottom-right'].includes((body.watermark as any).position)?(body.watermark as any).position:'bottom-right',opacity:Math.max(.02,Math.min(.5,Number((body.watermark as any).opacity)||.12))}:current.watermark, calibrationPxPerMm: Number.isFinite(body.calibrationPxPerMm)?Math.max(.1,Math.min(50,Number(body.calibrationPxPerMm))):current.calibrationPxPerMm, ai:body.ai && typeof body.ai==='object'?{enabled:Boolean((body.ai as any).enabled),endpoint:text((body.ai as any).endpoint,current.ai?.endpoint??'http://127.0.0.1:11434',300),model:text((body.ai as any).model,current.ai?.model??'llama3.2',100)}:current.ai, iconData: typeof body.iconData === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(body.iconData) && body.iconData.length < 750000 ? body.iconData : current.iconData, updatedAt: now };
+        const updated = sanitizeProfile(current, body, now);
         await tx.objectStore('profile').put(updated); result = json({profile:updated});
       } else result = json({profile:current});
     } else if (kind === 'notebooks' && !id && method === 'GET') {
       const notebooks = await tx.objectStore('notebooks').getAll(); notebooks.sort((a,b)=>Number(b.updatedAt)-Number(a.updatedAt)); result = json({notebooks});
     } else if (kind === 'notebooks' && !id && method === 'POST') {
-      let profile = await tx.objectStore('profile').get(1) || DEFAULT_PROFILE;
-      if (!profile.boardBg || profile.boardBg === BRANDING.COLORS.CHALKBOARD_GREEN || profile.boardBg === '#83d131') {
-        profile = { ...profile, boardBg: '#18212b', boardPattern: profile.boardPattern === 'none' ? 'dots' : profile.boardPattern, defaultPenColor: profile.defaultPenColor === '#ffffff' ? '#f4f4f5' : profile.defaultPenColor };
-      }
+      const profile = await storedProfile(tx, now);
       const notebook: Notebook = {id:uid(),title:text(body.title,'Untitled lesson') || 'Untitled lesson',subject:text(body.subject,'General',60),coverColor:color(body.coverColor,BRANDING.COLORS.PRIMARY),pageCount:1,createdAt:now,updatedAt:now};
       const page: Page = {id:uid(),notebookId:notebook.id,position:0,background:profile.boardBg,pattern:profile.boardPattern,backgroundImage:profile.boardImage,objects:[],media:[],createdAt:now,updatedAt:now};
       await tx.objectStore('notebooks').add(notebook); await tx.objectStore('pages').add(page); result = json({notebook},201);
     } else if (kind === 'notebooks' && id) {
       const notebook = await tx.objectStore('notebooks').get(id);
       if (!notebook) result = json({error:'Lesson not found'},404);
-      else {
+      else if (parts[3] === 'first-page' && method === 'GET') {
+        // Walk the index one record at a time instead of returning every slide.
+        let first: Page | null = null;
+        for (let cursor = await tx.objectStore('pages').index('notebookId').openCursor(id); cursor; cursor = await cursor.continue()) if (!first || cursor.value.position < first.position) first = cursor.value;
+        result = json({page:first});
+      } else {
         const pages = (await tx.objectStore('pages').index('notebookId').getAll(id)).sort((a,b)=>a.position-b.position);
         if (parts[3] === 'pages' && parts[4] === 'reorder' && method === 'PUT') {
           const ids = body.pageIds;
@@ -158,7 +181,16 @@ export async function localRequest(path: string, options: RequestInit = {}): Pro
       else {
         const notebook=await tx.objectStore('notebooks').get(page.notebookId);
         if (!notebook) throw new Error('Missing parent lesson');
-        if (method === 'PUT') {
+        if (parts[3] === 'duplicate' && method === 'POST') {
+          // The copy shares the lesson's stored files; only object, media and group IDs are new.
+          const pages=(await tx.objectStore('pages').index('notebookId').getAll(page.notebookId)).sort((a,b)=>a.position-b.position);
+          const insertion=pages.findIndex(item=>item.id===id)+1,groups=new Map<string,string>();
+          const group=(value:string)=>{if(!groups.has(value))groups.set(value,uid());return groups.get(value)!;};
+          const copy: Page={...page,id:uid(),position:insertion,objects:page.objects.map(object=>({...object,id:uid(),...(object.groupId?{groupId:group(object.groupId)}:{})})),media:page.media.map(item=>({...item,id:uid()})),createdAt:now,updatedAt:now};
+          const ordered=[...pages];ordered.splice(insertion,0,copy);
+          for(let position=0;position<ordered.length;position++){const item=ordered[position];if(item===copy||item.position!==position){ordered[position]={...item,position};await tx.objectStore('pages').put(ordered[position]);}}
+          await tx.objectStore('notebooks').put({...notebook,pageCount:ordered.length,updatedAt:now});result=json({page:ordered[insertion]},201);
+        } else if (method === 'PUT') {
           const importFrame=body.importFrame as Page['importFrame'];
           if(importFrame && (![importFrame.x,importFrame.y,importFrame.width,importFrame.height].every(Number.isFinite)||importFrame.width<=0||importFrame.height<=0||importFrame.width>100000||importFrame.height>100000))throw new Error('Invalid import frame');
           const updated={...page,backgroundImage:body.backgroundImage===undefined?page.backgroundImage:(isRasterData(body.backgroundImage)?body.backgroundImage:undefined),importFrame:importFrame??page.importFrame,objects:Array.isArray(body.objects)?body.objects as Page['objects']:page.objects,media:Array.isArray(body.media)?body.media as Page['media']:page.media,background:color(body.background,page.background),pattern:patterns.includes(String(body.pattern))?String(body.pattern):page.pattern,updatedAt:now};
@@ -182,47 +214,67 @@ export async function localRequest(path: string, options: RequestInit = {}): Pro
     try { tx.abort(); } catch { /* Already closed. */ }
     await tx.done.catch(()=>{});
     throw error;
-  } finally { db.close(); }
+  }
 }
 
-const urls = new Map<string,string>();
+// Object URLs are reference counted: a playing <video>/<audio> holds its URL, and
+// only unreferenced URLs are revoked when the cache grows past its soft limit.
+type CachedURL = { url: string; refs: number };
+const urls = new Map<string,CachedURL>(), loadingURLs = new Map<string,Promise<CachedURL>>();
 const MAX_CACHED_URLS = 50;
+function trimURLs() {
+  for (const [key, entry] of urls) {
+    if (urls.size <= MAX_CACHED_URLS) break;
+    if (!entry.refs) { URL.revokeObjectURL(entry.url); urls.delete(key); }
+  }
+}
 
 export function revokeLocalAssetURL(id?: string) {
   if (id) {
     const existing = urls.get(id);
     if (existing) {
-      URL.revokeObjectURL(existing);
+      URL.revokeObjectURL(existing.url);
       urls.delete(id);
     }
   } else {
-    for (const url of urls.values()) {
-      URL.revokeObjectURL(url);
+    for (const [key, entry] of urls) {
+      if (!entry.refs) { URL.revokeObjectURL(entry.url); urls.delete(key); }
     }
-    urls.clear();
   }
 }
 
+function cachedURL(id: string): Promise<CachedURL> {
+  const existing = urls.get(id);
+  if (existing) { urls.delete(id); urls.set(id, existing); return Promise.resolve(existing); }
+  let loading = loadingURLs.get(id);
+  if (!loading) {
+    loading = (async () => {
+      const tx = await begin('readonly'), asset = await tx.objectStore('assets').get(id); await tx.done;
+      if (!asset) throw new Error('Local file is missing');
+      const entry = { url: URL.createObjectURL(asset.blob), refs: 0 }; urls.set(id, entry); return entry;
+    })().finally(() => loadingURLs.delete(id));
+    loadingURLs.set(id, loading);
+  }
+  return loading;
+}
+
+/** An unreferenced URL that may be revoked once 50 newer files are opened. */
 export async function localAssetURL(id: string): Promise<string> {
-  if (urls.has(id)) {
-    const existing = urls.get(id)!;
-    urls.delete(id);
-    urls.set(id, existing);
-    return existing;
+  const entry = await cachedURL(id); trimURLs(); return entry.url;
+}
+
+/** Keeps the URL alive until the matching releaseLocalAssetURL call. */
+export async function acquireLocalAssetURL(id: string): Promise<string> {
+  for (;;) {
+    const entry = await cachedURL(id);
+    if (urls.get(id) === entry) { entry.refs++; trimURLs(); return entry.url; }
   }
-  const db=await database(); let asset; try { asset=await db.get('assets',id); } finally { db.close(); }
-  if (!asset) throw new Error('Local file is missing');
-  const url=URL.createObjectURL(asset.blob);
-  if (urls.size >= MAX_CACHED_URLS) {
-    const oldestKey = urls.keys().next().value;
-    if (oldestKey) {
-      const oldestUrl = urls.get(oldestKey);
-      if (oldestUrl) URL.revokeObjectURL(oldestUrl);
-      urls.delete(oldestKey);
-    }
-  }
-  urls.set(id,url);
-  return url;
+}
+
+export function releaseLocalAssetURL(id: string) {
+  const entry = urls.get(id);
+  if (entry && entry.refs > 0) entry.refs--;
+  trimURLs();
 }
 
 export async function listTrashSnapshots() {

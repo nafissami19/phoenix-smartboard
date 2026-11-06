@@ -1,8 +1,7 @@
-"use client";
-
 import {controlCoordinates,CONTROL_LAYOUT_KEY,parseControlLayout} from '@/lib/control-layout';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/Icon";
+import { useDialog } from "@/lib/use-dialog";
 
 // A draggable floating panel used by the treasure-box tools (calculator, timer,
 // ruler, ...). Drag by its header; keeps itself on-screen.
@@ -26,6 +25,8 @@ export function FloatingWindow({
   accent?: string;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Non-modal: focus moves to the header on open, Escape (from inside) closes, focus returns to the opener.
+  useDialog<HTMLDivElement>({ref:panelRef,modal:false,onClose,initialFocus:'first'});
   const panelId=`panel-${title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)}`;
   const [pinned,setPinned]=useState(()=>{try{return (localStorage.getItem(`phoenix-pin-${panelId}`))==='true';}catch{return false;}});
   useEffect(()=>{try{localStorage.setItem(`phoenix-pin-${panelId}`,String(pinned));}catch{}},[pinned,panelId]);
@@ -78,12 +79,18 @@ export function FloatingWindow({
     if (!drag.current) return;
     setPos(constrain({x:e.clientX-drag.current.dx,y:e.clientY-drag.current.dy}));
   }
+  function announcePosition(){if(!panelRef.current)return;const rect=panelRef.current.getBoundingClientRect();window.dispatchEvent(new CustomEvent('phoenix-panel-position',{detail:{title,x:rect.x,y:rect.y,width:rect.width,height:rect.height,floating}}));}
   function onHeaderPointerUp(cancelled=false) {
-    if(drag.current&&!cancelled&&panelRef.current){
-      const rect=panelRef.current.getBoundingClientRect();
-      window.dispatchEvent(new CustomEvent('phoenix-panel-position',{detail:{title,x:rect.x,y:rect.y,width:rect.width,height:rect.height,floating}}));
-    }
+    if(drag.current&&!cancelled)announcePosition();
     drag.current = null;
+  }
+  /** Keyboard moving: arrows nudge 16px (Shift = 64px); docked windows only move vertically / switch edge. */
+  function onHeaderKeyDown(e: React.KeyboardEvent) {
+    if(e.target!==e.currentTarget||pinned)return;
+    const step=e.shiftKey?64:16,delta=({ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]} as Record<string,[number,number]>)[e.key];
+    if(!delta)return;e.preventDefault();
+    setPos(p=>constrain({x:floating?p.x+delta[0]:(delta[0]<0?0:delta[0]>0?innerWidth:p.x),y:p.y+delta[1]}));
+    requestAnimationFrame(announcePosition);
   }
 
   return (
@@ -93,16 +100,21 @@ export function FloatingWindow({
       aria-label={title}
       data-layout-panel={title}
       data-window-mode={floating?'floating':'docked'}
-      className="kn-pop fixed z-[85] overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl"
+      className="kn-pop fixed z-(--z-panel) overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl"
       style={{ left: pos.x, top: pos.y, width: actualWidth, maxHeight: 'calc(100dvh - 16px)', overflowY: 'auto', boxShadow: accent ? `0 18px 50px -18px ${accent}` : undefined }}
     >
       <div
+        data-autofocus
+        tabIndex={0}
+        role="group"
+        aria-label={pinned?`${title} window (pinned)`:`Move ${title} window with arrow keys`}
+        onKeyDown={onHeaderKeyDown}
         onPointerDown={onHeaderPointerDown}
         onPointerMove={onHeaderPointerMove}
         onPointerUp={()=>onHeaderPointerUp()}
         onPointerCancel={()=>onHeaderPointerUp(true)}
         style={{touchAction:'none'}}
-        className="sticky top-0 z-10 flex cursor-grab active:cursor-grabbing items-center justify-between gap-2 border-b border-line bg-panel-2 px-3 py-2"
+        className="kn-focus sticky top-0 z-10 flex cursor-grab active:cursor-grabbing items-center justify-between gap-2 border-b border-line bg-panel-2 px-3 py-2"
       >
         <div className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
           {icon && <span className="text-base leading-none">{icon}</span>}
@@ -115,7 +127,9 @@ export function FloatingWindow({
           onClick={()=>{const next=!floating;setFloating(next);const rect=panelRef.current!.getBoundingClientRect();const x=next?Math.max(8,Math.min(rect.x+24,innerWidth-rect.width-8)):(rect.x+rect.width/2<innerWidth/2?0:innerWidth-rect.width);setPos(p=>({...p,x}));window.dispatchEvent(new CustomEvent('phoenix-panel-position',{detail:{title,x,y:rect.y,width:rect.width,height:rect.height,floating:next}}));}}
         ><Icon name={floating?'layers':'select'} className="h-4 w-4"/></button>
         <button
+          type="button"
           onClick={onClose}
+          title={`Close ${title}`}
           className="kn-focus grid h-11 w-11 shrink-0 place-items-center rounded-md text-muted hover:bg-elevated hover:text-ink"
           aria-label="Close"
         >

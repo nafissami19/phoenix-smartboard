@@ -1,11 +1,10 @@
-"use client";
-
 import type {SelectionSettings} from '@/lib/selection-region';
+import {notifyPreferencesChanged} from '@/lib/preferences';
 import {SOLIDS,projectedSolid,type SolidKind} from '@/lib/solid-shapes';
 import {loadPenMenu,loadCustomPens,PEN_STORE_ITEMS} from '@/lib/brush-presets';
 import './CustomPens.css';
 import {brushSettings} from '@/lib/brush-presets';
-import {interfaceSettings} from '@/lib/interface-settings';
+import {interfaceSettings,applyUiScale} from '@/lib/interface-settings';
 import {Note3Artwork} from './Note3Artwork';
 import {CustomSelect} from '@/components/CustomSelect';
 import {BrushSizePreview} from './BrushSizePreview';
@@ -35,6 +34,8 @@ const MAIN_TOOLS: { id: ActiveTool; icon: IconName; label: string }[] = [
   { id: "eraser", icon: "eraser", label: "Eraser" },
   { id: "text", icon: "text", label: "Text" },
 ];
+/** Popover ids for aria-controls on their triggers. */
+const POPOVER_ID={select:'kn-popover-select',pen:'kn-popover-pen',eraser:'kn-popover-eraser',shapes:'kn-popover-shapes',record:'kn-popover-record',touch:'kn-popover-touch'} as const;
 
 const SHAPES: { id: ActiveTool; icon: IconName; label: string }[] = [
   {id:"auto-shape",icon:"autoShape",label:"Auto shape"},
@@ -85,7 +86,9 @@ export function Toolbar({
   const [penMenu,setPenMenu]=useState(loadPenMenu),[customPens,setCustomPens]=useState(loadCustomPens);
   useEffect(()=>{const update=()=>{setPenMenu(loadPenMenu());setCustomPens(loadCustomPens());};window.addEventListener('phoenix-pen-store-updated',update);window.addEventListener('storage',update);return()=>{window.removeEventListener('phoenix-pen-store-updated',update);window.removeEventListener('storage',update);};},[]);
   const {profile}=useApp();
-  const {toolPopupOnFirstClick}=interfaceSettings(profile.ui);
+  const {toolPopupOnFirstClick,uiScale}=interfaceSettings(profile.ui);
+  // Board chrome is the --ui-scale consumer; keep it applied even before app-wide startup wiring exists.
+  useEffect(()=>{applyUiScale(uiScale);},[uiScale]);
   const lastToolClick=useRef<string|null>(null);
   const openSettings=(id:string,active:boolean,open:boolean)=>{const show=toolPopupOnFirstClick||(active&&lastToolClick.current===id);lastToolClick.current=id;return show?!(active&&open):false;};
   const brushSizes=useRef<Record<string,number>>((()=>{try{return JSON.parse(localStorage.getItem('phoenix-brush-sizes')??'{}');}catch{return {};}})());
@@ -94,17 +97,17 @@ export function Toolbar({
     brushSizes.current[old]=pen.size;
     const defaults:Record<string,number>={normal:4,pencil:3,paint:16,chinese:12,crayon:12,chalk:14,'oil-pastel':16,'oil-paint':20,highlighter:20,laser:5,stamp:24,calligraphy:8,marker:14,charcoal:16,watercolor:18,airbrush:24,gel:3};
     const saved=brushSizes.current[id];const size=Number.isFinite(saved)?Math.min(40,Math.max(1,saved)):defaults[id]??4;
-    try{localStorage.setItem('phoenix-brush-sizes',JSON.stringify(brushSizes.current));}catch{}
+    try{localStorage.setItem('phoenix-brush-sizes',JSON.stringify(brushSizes.current));notifyPreferencesChanged();}catch{}
     const nextColor = nextTool === 'laser' && (!pen.color || ['#1f2937','#1e1e1e','#000000','#94a3b8'].includes(pen.color.toLowerCase())) ? '#ff1744' : pen.color;
     setTool(nextTool);setPen({...pen,color:nextColor,size,customPenId:undefined,opacity:1,...(nextTool==='pen'?{brush:id as Pen['brush'],brushSettings:brushSettings(id as Pen['brush']),customPenId:undefined,opacity:1}:{})});
   };
-  useEffect(()=>{if(tool==='pen'||tool==='highlighter'||tool==='laser'){brushSizes.current[tool==='pen'?(pen.brush??'normal'):tool]=pen.size;try{localStorage.setItem('phoenix-brush-sizes',JSON.stringify(brushSizes.current));}catch{}}},[tool,pen.brush,pen.size]);
+  useEffect(()=>{if(tool==='pen'||tool==='highlighter'||tool==='laser'){brushSizes.current[tool==='pen'?(pen.brush??'normal'):tool]=pen.size;try{localStorage.setItem('phoenix-brush-sizes',JSON.stringify(brushSizes.current));notifyPreferencesChanged();}catch{}}},[tool,pen.brush,pen.size]);
   useEffect(()=>{if(tool!=='pen')return;const available=pen.customPenId?customPens.some(p=>p.id===pen.customPenId&&p.enabled!==false):penMenu.includes(pen.brush??'normal');if(!available)setPen({...pen,brush:'normal',brushSettings:brushSettings('normal'),customPenId:undefined,size:4,opacity:1});},[penMenu,customPens,tool,pen.customPenId,pen.brush]);
   const [touchOpen,setTouchOpen]=useState(false);
   const [recorderOpen, setRecorderOpen] = useState(false);
   // moreOpen removed
   const [pinned,setPinned]=useState<string[]>(()=>{try{const value=JSON.parse(localStorage.getItem('phoenix-toolbar-pins')??'[]');return Array.isArray(value)?value.filter(id=>['Select','Text','Shapes','Redo','Tools'].includes(id)):[];}catch{return [];}});
-  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-pins',JSON.stringify(pinned));}catch{}},[pinned]);
+  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-pins',JSON.stringify(pinned));notifyPreferencesChanged();}catch{}},[pinned]);
   const [shapeGroup,setShapeGroup]=useState<"2d"|"3d">("2d");
   const [shapeOpen, setShapeOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -122,9 +125,9 @@ export function Toolbar({
 
   return (
     <>
-      {tool==='select'&&optionsOpen&&<ToolPopover anchor="Select"><section data-toolbar-surface className="kn-more-tools kn-select-options" aria-label="Selection options"><header><strong>Select</strong><button type="button" aria-label="Close selection options" onClick={()=>setOptionsOpen(false)}><Icon name="close"/></button></header><div className="kn-selection-modes">{([{mode:'rectangle',label:'Square select',icon:'rect'},{mode:'lasso',label:'Custom select',icon:'lasso'}] as const).map(item=><button key={item.mode} type="button" aria-label={item.label} aria-pressed={selectionSettings.mode===item.mode} onClick={()=>onSelectionSettings({...selectionSettings,mode:item.mode})}><Icon name={item.icon}/><span>{item.label}</span></button>)}</div><label className="kn-smart-object"><input type="checkbox" aria-label="Smart object selection" checked={selectionSettings.smart} onChange={e=>onSelectionSettings({...selectionSettings,smart:e.target.checked})}/>Smart object</label><small>{selectionSettings.smart?'Touch part of an object to select it completely.':'Select enclosed ink segments. Enclose shapes, text and documents completely.'}</small></section></ToolPopover>}
+      {tool==='select'&&optionsOpen&&<ToolPopover anchor="Select" id={POPOVER_ID.select}><section data-toolbar-surface className="kn-more-tools kn-select-options" aria-label="Selection options"><header><strong>Select</strong><button type="button" aria-label="Close selection options" onClick={()=>setOptionsOpen(false)}><Icon name="close"/></button></header><div className="kn-selection-modes">{([{mode:'rectangle',label:'Square select',icon:'rect'},{mode:'lasso',label:'Custom select',icon:'lasso'}] as const).map(item=><button key={item.mode} type="button" aria-label={item.label} aria-pressed={selectionSettings.mode===item.mode} onClick={()=>onSelectionSettings({...selectionSettings,mode:item.mode})}><Icon name={item.icon}/><span>{item.label}</span></button>)}</div><label className="kn-smart-object"><input type="checkbox" aria-label="Smart object selection" checked={selectionSettings.smart} onChange={e=>onSelectionSettings({...selectionSettings,smart:e.target.checked})}/>Smart object</label><small>{selectionSettings.smart?'Touch part of an object to select it completely.':'Select enclosed ink segments. Enclose shapes, text and documents completely.'}</small></section></ToolPopover>}
       {/* Pen / eraser options floating above the toolbar */}
-      {isPen && optionsOpen && (<ToolPopover anchor="Pen">
+      {isPen && optionsOpen && (<ToolPopover anchor="Pen" id={POPOVER_ID.pen}>
         <div data-toolbar-surface aria-label="Pen options" className="kn-tool-options kn-pop kn-scroll max-h-[calc(100dvh-168px)] w-[330px] max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur">
           <div className="kn-options-heading mb-2 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-muted">
@@ -175,7 +178,7 @@ export function Toolbar({
             </span>
           </div>
 {tool !== 'laser' && <label className="mt-3 grid gap-2 text-sm">Opacity: {Math.round(pen.opacity*100)}%<input className="kn-range" type="range" aria-label="Pen opacity" min={.05} max={1} step={.05} value={pen.opacity} onChange={e=>setPen({...pen,opacity:+e.target.value})}/></label>}<div className="custom-pen-menu" aria-label="Saved pens">{customPens.filter(p=>p.enabled!==false).map(p=><button key={p.id} type="button" aria-label={`Use pen ${p.name}`} aria-pressed={pen.customPenId===p.id} onClick={()=>{setTool('pen');setPen({...pen,brush:p.brush,brushSettings:{...p.settings},customPenId:p.id,color:p.color,size:p.size,opacity:p.opacity,pressure:p.pressure,smartShapes:false});}}><PenIllustration kind={p.brush} color={p.color}/>{p.name}</button>)}</div>
-<label className="mt-3 flex min-h-11 items-center justify-between text-sm">Custom color<input style={{width:44,height:44}} aria-label="Custom ink color" type="color" value={pen.color} onChange={e=>setPen({...pen,color:e.target.value})}/></label><button data-touch-settings className="kn-touch-settings" aria-label="Writing and touch settings" aria-expanded={touchOpen} onClick={()=>setTouchOpen(v=>!v)}>Writing &amp; touch<Icon name="chevronRight"/></button>{touchOpen&&<ToolPopover anchor="Writing and touch settings" selector="[data-touch-settings]"><section data-toolbar-surface className="kn-more-tools" aria-label="Writing and touch"><header><strong>Writing &amp; touch</strong><button aria-label="Close writing and touch" onClick={()=>setTouchOpen(false)}><Icon name="close"/></button></header>          <div className="mb-4 grid gap-3 text-sm">
+<label className="mt-3 flex min-h-11 items-center justify-between text-sm">Custom color<input style={{width:44,height:44}} aria-label="Custom ink color" type="color" value={pen.color} onChange={e=>setPen({...pen,color:e.target.value})}/></label><button data-touch-settings className="kn-touch-settings" aria-label="Writing and touch settings" aria-expanded={touchOpen} aria-controls={touchOpen?POPOVER_ID.touch:undefined} onClick={()=>setTouchOpen(v=>!v)}>Writing &amp; touch<Icon name="chevronRight"/></button>{touchOpen&&<ToolPopover anchor="Writing and touch settings" selector="[data-touch-settings]" id={POPOVER_ID.touch}><section data-toolbar-surface className="kn-more-tools" aria-label="Writing and touch"><header><strong>Writing &amp; touch</strong><button type="button" aria-label="Close writing and touch" onClick={()=>setTouchOpen(false)}><Icon name="close"/></button></header>          <div className="mb-4 grid gap-3 text-sm">
             <label className="flex min-h-11 items-center gap-2"><input type="checkbox" aria-label="Enable palm eraser" checked={palmEraser} onChange={e=>onPalmEraser(e.target.checked)}/>Palm eraser</label>
             {onDualNibMode && <label className="flex min-h-11 items-center gap-2"><input type="checkbox" aria-label="Dual-nib smartboard pen" checked={dualNibMode ?? false} onChange={e=>onDualNibMode(e.target.checked)}/>Dual-nib smartboard pen</label>}
             <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={pen.pressure !== false} onChange={e=>setPen({...pen,pressure:e.target.checked})}/> Pen pressure</label>
@@ -186,7 +189,7 @@ export function Toolbar({
         </div></ToolPopover>
       )}
 
-      {tool === "eraser" && optionsOpen && (<ToolPopover anchor="Eraser">
+      {tool === "eraser" && optionsOpen && (<ToolPopover anchor="Eraser" id={POPOVER_ID.eraser}>
         <div data-toolbar-surface aria-label="Eraser options" className="kn-tool-options kn-pop kn-scroll max-h-[calc(100dvh-168px)] w-[260px] max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain rounded-2xl border border-line bg-panel/95 p-4 shadow-2xl backdrop-blur">
           <div className="kn-eraser-modes" aria-label="Eraser modes">{[
             {id:'ink',label:'Custom eraser',icon:'eraser'},
@@ -215,7 +218,7 @@ export function Toolbar({
       )}
 
       {recorderOpen && recorder && (
-        <ToolPopover anchor="Record" selector='.kn-main-tools button[data-tool-id="record"]'>
+        <ToolPopover anchor="Record" selector='.kn-main-tools button[data-tool-id="record"]' id={POPOVER_ID.record}>
           <div
             data-toolbar-surface
             aria-label="Lesson recording"
@@ -226,9 +229,9 @@ export function Toolbar({
                 <span
                   className={`h-2.5 w-2.5 rounded-full ${
                     recorder.state === "recording"
-                      ? "bg-red-500 animate-pulse"
+                      ? "bg-danger motion-safe:animate-pulse"
                       : recorder.state === "paused"
-                      ? "bg-amber-400"
+                      ? "bg-warn"
                       : "bg-muted"
                   }`}
                 />
@@ -236,10 +239,10 @@ export function Toolbar({
               </div>
               <button
                 type="button"
-                style={{ minWidth: 36, minHeight: 36 }}
+                style={{ minWidth: 44, minHeight: 44 }}
                 aria-label="Close recording options"
                 onClick={() => setRecorderOpen(false)}
-                className="kn-focus grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink transition-colors"
+                className="kn-focus grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink transition-colors"
               >
                 <Icon name="close" className="h-4 w-4" />
               </button>
@@ -257,7 +260,7 @@ export function Toolbar({
                     onClick={() => recorder.setMicEnabled((prev) => !prev)}
                     aria-label={recorder.micEnabled ? "Microphone enabled (click to mute)" : "Microphone disabled (click to enable)"}
                     className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors ${
-                      recorder.micEnabled ? "border-brand/30 bg-brand/20 text-brand-light" : "border-line bg-elevated text-muted line-through"
+                      recorder.micEnabled ? "border-brand/30 bg-brand-subtle text-brand-text" : "border-line bg-elevated text-muted line-through"
                     }`}
                   >
                     <Icon name={recorder.micEnabled ? "mic" : "micOff"} className="h-3.5 w-3.5" />
@@ -267,9 +270,9 @@ export function Toolbar({
                 <button
                   type="button"
                   onClick={() => void recorder.start()}
-                  className="kn-focus flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-red-500 transition-colors"
+                  className="kn-focus flex w-full items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:brightness-110 transition-colors"
                 >
-                  <span className="h-2.5 w-2.5 rounded-full bg-white shadow-sm animate-pulse" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-white shadow-sm motion-safe:animate-pulse" />
                   <span>Start Recording</span>
                 </button>
               </div>
@@ -279,7 +282,7 @@ export function Toolbar({
                   <div className="flex items-center gap-2">
                     <span
                       className={`h-3 w-3 rounded-full ${
-                        recorder.state === "recording" ? "bg-red-500 animate-ping" : "bg-amber-400"
+                        recorder.state === "recording" ? "bg-danger motion-safe:animate-ping" : "bg-warn"
                       }`}
                     />
                     <span className="font-mono text-base font-bold tabular-nums text-ink">
@@ -309,7 +312,7 @@ export function Toolbar({
                       setRecorderOpen(false);
                     }}
                     aria-label="Stop recording and download"
-                    className="kn-focus flex items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white shadow-md hover:bg-red-500 transition-colors"
+                    className="kn-focus flex items-center justify-center gap-1.5 rounded-xl bg-danger px-3 py-2 text-xs font-semibold text-white shadow-md hover:brightness-110 transition-colors"
                   >
                     <span className="h-2 w-2 rounded-sm bg-white" />
                     <span>Done &amp; Save</span>
@@ -326,6 +329,8 @@ export function Toolbar({
           <ToolButton
             key={tItem.id}
             dataToolId={tItem.id}
+            dataTool={tItem.id}
+            expanded={(tItem.id==="pen"?isPen:tool===tItem.id)&&optionsOpen} controls={POPOVER_ID[tItem.id as 'select'|'pen'|'eraser']}
             active={tItem.id==="pen"?isPen:tool === tItem.id}
             onClick={() => { setShapeOpen(false);setTouchOpen(false);setRecorderOpen(false);setOptionsOpen((tItem.id==="pen"||tItem.id==="eraser"||tItem.id==="select")?openSettings(tItem.id,tItem.id==="pen"?isPen:tool===tItem.id,optionsOpen):false);if(tItem.id!=="pen"||!isPen)setTool(tItem.id); }}
             secondary={tItem.id==="select"||tItem.id==="text"} pinned={pinned.includes(tItem.label)} art={tItem.id==="pen"?(tool==="laser"?"laser":tool==="highlighter"?"highlighter":pen.brush??"normal"):undefined} color={pen.color}
@@ -338,17 +343,17 @@ export function Toolbar({
         <div className={`relative kn-responsive-secondary ${pinned.includes("Shapes")?"kn-pinned":""}`}>
           <ToolButton
             active={isShape}
-            dataToolId="shapes"
+            dataToolId="shapes" dataTool="shapes" expanded={shapeOpen} controls={POPOVER_ID.shapes}
             onClick={() => {setShapeOpen(openSettings('shapes',isShape,shapeOpen));if(!isShape)setTool('auto-shape');setOptionsOpen(false);setTouchOpen(false);setRecorderOpen(false);}}
             icon="shapes"
             label={t("shapes", "Shapes")}
           />
-          {shapeOpen && (<ToolPopover anchor="Shapes">
+          {shapeOpen && (<ToolPopover anchor="Shapes" id={POPOVER_ID.shapes}>
             <section className="kn-shape-palette kn-pop" aria-label="Shape palette">
               <header><strong>{t("shapes", "Shapes")}</strong><button type="button" style={{minWidth:44,minHeight:44}} aria-label="Close shape palette" onClick={()=>setShapeOpen(false)}><Icon name="close"/></button></header>
               <div className="kn-shape-tabs" role="tablist" aria-label="Shape groups">{(['2d','3d'] as const).map(group=><button type="button" role="tab" key={group} aria-selected={shapeGroup===group} onClick={()=>setShapeGroup(group)}>{group.toUpperCase()} shapes</button>)}</div>
               <div className="kn-shape-groups" onTouchStart={e=>{e.currentTarget.dataset.swipeX=String(e.touches[0].clientX);}} onTouchEnd={e=>{const dx=e.changedTouches[0].clientX-Number(e.currentTarget.dataset.swipeX);if(Math.abs(dx)>55)setShapeGroup(dx<0?'3d':'2d');}}><div className="kn-shape-grid">
-                {shapeGroup==='2d'?SHAPES.map(s=><button type="button" key={s.id} aria-label={s.label} aria-pressed={tool===s.id} title={s.label} onClick={()=>setTool(s.id)} className={tool===s.id?'is-active':''}><Icon name={s.icon}/><span>{s.label}</span></button>):SOLIDS.map(kind=><button type="button" key={kind} aria-label={`Add 3D ${kind}`} onClick={()=>{onAddSolid(kind);setShapeOpen(false);}}><SolidIcon kind={kind}/><span>{kind.replaceAll('-',' ')}</span></button>)}
+                {shapeGroup==='2d'?SHAPES.map(s=><button type="button" key={s.id} data-ui={s.id==='auto-shape'?'auto-shape':undefined} aria-label={s.label} aria-pressed={tool===s.id} title={s.label} onClick={()=>setTool(s.id)} className={tool===s.id?'is-active':''}><Icon name={s.icon}/><span>{s.label}</span></button>):SOLIDS.map(kind=><button type="button" key={kind} aria-label={`Add 3D ${kind}`} onClick={()=>{onAddSolid(kind);setShapeOpen(false);}}><SolidIcon kind={kind}/><span>{kind.replaceAll('-',' ')}</span></button>)}
               </div></div>
               <div className="kn-shape-properties">
                 <label>Stroke <input type="color" aria-label="Shape stroke color" value={pen.color} onChange={e=>setPen({...pen,color:e.target.value})}/></label>
@@ -362,19 +367,19 @@ export function Toolbar({
           )}
         </div>
 
-        <ToolButton active={tool==='pan'} onClick={()=>{lastToolClick.current='pan';setTool('pan');setOptionsOpen(false);setShapeOpen(false);setRecorderOpen(false);}} icon="hand" label={t("pan", "Hand")}/>
-        <ToolButton active={tool==='text'} secondary pinned={pinned.includes('Text')} onClick={()=>{lastToolClick.current='text';setOptionsOpen(false);setTool('text');setShapeOpen(false);setRecorderOpen(false);}} icon="text" label={t("text", "Text")}/>
+        <ToolButton dataTool="hand" active={tool==='pan'} onClick={()=>{lastToolClick.current='pan';setTool('pan');setOptionsOpen(false);setShapeOpen(false);setRecorderOpen(false);}} icon="hand" label={t("pan", "Hand")}/>
+        <ToolButton dataTool="text" active={tool==='text'} secondary pinned={pinned.includes('Text')} onClick={()=>{lastToolClick.current='text';setOptionsOpen(false);setTool('text');setShapeOpen(false);setRecorderOpen(false);}} icon="text" label={t("text", "Text")}/>
 
         <div className="mx-1 h-8 w-px bg-line" />
 
-        <ToolButton onClick={undo} icon="undo" label={t("undo", "Undo")} disabled={!canUndo} />
-        <ToolButton secondary pinned={pinned.includes("Redo")} onClick={redo} icon="redo" label={t("redo", "Redo")} disabled={!canRedo} />
+        <ToolButton dataTool="undo" onClick={undo} icon="undo" label={t("undo", "Undo")} disabled={!canUndo} />
+        <ToolButton dataTool="redo" secondary pinned={pinned.includes("Redo")} onClick={redo} icon="redo" label={t("redo", "Redo")} disabled={!canRedo} />
 
         <div className="mx-1 h-8 w-px bg-line" />
-        <ToolButton active={boardToolsActive} onClick={()=>{setOptionsOpen(false);setShapeOpen(false);setRecorderOpen(false);onOpenBoardTools?.();}} icon="board" label={t("board_tools", "Board & tools")}/>
+        <ToolButton dataTool="board-tools" active={boardToolsActive} onClick={()=>{setOptionsOpen(false);setShapeOpen(false);setRecorderOpen(false);onOpenBoardTools?.();}} icon="board" label={t("board_tools", "Board & tools")}/>
         {recorder && (
           <ToolButton
-            dataToolId="record"
+            dataToolId="record" dataTool="record" expanded={recorderOpen} controls={POPOVER_ID.record}
             active={recorder.state === "recording" || recorder.state === "paused" || recorderOpen}
             onClick={() => {
               setOptionsOpen(false);
@@ -404,8 +409,16 @@ function ToolButton({
   secondary,
   pinned,
   dataToolId,
+  dataTool,
+  expanded,
+  controls,
 }: {
   dataToolId?: string;
+  /** Language-independent hook for CSS (aria-label is translated). */
+  dataTool?: string;
+  /** For triggers that open a popover: aria-expanded + aria-controls. */
+  expanded?: boolean;
+  controls?: string;
   art?: string;
   color?: string;
   secondary?: boolean;
@@ -420,6 +433,9 @@ function ToolButton({
     <button
       type="button"
       data-tool-id={dataToolId}
+      data-tool={dataTool}
+      aria-expanded={controls?!!expanded:undefined}
+      aria-controls={controls&&expanded?controls:undefined}
       style={{ minWidth: 44, minHeight: 44, ...(active && color ? { "--active-ink": color } : {}) } as React.CSSProperties}
       onClick={onClick}
       disabled={disabled}
@@ -429,14 +445,14 @@ function ToolButton({
       className={`${secondary ? "kn-responsive-secondary" : ""} ${pinned ? "kn-pinned" : ""} kn-focus relative grid h-11 w-11 place-items-center rounded-xl transition disabled:opacity-30 ${
         active
           ? dataToolId === "record"
-            ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
-            : "bg-brand text-white shadow-lg"
+            ? "bg-danger text-white shadow-lg shadow-danger/30"
+            : "bg-brand text-on-brand shadow-lg"
           : "text-muted hover:bg-elevated hover:text-ink"
       }`}
     >
       <ToolArtwork id={art ?? (icon === "hand" ? "hand" : icon === "toolbox" ? "tools" : icon)} icon={icon} color={color} />
       {dataToolId === "record" && active && (
-        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-white shadow-sm animate-ping" />
+        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-white shadow-sm motion-safe:animate-ping" />
       )}
     </button>
   );

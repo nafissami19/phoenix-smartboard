@@ -288,9 +288,10 @@ export function drawShape(ctx: CanvasRenderingContext2D, shape: ShapeObject) {
   ctx.restore();
 }
 
-function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+function wrapLines(ctx: CanvasRenderingContext2D, text: unknown, maxWidth: number): string[] {
   const out: string[] = [];
-  for (const paragraph of text.split("\n")) {
+  // Imported or hand-edited lessons can carry non-string text; never throw per frame.
+  for (const paragraph of (typeof text === "string" ? text : text == null ? "" : String(text)).split("\n")) {
     const words = paragraph.split(" ");
     let line = "";
     for (const word of words) {
@@ -372,17 +373,38 @@ export function drawText(ctx: CanvasRenderingContext2D, item: TextObject) {
   ctx.restore();
 }
 
+const finite=(value:unknown)=>typeof value==='number'&&Number.isFinite(value);
+const checkedObjects=new WeakSet<object>(),brokenObjects=new WeakSet<object>();
+/** Structural check (cached per object) so a malformed saved item is skipped instead of throwing every frame. */
+export function isDrawableObject(obj: unknown): obj is BoardObject {
+  if (!obj || typeof obj !== "object" || brokenObjects.has(obj)) return false;
+  if (checkedObjects.has(obj)) return true;
+  const o = obj as Record<string, unknown>;
+  const ok = o.kind === "stroke" ? Array.isArray(o.points) && (o.points as unknown[]).every(p => !!p && finite((p as Point).x) && finite((p as Point).y)) && finite(o.width)
+    : o.kind === "shape" ? finite(o.x) && finite(o.y) && finite(o.w) && finite(o.h)
+    : o.kind === "text" ? finite(o.x) && finite(o.y) && finite(o.fontSize)
+    : false;
+  (ok ? checkedObjects : brokenObjects).add(obj);
+  return ok;
+}
 export function drawObject(ctx: CanvasRenderingContext2D, obj: BoardObject) {
-  switch (obj.kind) {
-    case "stroke":
-      drawStroke(ctx, obj);
-      break;
-    case "shape":
-      drawShape(ctx, obj);
-      break;
-    case "text":
-      drawText(ctx, obj);
-      break;
+  if (!isDrawableObject(obj)) return;
+  try {
+    switch (obj.kind) {
+      case "stroke":
+        drawStroke(ctx, obj);
+        break;
+      case "shape":
+        drawShape(ctx, obj);
+        break;
+      case "text":
+        drawText(ctx, obj);
+        break;
+    }
+  } catch (error) {
+    // Skip this object from now on; one bad item must not blank the whole board.
+    brokenObjects.add(obj);
+    if (import.meta.env?.DEV) console.warn("Skipped a board object that could not be drawn", error);
   }
 }
 
@@ -740,6 +762,7 @@ export function simplifyStroke(stroke: StrokeObject, epsilon = 1.0): StrokeObjec
 }
 
 export function pointNearStroke(p: Point, stroke: StrokeObject, tol: number): boolean {
+  if (!isDrawableObject(stroke)) return false;
   const pts = stroke.points;
   const effTol = tol + stroke.width / 2;
   if (pts.length === 1) return dist(p, pts[0]) <= effTol;
@@ -750,6 +773,7 @@ export function pointNearStroke(p: Point, stroke: StrokeObject, tol: number): bo
 }
 
 export function objectBounds(obj:BoardObject,ctx?:CanvasRenderingContext2D):Bounds {
+  if(!isDrawableObject(obj))return{x:0,y:0,w:0,h:0};
   const b=rawObjectBounds(obj,ctx);if(obj.kind!=='text'||!obj.rotation)return b;
   const cx=b.x+b.w/2,cy=b.y+b.h/2,c=Math.cos(obj.rotation),s=Math.sin(obj.rotation);
   const pts=[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.h],[b.x,b.y+b.h]].map(([x,y])=>({x:cx+(x-cx)*c-(y-cy)*s,y:cy+(x-cx)*s+(y-cy)*c}));
@@ -799,7 +823,7 @@ function rawObjectBounds(obj: BoardObject, ctx?: CanvasRenderingContext2D): Boun
     ctx.restore();
     return { x: obj.x - padX, y: obj.y - padY, w: maxW + padX * 2, h: lines.length * obj.fontSize * 1.25 + padY * 2 };
   }
-  const maxW = obj.text.length * obj.fontSize * 0.6;
+  const maxW = String(obj.text ?? "").length * obj.fontSize * 0.6;
   return { x: obj.x - padX, y: obj.y - padY, w: maxW + padX * 2, h: obj.fontSize * 1.25 + padY * 2 };
 }
 

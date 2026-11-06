@@ -1,5 +1,3 @@
-"use client";
-
 import {SettingsSections} from '@/components/SettingsSections';
 import {DeviceStorage} from '@/components/DeviceStorage';
 import {PenStore} from '@/components/PenStore';
@@ -8,7 +6,7 @@ import {BackupConnections} from '@/components/BackupConnections';
 import {BRANDING} from '@/config/branding';
 import {BrandMark} from '@/components/BrandMark';
 import {LanguageToggle} from '@/lib/i18n';
-import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { cloneElement, isValidElement, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { TeachingPreferences } from "@/components/TeachingPreferences";
 import packageInfo from "../../../package.json";
 import { Icon } from "@/components/Icon";
@@ -98,7 +96,7 @@ export function SettingsPanel({
   return (
     <Modal title="Settings" icon={<Icon name="settings" className="h-5 w-5 text-brand-light" />} onClose={onClose} width={900}>
       <div className="space-y-5">
-        {saveError&&<p role="alert" className="text-sm text-red-700">{saveError}</p>}
+        {saveError&&<p role="alert" className="text-sm text-danger">{saveError}</p>}
         <SettingsSections sections={[
           {id:'teaching',label:'Board & tools',description:'Themes and defaults for your classroom.',content:<>        <TeachingPreferences value={preferences} onChange={patch=>setPreferences(value=>({...value,...patch}))} onThemeChange={patch=>{setPreferences(value=>({...value,...patch}));if(patch.accent)setAccent(patch.accent);setSaveError("");void updateProfile(patch).catch(error=>setSaveError(error instanceof Error?error.message:"Could not apply theme."));}}/>
 </>},
@@ -153,7 +151,7 @@ export function SettingsPanel({
         </Field>
         <Field label="Your app icon" hint="PNG, JPEG or WebP. Installer icons are customized in the project build settings.">
           {iconData && <img src={iconData} alt="Your icon" className="mb-2 h-14 w-14 object-contain"/>}
-          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>5*1024*1024){setSaveError('Choose an image under 5 MB.');return;}const image=await createImageBitmap(file);const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;const scale=Math.min(256/image.width,256/image.height);canvas.getContext('2d')!.drawImage(image,(256-image.width*scale)/2,(256-image.height*scale)/2,image.width*scale,image.height*scale);image.close();setIconData(canvas.toDataURL('image/png'));}} className="w-full text-sm"/>
+          <input type="file" aria-label="Choose your app icon" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>5*1024*1024){setSaveError('Choose an image under 5 MB.');return;}const image=await createImageBitmap(file);const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;const scale=Math.min(256/image.width,256/image.height);canvas.getContext('2d')!.drawImage(image,(256-image.width*scale)/2,(256-image.height*scale)/2,image.width*scale,image.height*scale);image.close();setIconData(canvas.toDataURL('image/png'));}} className="w-full text-sm"/>
         </Field>
         <Field label="Custom interface color"><input aria-label="Interface color" type="color" value={accent} onChange={e=>setAccent(e.target.value)}/></Field>
         <Field label="Accent colour">
@@ -191,7 +189,7 @@ export function SettingsPanel({
           <button
             onClick={save}
             disabled={saving}
-            className="kn-focus rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+            className="kn-focus rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -211,11 +209,19 @@ function Field({
   hint?: string;
   children: ReactNode;
 }) {
+  // A single native control gets a real <label htmlFor>; anything else becomes a labelled group.
+  const id = useId(), hintId = hint ? `${id}-hint` : undefined;
+  const control = isValidElement<{ id?: string; "aria-describedby"?: string }>(children) && typeof children.type === "string" && ["input", "select", "textarea"].includes(children.type) ? children : null;
+  const controlId = control?.props.id ?? `${id}-control`;
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-ink">{label}</label>
-      {children}
-      {hint && <p className="mt-1 text-xs text-faint">{hint}</p>}
+      {control
+        ? <label htmlFor={controlId} className="mb-1.5 block text-sm font-medium text-ink">{label}</label>
+        : <div id={`${id}-label`} className="mb-1.5 block text-sm font-medium text-ink">{label}</div>}
+      {control
+        ? cloneElement(control, { id: controlId, "aria-describedby": control.props["aria-describedby"] ?? hintId })
+        : <div role="group" aria-labelledby={`${id}-label`} aria-describedby={hintId}>{children}</div>}
+      {hint && <p id={hintId} className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }

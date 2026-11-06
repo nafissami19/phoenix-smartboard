@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState,type PointerEvent} from 'react';
+import {notifyPreferencesChanged} from '@/lib/preferences';
 import {createPortal} from 'react-dom';
 import type Keyboard from 'simple-keyboard';
 import 'simple-keyboard/build/css/index.css';
@@ -17,7 +18,7 @@ export function SmartKeyboard(){
  const drag=useRef<{id:number;dx:number;dy:number}|null>(null),positionRef=useRef(position);positionRef.current=position;
  const restore=()=>{const field=target.current;if(field){if(originalMode.current===null)field.removeAttribute('inputmode');else field.setAttribute('inputmode',originalMode.current);}target.current=null;};
  const close=(blur=false)=>{const field=target.current;restore();setActive(null);if(blur)field?.blur();};
- useEffect(()=>{try{localStorage.setItem('phoenix-keyboard-mode',mode);}catch{}},[mode]);
+ useEffect(()=>{try{localStorage.setItem('phoenix-keyboard-mode',mode);notifyPreferencesChanged();}catch{}},[mode]);
  useEffect(()=>{
   const focus=(event:Event)=>{const field=event.target as Element;if(!eligible(field))return;if(target.current!==field){restore();target.current=field;originalMode.current=field.getAttribute('inputmode');field.setAttribute('inputmode','none');}setDestination(field.closest<HTMLElement>('dialog')??document.body);setActive(field);setLayout('default');keyboard.current?.setInput(field.value);};
   const outside=(event:Event)=>{const element=event.target as Element;if(element.closest('.kn-smart-keyboard'))return;if(eligible(element))focus({target:element} as unknown as Event);else close();};

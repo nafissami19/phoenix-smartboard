@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { compileTeachingExpression, formatMathNumber, type AngleMode } from '@/lib/teaching-math';
@@ -20,6 +18,7 @@ import {
   type EnergyUnit,
 } from '@/lib/classwiz-math';
 import { formatTime12 } from '@/lib/format-time';
+import { STOPWATCH_IDLE, stopwatchElapsed, stopwatchToggle } from '@/lib/stopwatch';
 import './TeachingMath.css';
 
 // ------------------------------- Calculator --------------------------------
@@ -400,7 +399,7 @@ export function EquationSolver({ onStamp }: { onStamp?: (text: string) => void }
           </div>
           <div className="classwiz-solution-box">
             {'error' in quadSol ? (
-              <span className="text-red-400">{quadSol.error}</span>
+              <span className="text-danger">{quadSol.error}</span>
             ) : (
               quadSol.formattedSteps.map((st, i) => <div key={i}>{st}</div>)
             )}
@@ -418,7 +417,7 @@ export function EquationSolver({ onStamp }: { onStamp?: (text: string) => void }
           </div>
           <div className="classwiz-solution-box">
             {'error' in cubicSol ? (
-              <span className="text-red-400">{cubicSol.error}</span>
+              <span className="text-danger">{cubicSol.error}</span>
             ) : (
               cubicSol.formattedSteps.map((st, i) => <div key={i}>{st}</div>)
             )}
@@ -438,7 +437,7 @@ export function EquationSolver({ onStamp }: { onStamp?: (text: string) => void }
           </div>
           <div className="classwiz-solution-box">
             {'error' in l2Sol ? (
-              <span className="text-red-400">{l2Sol.error}</span>
+              <span className="text-danger">{l2Sol.error}</span>
             ) : (
               l2Sol.formattedSteps.map((st, i) => <div key={i}>{st}</div>)
             )}
@@ -450,7 +449,7 @@ export function EquationSolver({ onStamp }: { onStamp?: (text: string) => void }
         <>
           <div className="classwiz-solution-box">
             {'error' in l3Sol ? (
-              <span className="text-red-400">{l3Sol.error}</span>
+              <span className="text-danger">{l3Sol.error}</span>
             ) : (
               l3Sol.formattedSteps.map((st, i) => <div key={i}>{st}</div>)
             )}
@@ -533,6 +532,7 @@ export function MatrixSolver({ onStamp }: { onStamp?: (text: string) => void }) 
                   <input
                     key={`${r}-${c}`}
                     type="number"
+                    aria-label={`Row ${r + 1} column ${c + 1}`}
                     className="w-16 rounded border border-line bg-base p-2 text-center text-sm font-bold text-ink"
                     value={val}
                     onChange={e => updateM2(r, c, Number(e.target.value))}
@@ -544,6 +544,7 @@ export function MatrixSolver({ onStamp }: { onStamp?: (text: string) => void }) 
                   <input
                     key={`${r}-${c}`}
                     type="number"
+                    aria-label={`Row ${r + 1} column ${c + 1}`}
                     className="w-14 rounded border border-line bg-base p-2 text-center text-xs font-bold text-ink"
                     value={val}
                     onChange={e => updateM3(r, c, Number(e.target.value))}
@@ -641,7 +642,7 @@ export function ConverterPanel({ onStamp }: { onStamp?: (text: string) => void }
                 key={c}
                 type="button"
                 className={`flex-1 rounded p-1 font-semibold border transition-colors ${
-                  category === c ? 'bg-brand text-white border-brand' : 'bg-elevated text-muted border-line hover:text-ink hover:border-line-2'
+                  category === c ? 'bg-brand text-on-brand border-brand' : 'bg-elevated text-muted border-line hover:text-ink hover:border-line-2'
                 }`}
                 onClick={() => setCategory(c)}
               >
@@ -659,40 +660,40 @@ export function ConverterPanel({ onStamp }: { onStamp?: (text: string) => void }
               <span className="text-[10px] text-muted">From / To</span>
               {category === 'speed' && (
                 <div className="flex gap-1">
-                  <select value={speedFrom} onChange={e => setSpeedFrom(e.target.value as SpeedUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                  <select aria-label="Convert speed from unit" value={speedFrom} onChange={e => setSpeedFrom(e.target.value as SpeedUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
                     {(['km/h', 'm/s', 'mph', 'knot'] as const).map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
-                  <select value={speedTo} onChange={e => setSpeedTo(e.target.value as SpeedUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                  <select aria-label="Convert speed to unit" value={speedTo} onChange={e => setSpeedTo(e.target.value as SpeedUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
                     {(['km/h', 'm/s', 'mph', 'knot'] as const).map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
               )}
               {category === 'temp' && (
                 <div className="flex gap-1">
-                  <select value={tempFrom} onChange={e => setTempFrom(e.target.value as TempUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                  <select aria-label="Convert temperature from unit" value={tempFrom} onChange={e => setTempFrom(e.target.value as TempUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
                     {(['C', 'K', 'F'] as const).map(u => <option key={u} value={u}>°{u}</option>)}
                   </select>
-                  <select value={tempTo} onChange={e => setTempTo(e.target.value as TempUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                  <select aria-label="Convert temperature to unit" value={tempTo} onChange={e => setTempTo(e.target.value as TempUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
                     {(['C', 'K', 'F'] as const).map(u => <option key={u} value={u}>°{u}</option>)}
                   </select>
                 </div>
               )}
               {category === 'pressure' && (
                 <div className="flex gap-1">
-                  <select value={pressFrom} onChange={e => setPressFrom(e.target.value as PressureUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                  <select aria-label="Convert pressure from unit" value={pressFrom} onChange={e => setPressFrom(e.target.value as PressureUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
                     {(['atm', 'Pa', 'kPa', 'bar', 'mmHg', 'psi'] as const).map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
-                  <select value={pressTo} onChange={e => setPressTo(e.target.value as PressureUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                  <select aria-label="Convert pressure to unit" value={pressTo} onChange={e => setPressTo(e.target.value as PressureUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
                     {(['atm', 'Pa', 'kPa', 'bar', 'mmHg', 'psi'] as const).map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
               )}
               {category === 'energy' && (
                 <div className="flex gap-1">
-                  <select value={nrgFrom} onChange={e => setNrgFrom(e.target.value as EnergyUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                  <select aria-label="Convert energy from unit" value={nrgFrom} onChange={e => setNrgFrom(e.target.value as EnergyUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
                     {(['J', 'kJ', 'eV', 'cal', 'kcal', 'kWh'] as const).map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
-                  <select value={nrgTo} onChange={e => setNrgTo(e.target.value as EnergyUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
+                  <select aria-label="Convert energy to unit" value={nrgTo} onChange={e => setNrgTo(e.target.value as EnergyUnit)} className="w-1/2 rounded bg-base border border-line p-1 text-xs">
                     {(['J', 'kJ', 'eV', 'cal', 'kcal', 'kWh'] as const).map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
@@ -709,12 +710,14 @@ export function ConverterPanel({ onStamp }: { onStamp?: (text: string) => void }
           <div className="flex gap-2">
             <input
               type="text"
+              aria-label="Number to convert"
               value={baseInput}
               onChange={e => setBaseInput(e.target.value)}
               placeholder="Enter number..."
               className="flex-1 rounded border border-line bg-base p-2 text-sm font-mono text-ink"
             />
             <select
+              aria-label="Input number base"
               value={baseMode}
               onChange={e => setBaseMode(Number(e.target.value) as 10 | 16 | 2 | 8)}
               className="rounded bg-base border border-line p-2 text-xs font-semibold"
@@ -734,7 +737,7 @@ export function ConverterPanel({ onStamp }: { onStamp?: (text: string) => void }
               <div className="col-span-2"><span className="text-muted">BIN:</span> <strong>{convertedBase.formattedBin}</strong></div>
             </div>
           ) : (
-            <div className="classwiz-solution-box text-red-400">Invalid number for base {baseMode}</div>
+            <div className="classwiz-solution-box text-danger">Invalid number for base {baseMode}</div>
           )}
         </div>
       )}
@@ -766,7 +769,7 @@ export function Calculator({ onStamp }: { onStamp?: (text: string) => void }) {
           type="button"
           onClick={() => setDualMode(v => !v)}
           className={`h-8 px-2 rounded-lg text-xs font-semibold border ${
-            dualMode ? 'border-brand bg-brand text-white shadow' : 'border-line text-muted hover:text-ink'
+            dualMode ? 'border-brand bg-brand text-on-brand shadow' : 'border-line text-muted hover:text-ink'
           }`}
           title="Duplicate / Split Calculator side-by-side"
         >
@@ -846,7 +849,7 @@ export function CountdownTimer() {
             style={{ filter: `drop-shadow(0 0 6px ${ringColor})` }}
           />
         </svg>
-        <div className={`absolute inset-0 flex flex-col items-center justify-center font-mono text-3xl font-bold tabular-nums ${isUrgent ? 'animate-pulse text-red-400' : 'text-brand-light'}`}>
+        <div className={`absolute inset-0 flex flex-col items-center justify-center font-mono text-3xl font-bold tabular-nums ${isUrgent ? 'motion-safe:animate-pulse text-danger' : 'text-brand-light'}`}>
           <span>{mm}:{ss}</span>
           <span className="text-[10px] font-medium uppercase tracking-wider text-muted">{running ? 'Timer' : total === 0 ? 'Done' : 'Set'}</span>
         </div>
@@ -857,6 +860,7 @@ export function CountdownTimer() {
             type="number"
             min={0}
             max={180}
+            aria-label="Timer minutes"
             value={minutes}
             onChange={(e) => setMinutes(Math.max(0, Math.min(180, +e.target.value || 0)))}
             className="kn-focus w-14 rounded-lg border border-line bg-base px-2 py-1 text-center font-mono text-sm text-ink"
@@ -866,6 +870,7 @@ export function CountdownTimer() {
             type="number"
             min={0}
             max={59}
+            aria-label="Timer seconds"
             value={seconds}
             onChange={(e) => setSeconds(Math.max(0, Math.min(59, +e.target.value || 0)))}
             className="kn-focus w-14 rounded-lg border border-line bg-base px-2 py-1 text-center font-mono text-sm text-ink"
@@ -883,7 +888,7 @@ export function CountdownTimer() {
             }
             setRunning((r) => !r);
           }}
-          className="kn-focus flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+          className="kn-focus flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-on-brand hover:bg-brand-hover"
         >
           <Icon name={running ? "pause" : "play"} className="h-4 w-4" filled />
           {running ? "Pause" : "Start"}
@@ -906,13 +911,16 @@ export function CountdownTimer() {
 // ------------------------------ Stopwatch ----------------------------------
 
 export function Stopwatch() {
-  const [ms, setMs] = useState(0);
-  const [running, setRunning] = useState(false);
+  // Anchored to performance.now(): throttled/background intervals only delay repaints, never lose time.
+  const [watch, setWatch] = useState(STOPWATCH_IDLE);
+  const [now, setNow] = useState(() => performance.now());
+  const running = watch.startedAt != null;
   useEffect(() => {
     if (!running) return;
-    const id = window.setInterval(() => setMs((v) => v + 100), 100);
+    const id = window.setInterval(() => setNow(performance.now()), 100);
     return () => window.clearInterval(id);
   }, [running]);
+  const ms = stopwatchElapsed(watch, now);
 
   const cs = Math.floor((ms % 1000) / 100);
   const s = Math.floor(ms / 1000) % 60;
@@ -948,17 +956,16 @@ export function Stopwatch() {
       </div>
       <div className="flex items-center justify-center gap-2">
         <button
-          onClick={() => setRunning((r) => !r)}
-          className="kn-focus flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+          type="button"
+          onClick={() => { const t = performance.now(); setNow(t); setWatch((w) => stopwatchToggle(w, t)); }}
+          className="kn-focus flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-on-brand hover:bg-brand-hover"
         >
           <Icon name={running ? "pause" : "play"} className="h-4 w-4" filled />
           {running ? "Stop" : "Start"}
         </button>
         <button
-          onClick={() => {
-            setRunning(false);
-            setMs(0);
-          }}
+          type="button"
+          onClick={() => setWatch(STOPWATCH_IDLE)}
           className="kn-focus flex items-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-2 text-sm font-semibold text-ink hover:bg-line hover:border-line-2 transition-colors"
         >
           <Icon name="reset" className="h-4 w-4" />
@@ -1291,7 +1298,7 @@ export function SpotlightOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("pointermove", move);
   }, []);
   return (
-    <div className="fixed inset-0 z-40" style={{ cursor: "none" }} onPointerDown={onClose}>
+    <div className="fixed inset-0 z-(--z-panel)" style={{ cursor: "none" }} onPointerDown={onClose}>
       <div
         className="absolute inset-0"
         style={{
@@ -1362,7 +1369,7 @@ export function MagnifierOverlay({
   }, [getCanvas, pos, zoom]);
 
   return (
-    <div className="fixed inset-0 z-40" onPointerDown={onClose}>
+    <div className="fixed inset-0 z-(--z-panel)" onPointerDown={onClose}>
       <canvas
         ref={lens}
         width={240}
@@ -1382,7 +1389,7 @@ export function MagnifierOverlay({
               type="button"
               onClick={() => setZoom(z)}
               className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all border ${
-                zoom === z ? 'bg-brand text-white border-brand shadow-md' : 'bg-elevated text-muted border-line hover:text-ink hover:border-line-2'
+                zoom === z ? 'bg-brand text-on-brand border-brand shadow-md' : 'bg-elevated text-muted border-line hover:text-ink hover:border-line-2'
               }`}
             >
               {z}x
@@ -1393,7 +1400,7 @@ export function MagnifierOverlay({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full bg-red-500/15 border border-red-500/30 px-3 py-1 font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/25 transition-all"
+          className="rounded-full bg-danger-subtle border border-danger/30 px-3 py-1 font-semibold text-danger hover:brightness-95 transition-all"
         >
           Exit
         </button>

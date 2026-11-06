@@ -1,5 +1,3 @@
-"use client";
-
 import {useI18n, LanguageToggle} from '@/lib/i18n';
 import {BoardFullscreen} from './BoardFullscreen';
 import {ThemeIcon} from './ThemeIcon';
@@ -24,7 +22,7 @@ export function LeftDock({active,onOpen,onSave,onSwap}:{active:DockId|null;onOpe
     <button type="button" className="kn-side-switch kn-focus" aria-label={t("swap_sides")} title={t("swap_sides")} onClick={onSwap}><ThemeIcon name="flipHorizontal"/></button>
     <button type="button" data-dock-action="file" aria-label={t("menu")} title={t("menu")} aria-expanded={active==='file'} onClick={()=>onOpen('file')} className="kn-focus"><ThemeIcon name="menu"/></button>
     <BoardFullscreen dock/>
-    <button type="button" data-dock-action="treasure" aria-label={t("treasure_box")} title={t("treasure_box")} aria-expanded={active==='treasure'} onClick={()=>onOpen('treasure')} className="kn-focus"><ThemeIcon name="toolbox"/></button>
+    <button type="button" data-dock-action="treasure" data-ui="treasure" aria-label={t("treasure_box")} title={t("treasure_box")} aria-expanded={active==='treasure'} onClick={()=>onOpen('treasure')} className="kn-focus"><ThemeIcon name="toolbox"/></button>
     <button type="button" data-dock-action="import" aria-label={t("import_file")} title={t("import_file")} onClick={()=>onOpen('import')} className="kn-focus"><ThemeIcon name="import"/></button>
     <button type="button" data-dock-action="save" aria-label={t("save_lesson")} title={t("save_lesson")} onClick={onSave} className="kn-focus"><ThemeIcon name="save"/></button>
   </div>;
@@ -40,6 +38,7 @@ const FILE_ITEMS: { id: string; key: string; label: string; icon: IconName }[] =
   { id: "export", key: "export", label: "Export", icon: "export" },
   { id: "exam-timer", key: "exam_timer", label: "Exam timer", icon: "timer" },
   { id: "print", key: "print", label: "Print", icon: "print" },
+  { id: "display-annotation", key: "display_annotation", label: "Display annotation", icon: "pen" },
   { id: "settings", key: "settings", label: "Settings", icon: "settings" },
   { id: "themes", key: "themes", label: "Themes", icon: "board" },
   { id: "help", key: "help", label: "Help", icon: "help" },
@@ -49,7 +48,7 @@ const FILE_ITEMS: { id: string; key: string; label: string; icon: IconName }[] =
 
 const FILE_GROUPS=[
   {label:'Lesson',ids:['new','open','save','saveas']},
-  {label:'Import & share',ids:['special','import','export','exam-timer','print']},
+  {label:'Import & share',ids:['special','import','export','exam-timer','print','display-annotation']},
   {label:'Application',ids:['settings','themes','help','about','exit']},
 ];
 
@@ -93,9 +92,9 @@ export function FileMenu({
       ref={ref}
       data-side-menu
       aria-label="File menu"
-      className="kn-file-menu kn-pop absolute bottom-24 left-3 z-40 flex w-64 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl"
+      className="kn-file-menu kn-pop absolute bottom-24 left-3 z-(--z-modal) flex w-64 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl"
       role="region"
-      style={{position:'fixed',zIndex:100,left:position?.x??8,top:position?.y??8,right:'auto',bottom:'auto',width:240,maxWidth:'calc(100vw - 16px)',maxHeight:position?.maxHeight??'calc(100dvh - 16px)',visibility:position?'visible':'hidden'}}
+      style={{position:'fixed',left:position?.x??8,top:position?.y??8,right:'auto',bottom:'auto',width:240,maxWidth:'calc(100vw - 16px)',maxHeight:position?.maxHeight??'calc(100dvh - 16px)',visibility:position?'visible':'hidden'}}
     >
       <div className="shrink-0 border-b border-line bg-panel-2 px-3 py-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted">
         <span>{appName}</span>
@@ -104,7 +103,7 @@ export function FileMenu({
       <div className="kn-scroll min-h-0 overflow-y-auto overscroll-contain p-1.5">
         {FILE_GROUPS.map(group=><section key={group.label} aria-label={group.label} className="kn-file-menu-group border-b border-line py-1 last:border-0">
           <h3 className="sr-only">{group.label}</h3>
-          {FILE_ITEMS.filter(item=>group.ids.includes(item.id)).map((item) => (
+          {FILE_ITEMS.filter(item=>group.ids.includes(item.id)&&(item.id!=='display-annotation'||typeof window!=='undefined'&&!!window.phoenixDisplay)).map((item) => (
           <button
             key={item.id}
             type="button"

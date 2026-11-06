@@ -1,15 +1,16 @@
-"use client";
-
 import {initializeDisplay} from './smartboard';
-import {interfaceSettings} from './interface-settings';
+import {interfaceSettings,applyUiScale} from './interface-settings';
 import {BUILTIN_THEMES,parseThemePack,isLightTheme,type ThemePack} from './theme-pack';
 import { localRequest } from "@/lib/local-store";
+import { DEFAULT_PROFILE, normalizeProfile } from "./profile-defaults";
+import { mixHex, onColor, readableOn } from "./color-contrast";
 
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   useRef,
   type ReactNode,
@@ -18,26 +19,14 @@ import type { AppProfile } from "@/db/schema";
 import { BRANDING } from '@/config/branding';
 declare global {interface Window {phoenixStartup?:{ready:()=>void;retry:()=>void};}}
 
-const DEFAULT_PROFILE: AppProfile = {
-  id: 1,
-  appName: BRANDING.APP_NAME,
-  teacherName: "",
-  institution: "",
-  accent: BRANDING.COLORS.PRIMARY,
-  boardBg: "#18212b",
-  boardPattern: "dots",
-  defaultPenColor: "#f4f4f5",
-  onboarded: 0,
-  createdAt: new Date(0),
-  updatedAt: new Date(0),
-  splashText: BRANDING.APP_SLOGAN,
-};
-
 type AppContextValue = {
   profile: AppProfile;
   loading: boolean;
+  /** Set when the stored profile could not be read; `profile` then holds defaults that must not be saved over it. */
+  loadError: string | null;
   updateProfile: (patch: Partial<AppProfile>) => Promise<void>;
   reload: () => Promise<void>;
+  retryLoad: () => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -46,7 +35,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(()=>{void initializeDisplay().catch(()=>{});},[]);
   const [storedProfile, setProfile] = useState<AppProfile>(DEFAULT_PROFILE);
   const [previewTheme,setPreviewTheme]=useState<ThemePack|null>(()=>import.meta.env.DEV&&new URLSearchParams(location.search).get('theme')==='org-note3'?BUILTIN_THEMES.find(theme=>theme.id==='org-note3')!:null);
-  const profile=previewTheme?{...storedProfile,theme:previewTheme,accent:previewTheme.colors.accent}:storedProfile;
+  const profile=useMemo(()=>previewTheme?{...storedProfile,theme:previewTheme,accent:previewTheme.colors.accent}:storedProfile,[storedProfile,previewTheme]);
   useEffect(()=>{
     if(!import.meta.env.DEV)return;
     let mounted=true;
@@ -60,6 +49,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return()=>{mounted=false;window.removeEventListener('phoenix-theme-selected',stopPreview);};
   },[]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadedOnce=useRef(false);
 
   const profileRevision=useRef(0);
   const saveQueue=useRef<Promise<void>>(Promise.resolve());
@@ -70,18 +61,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await localRequest("/api/profile", { cache: "no-store" });
       if (!res.ok) throw new Error("bad status");
       const data = (await res.json()) as { profile: AppProfile };
-      const p = data.profile;
-      const legacyBg = !p.boardBg || p.boardBg === BRANDING.COLORS.CHALKBOARD_GREEN || p.boardBg === '#83d131';
-      if(revision===profileRevision.current)setProfile({
-        ...DEFAULT_PROFILE,
-        ...p,
-        ...(legacyBg ? { boardBg: '#18212b', boardPattern: p.boardPattern === 'none' ? 'dots' : (p.boardPattern || 'dots'), defaultPenColor: p.defaultPenColor === '#ffffff' ? '#f4f4f5' : (p.defaultPenColor || '#f4f4f5') } : {}),
-        createdAt: new Date(data.profile.createdAt),
-        updatedAt: new Date(data.profile.updatedAt),
-      });
+      if(revision===profileRevision.current)setProfile(normalizeProfile(data.profile));
+      loadedOnce.current=true;setLoadError(null);
     } catch (error) {
       import.meta.env.DEV && console.error("Failed to load profile", error);
-      // Keep defaults so the UI never crashes on a transient failure.
+      // Defaults keep the UI rendering, but until a load succeeds they are not the
+      // teacher's profile: routing and saving wait for a successful retry.
+      if(!loadedOnce.current)setLoadError(error instanceof Error&&error.message!=='bad status'?error.message:'Your saved settings could not be read.');
     } finally {
       setLoading(false);
     }
@@ -90,6 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void reload();
   }, [reload]);
+  const retryLoad = useCallback(async () => {setLoading(true);await reload();}, [reload]);
   useEffect(()=>{if(!loading){ window.phoenixStartup?.ready(); }},[loading]);
 
   // The user-defined name is shown as the document title everywhere.
@@ -103,16 +90,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (favicon) favicon.href = profile.iconData || './icon.svg';
   }, [profile.iconData]);
 
-  // Reflect the accent colour as a live CSS variable so the whole UI re-tints.
+  // Reflect the accent colour as live CSS variables so the whole UI re-tints.
+  // Text and on-brand colours are checked against WCAG AA (4.5:1) in JS.
   useEffect(() => {
     if (typeof document !== "undefined" && profile.accent) {
-      document.documentElement.style.setProperty("--color-brand", profile.accent);
-      document.documentElement.style.setProperty("--color-brand-dark", `color-mix(in srgb, ${profile.accent} 75%, black)`);
-      document.documentElement.style.setProperty("--color-brand-darker", `color-mix(in srgb, ${profile.accent} 45%, black)`);
-      document.documentElement.style.setProperty("--color-brand-light", `color-mix(in srgb, ${profile.accent} 65%, white)`);
-      document.documentElement.style.setProperty("--color-brand-glow", profile.accent);
+      const accent = profile.accent, t = profile.theme ?? BUILTIN_THEMES[0], mode = isLightTheme(t) ? 'light' : 'dark';
+      const solid = mixHex(accent, '#000000', .92);
+      const tokens: Record<string, string> = {
+        brand: accent,
+        'brand-solid': solid,
+        'brand-hover': mixHex(accent, '#000000', .84),
+        'brand-active': mixHex(accent, '#000000', .76),
+        'brand-text': readableOn(accent, t.colors.panel, mode),
+        'brand-subtle': `color-mix(in srgb, ${accent} 14%, transparent)`,
+        'brand-ring': `color-mix(in srgb, ${accent} 55%, transparent)`,
+        'on-brand': onColor(solid),
+        // Legacy aliases.
+        'brand-dark': `color-mix(in srgb, ${accent} 75%, black)`,
+        'brand-darker': `color-mix(in srgb, ${accent} 45%, black)`,
+        'brand-light': `color-mix(in srgb, ${accent} 65%, white)`,
+        'brand-glow': accent,
+      };
+      for (const [key, value] of Object.entries(tokens)) document.documentElement.style.setProperty(`--color-${key}`, value);
     }
-  }, [profile.accent]);
+  }, [profile.accent, profile.theme]);
 
   useEffect(() => {
     const t = profile.theme ?? BUILTIN_THEMES[0];
@@ -144,6 +145,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const base2 = isLight
       ? `color-mix(in srgb, ${base} 92%, black 6%)`
       : `color-mix(in srgb, ${base} 85%, white 8%)`;
+    const overlay = isLight
+      ? `color-mix(in srgb, ${panel} 94%, white)`
+      : `color-mix(in srgb, ${surface} 80%, white 14%)`;
+    const lineStrong = `color-mix(in srgb, ${ink} 28%, transparent)`;
     const faint = isLight
       ? `color-mix(in srgb, ${muted} 75%, white)`
       : `color-mix(in srgb, ${muted} 70%, black)`;
@@ -154,8 +159,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       panel,
       'panel-2': surface,
       elevated,
+      overlay,
       line,
       'line-2': line2,
+      'line-strong': lineStrong,
       ink,
       muted,
       faint,
@@ -177,7 +184,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       root.style.setProperty('--color-base-pattern-size', 'auto');
     }
 
-    root.style.setProperty('--tool-popup-gap', `${interfaceSettings(profile.ui).popupGap}px`);
+    const ui=interfaceSettings(profile.ui);
+    root.style.setProperty('--tool-popup-gap', `${ui.popupGap}px`);
+    applyUiScale(ui.uiScale);
     window.dispatchEvent(new Event('phoenix-popup-layout'));
   }, [profile.theme, profile.ui]);
 
@@ -193,9 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         if(!response.ok)throw new Error('The local profile could not be saved.');
         const data=await response.json() as {profile:AppProfile};
-        const p = data.profile;
-      const legacyBg = !p.boardBg || p.boardBg === BRANDING.COLORS.CHALKBOARD_GREEN || p.boardBg === '#83d131';
-      if(revision===profileRevision.current)setProfile({...DEFAULT_PROFILE,...p,...(legacyBg ? { boardBg: '#18212b', boardPattern: p.boardPattern === 'none' ? 'dots' : (p.boardPattern || 'dots'), defaultPenColor: p.defaultPenColor === '#ffffff' ? '#f4f4f5' : (p.defaultPenColor || '#f4f4f5') } : {}),createdAt:new Date(p.createdAt),updatedAt:new Date(p.updatedAt)});
+        if(revision===profileRevision.current)setProfile(normalizeProfile(data.profile));
       }catch(error){
         if(revision===profileRevision.current)await reload();
         throw new Error(error instanceof Error?`Settings could not be saved: ${error.message}`:'Settings could not be saved. Check available local storage.');
@@ -205,8 +212,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return save;
   },[reload]);
 
+  const value = useMemo(() => ({ profile, loading, loadError, updateProfile, reload, retryLoad }), [profile, loading, loadError, updateProfile, reload, retryLoad]);
   return (
-    <AppContext.Provider value={{ profile, loading, updateProfile, reload }}>
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );

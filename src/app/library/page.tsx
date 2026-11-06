@@ -1,5 +1,3 @@
-"use client";
-
 import '@/components/workspace.css';
 import { useCallback, useEffect, useState, useRef, Suspense } from "react";
 import { interruptedSessions, finishSession, type WorkSession } from '@/lib/work-journal';
@@ -16,6 +14,7 @@ import { convertPptxToPdf } from "@/lib/pptx-to-pdf";
 import { Modal } from "@/components/board/Panels";
 import { COVER_COLORS } from "@/lib/constants";
 import type { Notebook, Page } from "@/db/schema";
+import { useNearViewport } from "@/lib/use-near-viewport";
 import { drawBackground, drawObject } from "@/lib/render";
 import { loadBackgroundImage } from "@/lib/background-image";
 import { ExamTimerModal } from "@/components/exam/ExamTimerModal";
@@ -25,7 +24,7 @@ export default function LibraryPage() {
   return (
     <Suspense
       fallback={
-        <div className="grid h-dvh place-items-center bg-base text-muted">Loading…</div>
+        <div className="min-h-dvh bg-base p-6"><LessonSkeletonGrid /></div>
       }
     >
       <LibraryInner />
@@ -340,8 +339,8 @@ function LibraryInner() {
               <span
                 className="w-3.5 h-3.5 rounded-full border border-line/60 shrink-0 shadow-xs"
                 style={{
-                  backgroundColor: profile.theme?.colors.panel ?? "#17171c",
-                  boxShadow: `0 0 0 2px ${profile.theme?.colors.accent ?? "#0062ff"}55`,
+                  backgroundColor: profile.theme?.colors.panel ?? "#111827",
+                  boxShadow: `0 0 0 2px ${profile.theme?.colors.accent ?? "#e63946"}55`,
                 }}
               />
               <span className="hidden sm:inline text-muted text-xs font-semibold uppercase tracking-wider">Theme:</span>
@@ -369,9 +368,9 @@ function LibraryInner() {
             <button
               onClick={handleNewLesson}
               disabled={busy}
-              className="kn-focus flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+              className="kn-focus flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60"
             >
-              <Icon name={busy ? "sync" : "plus"} className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
+              <Icon name={busy ? "sync" : "plus"} className={`h-4 w-4 ${busy ? "motion-safe:animate-spin" : ""}`} />
               {busy ? "Opening…" : t("new_lesson")}
             </button>
           </div>
@@ -382,7 +381,7 @@ function LibraryInner() {
             type="button"
             role="tab"
             aria-selected={activeTab === 'lessons'}
-            className={`kn-focus px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'lessons' ? 'bg-brand text-white shadow-sm' : 'bg-panel text-muted hover:text-ink'}`}
+            className={`kn-focus px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'lessons' ? 'bg-brand text-on-brand shadow-sm' : 'bg-panel text-muted hover:text-ink'}`}
             onClick={() => setActiveTab('lessons')}
           >
             {t("lessons")} ({notebooks.length})
@@ -391,7 +390,7 @@ function LibraryInner() {
             type="button"
             role="tab"
             aria-selected={activeTab === 'trash'}
-            className={`kn-focus px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'trash' ? 'bg-brand text-white shadow-sm' : 'bg-panel text-muted hover:text-ink'}`}
+            className={`kn-focus px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'trash' ? 'bg-brand text-on-brand shadow-sm' : 'bg-panel text-muted hover:text-ink'}`}
             onClick={() => { setActiveTab('trash'); void loadTrash(); }}
           >
             {t("trash_recovery")} ({trashList.length})
@@ -412,7 +411,7 @@ function LibraryInner() {
                   type="button"
                   disabled={busy || trashLoading || trashList.length === 0}
                   onClick={() => void handleDeleteAllTrash()}
-                  className="kn-focus flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/20 hover:border-red-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="kn-focus flex items-center gap-1.5 rounded-lg border border-danger/30 bg-danger-subtle px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger/20 hover:border-danger/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title={t("delete_all_permanent", "Permanently delete all backup snapshots")}
                 >
                   <Icon name="trash" className="h-3.5 w-3.5" />
@@ -424,7 +423,7 @@ function LibraryInner() {
                   onClick={() => void loadTrash()}
                   className="kn-focus flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:text-ink transition-colors disabled:opacity-50"
                 >
-                  <Icon name="sync" className={`h-3.5 w-3.5 ${trashLoading ? 'animate-spin' : ''}`} /> {t("refresh", "Refresh")}
+                  <Icon name="sync" className={`h-3.5 w-3.5 ${trashLoading ? 'motion-safe:animate-spin' : ''}`} /> {t("refresh", "Refresh")}
                 </button>
               </div>
             </div>
@@ -460,7 +459,7 @@ function LibraryInner() {
                         type="button"
                         disabled={busy}
                         onClick={() => void handleRestore(item.id)}
-                        className="kn-focus flex-1 rounded-xl bg-brand py-2 text-center text-xs font-semibold text-white hover:bg-brand-dark transition-colors disabled:opacity-50"
+                        className="kn-focus flex-1 rounded-xl bg-brand py-2 text-center text-xs font-semibold text-on-brand hover:bg-brand-hover transition-colors disabled:opacity-50"
                       >
                         {t("restore")}
                       </button>
@@ -468,7 +467,7 @@ function LibraryInner() {
                         type="button"
                         disabled={busy}
                         onClick={() => void handleDeletePermanent(item.id)}
-                        className="kn-focus rounded-xl border border-line px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-red-400 transition-colors disabled:opacity-50"
+                        className="kn-focus rounded-xl border border-line px-3 py-2 text-xs text-muted hover:bg-elevated hover:text-danger transition-colors disabled:opacity-50"
                         title={t("delete_permanent")}
                       >
                         {t("delete")}
@@ -513,7 +512,7 @@ function LibraryInner() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      className="kn-focus rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-dark transition-colors"
+                      className="kn-focus rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-on-brand hover:bg-brand-hover transition-colors"
                       onClick={() => router.push(`/board/${session.lessonId}`)}
                     >
                       {index === 0 ? 'Open last lesson' : 'Open lesson'}
@@ -584,20 +583,12 @@ function LibraryInner() {
         )}
 
         {loading ? (
-          <div className="kn-lesson-grid" role="status" aria-label="Loading lessons">
-            {[1, 2, 3].map(n => (
-              <div key={n} className="h-64 rounded-2xl border border-line bg-panel">
-                <div className="h-36 bg-panel-2" />
-                <div className="m-5 h-4 w-2/3 rounded bg-elevated" />
-                <div className="mx-5 h-3 w-1/3 rounded bg-elevated" />
-              </div>
-            ))}
-          </div>
+          <LessonSkeletonGrid />
         ) : loadError ? (
           <div className="rounded-2xl border border-line bg-panel p-10 text-center">
             <h2 className="text-lg font-semibold">Could not load your lessons</h2>
             <p className="mt-2 text-sm text-muted">Your saved lessons have not been changed.</p>
-            <button className="kn-focus mt-5 rounded-xl bg-brand px-5 py-2 text-white" onClick={() => void load()}>Try again</button>
+            <button type="button" className="kn-focus mt-5 rounded-xl bg-brand px-5 py-2 text-on-brand hover:bg-brand-hover" onClick={() => void load()}>Try again</button>
           </div>
         ) : notebooks.length === 0 ? (
           <EmptyState onCreate={handleNewLesson} onCreateBlank={() => void createLesson(null)} />
@@ -619,7 +610,7 @@ function LibraryInner() {
       </div>
 
       {isDraggingOver && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-base/90 backdrop-blur-md border-4 border-dashed border-brand p-8 transition-all pointer-events-none">
+        <div className="fixed inset-0 z-(--z-modal) flex flex-col items-center justify-center bg-base/90 backdrop-blur-md border-4 border-dashed border-brand p-8 transition-all pointer-events-none">
           <div className="flex flex-col items-center gap-4 text-center max-w-md p-8 rounded-3xl bg-panel border border-brand/40 shadow-2xl">
             <div className="w-16 h-16 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shadow-inner">
               <Icon name="board" className="w-8 h-8" />
@@ -638,9 +629,9 @@ function LibraryInner() {
       )}
 
       {busy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
-          <div className="flex items-center gap-4 rounded-2xl bg-panel border border-line px-6 py-5 shadow-2xl max-w-md">
-            <Icon name="sync" className="h-6 w-6 animate-spin text-brand shrink-0" />
+        <div className="fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/60 backdrop-blur-xs">
+          <div role="status" aria-live="polite" className="flex items-center gap-4 rounded-2xl bg-panel border border-line px-6 py-5 shadow-2xl max-w-md">
+            <Icon name="sync" className="h-6 w-6 motion-safe:animate-spin text-brand shrink-0" />
             <div>
               <div className="text-base font-semibold text-ink">
                 {conversionProgress || "Opening lesson…"}
@@ -682,16 +673,20 @@ function Slide1Thumbnail({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [rendered, setRendered] = useState(false);
+  // Only read + draw once the card is near the viewport, so a large library doesn't fire every read at once.
+  const [coverRef, near] = useNearViewport<HTMLDivElement>();
 
   useEffect(() => {
+    if (!near) return;
     let cancelled = false;
 
     async function loadSlide1() {
       try {
-        const res = await localRequest(`/api/notebooks/${notebookId}`);
+        // Reads just the first slide rather than the whole lesson.
+        const res = await localRequest(`/api/notebooks/${notebookId}/first-page`);
         if (!res.ok) return;
-        const data = (await res.json()) as { pages?: Page[] };
-        const page1 = data.pages?.[0];
+        const data = (await res.json()) as { page?: Page | null };
+        const page1 = data.page;
         if (!page1 || cancelled) return;
 
         const canvas = canvasRef.current;
@@ -743,16 +738,16 @@ function Slide1Thumbnail({
     return () => {
       cancelled = true;
     };
-  }, [notebookId, coverColor]);
+  }, [notebookId, coverColor, near]);
 
   return (
-    <div className={`kn-lesson-cover ${rendered ? 'has-thumbnail' : ''}`} style={{ background: coverColor }}>
+    <div ref={coverRef} className={`kn-lesson-cover ${rendered ? 'has-thumbnail' : ''}`} style={{ background: coverColor }}>
       {/* Background canvas for slide 1 */}
       <canvas
         ref={canvasRef}
         width={320}
         height={180}
-        className={`kn-lesson-thumbnail-canvas transition-opacity duration-300 ${rendered ? 'opacity-100' : 'opacity-0'}`}
+        className={`kn-lesson-thumbnail-canvas transition-opacity duration-300 motion-reduce:transition-none ${rendered ? 'opacity-100' : 'opacity-0'}`}
         aria-hidden="true"
       />
 
@@ -787,24 +782,24 @@ function Slide1Thumbnail({
 function getSubjectTagBadge(subject: string) {
   const norm = subject.trim().toLowerCase();
   if (norm.includes('math')) {
-    return 'text-cyan-300 bg-cyan-950/50 border-cyan-400/40 shadow-[0_0_12px_rgba(34,211,238,0.22)]';
+    return 'text-cyan-300 bg-cyan-950/50 border-cyan-400/40';
   }
   if (norm.includes('chem')) {
-    return 'text-amber-300 bg-amber-950/50 border-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.22)]';
+    return 'text-amber-300 bg-amber-950/50 border-amber-400/40';
   }
   if (norm.includes('phys')) {
-    return 'text-emerald-300 bg-emerald-950/50 border-emerald-400/40 shadow-[0_0_12px_rgba(52,211,153,0.22)]';
+    return 'text-emerald-300 bg-emerald-950/50 border-emerald-400/40';
   }
   if (norm.includes('bio')) {
-    return 'text-lime-300 bg-lime-950/50 border-lime-400/40 shadow-[0_0_12px_rgba(163,230,53,0.22)]';
+    return 'text-lime-300 bg-lime-950/50 border-lime-400/40';
   }
   if (norm.includes('eng') || norm.includes('lit')) {
-    return 'text-purple-300 bg-purple-950/50 border-purple-400/40 shadow-[0_0_12px_rgba(192,132,252,0.22)]';
+    return 'text-purple-300 bg-purple-950/50 border-purple-400/40';
   }
   if (norm.includes('hist') || norm.includes('soc')) {
-    return 'text-rose-300 bg-rose-950/50 border-rose-400/40 shadow-[0_0_12px_rgba(251,113,133,0.22)]';
+    return 'text-rose-300 bg-rose-950/50 border-rose-400/40';
   }
-  return 'text-sky-300 bg-sky-950/50 border-sky-400/40 shadow-[0_0_12px_rgba(56,189,248,0.22)]';
+  return 'text-sky-300 bg-sky-950/50 border-sky-400/40';
 }
 
 function NotebookCard({
@@ -863,7 +858,7 @@ function NotebookCard({
           }}
         />
 
-        <button onClick={onOpen} className="kn-focus block w-full text-left">
+        <button type="button" onClick={onOpen} className="kn-focus block w-full text-left">
           <Slide1Thumbnail
             notebookId={notebook.id}
             coverColor={notebook.coverColor}
@@ -877,7 +872,7 @@ function NotebookCard({
               </span>
             </div>
             <h3 className="truncate text-base font-semibold">{notebook.title}</h3>
-            <p className="mt-2 text-xs text-faint">
+            <p className="mt-2 text-xs text-muted">
               Updated {new Date(notebook.updatedAt).toLocaleDateString()}
             </p>
           </div>
@@ -887,8 +882,10 @@ function NotebookCard({
             e.stopPropagation();
             setConfirmDelete(true);
           }}
+          type="button"
           className="kn-focus kn-lesson-delete grid h-11 w-11 place-items-center z-20"
           aria-label="Delete"
+          title={`Delete ${notebook.title}`}
         >
           <Icon name="trash" className="h-4 w-4" />
         </button>
@@ -903,7 +900,8 @@ function NotebookCard({
               Keep lesson
             </button>
             <button
-              className="rounded-lg bg-brand px-4 py-2 text-white"
+              type="button"
+              className="rounded-lg bg-danger px-4 py-2 text-white hover:brightness-110"
               onClick={() => {
                 setConfirmDelete(false);
                 onDelete();
@@ -918,6 +916,22 @@ function NotebookCard({
   );
 }
 
+/** First-load placeholder: same footprint as lesson cards, announced once to screen readers. */
+function LessonSkeletonGrid() {
+  return (
+    <div className="kn-lesson-grid" role="status" aria-label="Loading lessons">
+      <span className="sr-only">Loading lessons…</span>
+      {[1, 2, 3, 4, 5, 6].map(n => (
+        <div key={n} aria-hidden="true" className="h-64 overflow-hidden rounded-2xl border border-line bg-panel motion-safe:animate-pulse">
+          <div className="h-36 bg-panel-2" />
+          <div className="m-5 h-4 w-2/3 rounded bg-elevated" />
+          <div className="mx-5 h-3 w-1/3 rounded bg-elevated" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function EmptyState({ onCreate, onCreateBlank }: { onCreate: () => void; onCreateBlank?: () => void }) {
   return (
     <div className="grid place-items-center rounded-3xl border border-dashed border-line py-20 text-center">
@@ -929,7 +943,7 @@ function EmptyState({ onCreate, onCreateBlank }: { onCreate: () => void; onCreat
         Create your first board to start writing, importing PPTX / PDFs, and teaching with smart tools.
       </p>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-        <button onClick={onCreate} className="kn-focus flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">
+        <button type="button" onClick={onCreate} className="kn-focus flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-hover">
           <Icon name="plus" className="h-4 w-4" />
           New lesson
         </button>

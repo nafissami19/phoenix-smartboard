@@ -1,51 +1,64 @@
+@layer theme, base, components, utilities, kn-base, kn-components, kn-themes, kn-overrides;
+@layer kn-components {
 .direct-instrument .geometry-surface { overflow: visible; filter: none; }
 .direct-instrument .instrument-grip { pointer-events: all; touch-action: none; cursor: grab; outline: none; }
 .direct-instrument .instrument-hit { fill: transparent; stroke: none; }
+/* Grips sit on the drawing surface, so they carry their own dark disc for contrast on any board colour. */
 .direct-instrument .instrument-grip-disc {
-  fill: rgba(18, 22, 34, 0.88);
-  stroke: rgba(255, 255, 255, 0.45);
+  fill: rgb(11 15 26 / .88);
+  stroke: rgb(255 255 255 / .45);
   stroke-width: 1.2px;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
-  transition: fill 0.15s ease, stroke 0.15s ease, filter 0.15s ease;
+  filter: drop-shadow(0 1px 3px rgb(0 0 0 / .35));
+  transition: fill var(--duration-fast) var(--ease-out), stroke var(--duration-fast) var(--ease-out);
 }
 .direct-instrument .instrument-grip path {
   fill: none;
-  stroke: #00f0ff;
+  stroke: var(--color-brand-text, #ff5a66);
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: stroke 0.15s ease;
+  transition: stroke var(--duration-fast) var(--ease-out);
 }
-.direct-instrument .instrument-grip:hover .instrument-grip-disc,
 .direct-instrument .instrument-grip:focus-visible .instrument-grip-disc,
 .direct-instrument .instrument-grip.is-active .instrument-grip-disc {
-  fill: rgba(0, 98, 255, 0.5);
-  stroke: #00f0ff;
+  fill: var(--color-brand-solid);
+  stroke: var(--color-brand-ring);
   stroke-width: 2px;
-  filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.75));
 }
-.direct-instrument .instrument-grip:hover path,
 .direct-instrument .instrument-grip:focus-visible path,
 .direct-instrument .instrument-grip.is-active path {
-  stroke: #ffffff;
+  stroke: var(--color-on-brand);
+}
+@media (hover: hover) and (pointer: fine) {
+  .direct-instrument .instrument-grip:hover .instrument-grip-disc {
+    fill: var(--color-brand-solid);
+    stroke: var(--color-brand-ring);
+    stroke-width: 2px;
+  }
+  .direct-instrument .instrument-grip:hover path {
+    stroke: var(--color-on-brand);
+  }
 }
 .direct-instrument .instrument-grip.is-active { cursor: grabbing; }
 .direct-instrument .instrument-close { cursor: pointer; }
 .direct-instrument .instrument-measure {
   pointer-events: none;
   paint-order: stroke fill;
-  stroke: rgba(15, 23, 42, 0.95);
+  stroke: rgb(11 15 26 / .95);
   stroke-width: 2.5px;
   stroke-linejoin: round;
-  fill: #00f0ff;
+  fill: var(--color-brand-text, #ff5a66);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 .direct-instrument .instrument-arc-preview {
   fill: none;
-  stroke: #00f0ff;
+  stroke: var(--color-brand-text, #ff5a66);
   stroke-width: 3;
   stroke-linecap: round;
-  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
   pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .direct-instrument .instrument-grip-disc, .direct-instrument .instrument-grip path { transition: none; }
+}
 }

@@ -29,9 +29,9 @@ export const BRANDING = {
 
   // Color Palette Constants
   COLORS: {
-    PRIMARY: '#0062ff', // Phoenix Electric Blue
-    ACCENT: '#009eff', // Phoenix Cyan
-    DARK: '#111214',
+    PRIMARY: '#e63946', // Phoenix Crimson
+    ACCENT: '#ff5a66', // Phoenix Crimson (text on dark surfaces)
+    DARK: '#0b0f1a',
     OBSIDIAN: '#1e293b',
     NIGHT_BOARD: '#18212b',
     CHALKBOARD_GREEN: '#1a4331',

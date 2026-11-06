@@ -1,5 +1,3 @@
-"use client";
-
 import {isSpecial,drawSpecialPreview} from '@/lib/special-objects';
 import {loadBackgroundImage} from '@/lib/background-image';
 import {drawBackground} from '@/lib/render';

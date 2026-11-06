@@ -1,5 +1,3 @@
-"use client";
-
 import {SettingsSections} from '@/components/SettingsSections';
 import {DeviceStorage} from '@/components/DeviceStorage';
 import {PenStore} from '@/components/PenStore';
@@ -15,7 +13,7 @@ import {Icon} from '@/components/Icon';
 
 const accents=[{label:'Forest',value:'#183c36'},{label:'Slate',value:'#526677'},{label:'Blue',value:'#2563eb'},{label:'Violet',value:'#7c3aed'},{label:'Crimson',value:'#e11d48'},{label:'Brass',value:'#966b24'}];
 export default function OnboardingPage(){
-  const router=useRouter();const {profile,loading,updateProfile}=useApp();const [draft,setDraft]=useState<Partial<AppProfile>>(profile),[saving,setSaving]=useState(false),[error,setError]=useState('');
+  const router=useRouter();const {profile,loading,loadError,retryLoad,updateProfile}=useApp();const [draft,setDraft]=useState<Partial<AppProfile>>(profile),[saving,setSaving]=useState(false),[error,setError]=useState('');
   const edited=useRef(false);
   useEffect(()=>{if(!loading&&!edited.current)setDraft(profile);},[profile,loading]);
   const change=(patch:Partial<AppProfile>)=>{edited.current=true;setDraft(v=>({...v,...patch}));};
@@ -24,6 +22,8 @@ export default function OnboardingPage(){
     const reader=new FileReader();reader.onload=()=>{change({iconData:String(reader.result)});setError('');};reader.onerror=()=>setError('The icon could not be read.');reader.readAsDataURL(file);
   }
   async function finish(){
+    // Never write defaults over a stored profile that could not be read.
+    if(loadError){setError('Your saved settings could not be read, so nothing was saved. Retry loading first.');return;}
     if(draft.ai?.enabled){try{const url=new URL(draft.ai.endpoint);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||!draft.ai.model.trim())throw new Error();}catch{setError('Set a valid local AI server URL and an installed model, or turn the assistant off.');return;}}
     setSaving(true);setError('');
     try{await updateProfile({...draft,appName:draft.appName?.trim()||BRANDING.APP_NAME,teacherName:draft.teacherName?.trim()||'',institution:draft.institution?.trim()||'',accent:draft.accent||BRANDING.COLORS.PRIMARY,boardBg:draft.boardBg||'#18212b',boardPattern:draft.boardPattern||'dots',defaultPenColor:draft.defaultPenColor||'#f4f4f5',iconData:draft.iconData||'',splashText:draft.splashText||'',watermark:draft.watermark,calibrationPxPerMm:draft.calibrationPxPerMm,ai:draft.ai,boardPresets:draft.boardPresets,onboarded:1});router.replace('/library');}catch{setError('Settings could not be saved. Try again.');setSaving(false);}
@@ -43,8 +43,9 @@ export default function OnboardingPage(){
         {id:'pens',label:'Pen store',description:'Choose the pens available in your teaching toolbar.',content:<PenStore/>},
         {id:'storage',label:'Storage & backup',description:'Keep copies of your lessons on this device and connected storage.',content:<><DeviceStorage/><BackupConnections/></>},
       ]}/>
-      {error&&<p role="alert" className="mt-5 text-sm text-red-400">{error}</p>}
-      <footer className="kn-settings-footer"><div className="mr-auto flex items-center gap-3"><span className="text-xs text-muted">Saved locally on this device</span><span className="inline-block h-3.5 w-px bg-line" /><div className="flex items-center gap-2"><span className="text-xs text-muted">Language:</span><LanguageToggle /></div></div><button onClick={()=>void finish()} disabled={saving||loading} className="kn-focus flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 font-semibold text-white disabled:opacity-50">{saving?'Saving...':profile.onboarded?'Save changes':'Start teaching'}<Icon name="chevronRight" className="h-4 w-4"/></button></footer>
+      {loadError&&<p role="alert" className="mt-5 flex flex-wrap items-center gap-3 text-sm text-danger">Your saved settings could not be read. Saving is paused so they are not replaced.<button type="button" className="kn-focus rounded-lg border border-line px-3 py-1 text-ink" onClick={()=>void retryLoad()}>Retry</button></p>}
+      {error&&<p role="alert" className="mt-5 text-sm text-danger">{error}</p>}
+      <footer className="kn-settings-footer"><div className="mr-auto flex items-center gap-3"><span className="text-xs text-muted">Saved locally on this device</span><span className="inline-block h-3.5 w-px bg-line" /><div className="flex items-center gap-2"><span className="text-xs text-muted">Language:</span><LanguageToggle /></div></div><button onClick={()=>void finish()} disabled={saving||loading||!!loadError} className="kn-focus flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 font-semibold text-white disabled:opacity-50">{saving?'Saving...':profile.onboarded?'Save changes':'Start teaching'}<Icon name="chevronRight" className="h-4 w-4"/></button></footer>
     </div>
   </div></main>;
 }

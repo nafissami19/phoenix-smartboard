@@ -1,5 +1,3 @@
-"use client";
-
 import {CustomSelect} from '@/components/CustomSelect';
 import {SideSettings} from './SideSettings';
 import type {ObjectTransform} from '@/lib/object-transform';
@@ -90,8 +88,8 @@ export function SelectionBar({
       {object?.kind==='text' && count===1 && <button onClick={onEditText} className="selection-edit-text">Edit text</button>}
       <button aria-label="Shrink selection" className="p-2" onClick={()=>onResize(.9)}>−</button><button aria-label="Enlarge selection" className="p-2" onClick={()=>onResize(1.1)}>+</button><button className="p-2 text-xs" onClick={onSelectAll}>Select all</button>
       <button type="button" onClick={onDuplicate} aria-label="Duplicate" title="Duplicate"><Icon name="copy" className="h-5 w-5"/></button>
-      {onToggleLock && <button type="button" onClick={onToggleLock} aria-label={isLocked ? "Unlock selection" : "Lock selection"} title={isLocked ? "Unlock selection" : "Lock selection"} className={`p-2 ${isLocked ? 'text-amber-400' : ''}`}><Icon name={isLocked ? "unlock" : "lock"} className="h-5 w-5"/></button>}
-      {onToggleInfiniteCloner && <button type="button" onClick={onToggleInfiniteCloner} aria-label={isInfiniteCloner ? "Disable infinite cloner" : "Enable infinite cloner"} title={isInfiniteCloner ? "Disable infinite cloner" : "Enable infinite cloner"} className={`p-2 ${isInfiniteCloner ? 'text-indigo-400' : ''}`}><Icon name="infinite" className="h-5 w-5"/></button>}
+      {onToggleLock && <button type="button" onClick={onToggleLock} aria-label={isLocked ? "Unlock selection" : "Lock selection"} title={isLocked ? "Unlock selection" : "Lock selection"} className={`p-2 ${isLocked ? 'text-warn' : ''}`}><Icon name={isLocked ? "unlock" : "lock"} className="h-5 w-5"/></button>}
+      {onToggleInfiniteCloner && <button type="button" onClick={onToggleInfiniteCloner} aria-label={isInfiniteCloner ? "Disable infinite cloner" : "Enable infinite cloner"} title={isInfiniteCloner ? "Disable infinite cloner" : "Enable infinite cloner"} className={`p-2 ${isInfiniteCloner ? 'text-info' : ''}`}><Icon name="infinite" className="h-5 w-5"/></button>}
       {count >= 2 && onGroup && !isGrouped && <button type="button" onClick={onGroup} aria-label="Group items" title="Group items" className="p-2"><Icon name="group" className="h-5 w-5"/></button>}
       {isGrouped && onUngroup && <button type="button" onClick={onUngroup} aria-label="Ungroup items" title="Ungroup items" className="p-2"><Icon name="ungroup" className="h-5 w-5"/></button>}
       <button type="button" onClick={onDelete} aria-label="Delete" title="Delete" className="selection-delete"><Icon name="trash" className="h-5 w-5"/></button>

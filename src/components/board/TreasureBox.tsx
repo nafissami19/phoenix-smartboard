@@ -1,5 +1,3 @@
-"use client";
-
 import {useState} from 'react';
 import { FLOATING_TOOLS, type FloatingToolId } from "@/lib/constants";
 import type { SubjectTool } from "./SubjectTools";

@@ -5,6 +5,8 @@ function install({app,BrowserWindow,ipcMain,getMain,getFolder}){
  let overlay,controls,active=false,closing=false,saveTimer;
  let state={mode:'mouse',color:'#ff4b57',width:5,tool:'pen',revision:0};
  let strokes=[],undo=[],redo=[],display;
+ // Every history path keeps at most 50 undo steps.
+ const remember=()=>{undo.push(strokes);if(undo.length>50)undo=undo.slice(-50);};
  const preferences={contextIsolation:true,nodeIntegration:false,sandbox:true,preload:path.join(__dirname,'preload.cjs')};
  const allowed=sender=>[getMain(),overlay,controls].some(w=>w&&!w.isDestroyed()&&w.webContents===sender);
  const send=()=>{for(const w of [overlay,controls])if(w&&!w.isDestroyed()){w.webContents.send('phoenix-display-state',{...state,strokes});}};
@@ -99,11 +101,11 @@ function install({app,BrowserWindow,ipcMain,getMain,getFolder}){
   else if(action==='color'&&typeof value==='string'&&/^#[a-f0-9]{6}$/i.test(value))state.color=value;
   else if(action==='width'&&Number.isFinite(value))state.width=Math.max(1,Math.min(40,value));
   else if(action==='stroke'&&value&&['pen','marker','line','rect','ellipse','laser'].includes(value.tool)&&/^#[a-f0-9]{6}$/i.test(value.color)&&Number.isFinite(value.width)&&Array.isArray(value.points)&&value.points.length<=20000&&value.points.length>0&&value.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&Math.abs(p.x)<100000&&Math.abs(p.y)<100000)){
-   undo.push(strokes);undo=undo.slice(-50);redo=[];strokes=[...strokes.slice(-1999),{...value,id:require('node:crypto').randomUUID(),width:Math.max(1,Math.min(40,value.width)),createdAt:Date.now()}];state.revision++;save();
-  }else if(action==='erase'&&Array.isArray(value)&&value.length<=2000){undo.push(strokes);redo=[];strokes=strokes.filter(s=>!value.includes(s.id));state.revision++;save();}
+   remember();redo=[];strokes=[...strokes.slice(-1999),{...value,id:require('node:crypto').randomUUID(),width:Math.max(1,Math.min(40,value.width)),createdAt:Date.now()}];state.revision++;save();
+  }else if(action==='erase'&&Array.isArray(value)&&value.length<=2000){remember();redo=[];strokes=strokes.filter(s=>!value.includes(s.id));state.revision++;save();}
   else if(action==='undo'&&undo.length){redo.push(strokes);strokes=undo.pop();state.revision++;save();}
-  else if(action==='redo'&&redo.length){undo.push(strokes);strokes=redo.pop();state.revision++;save();}
-  else if(action==='clear'){undo.push(strokes);redo=[];strokes=[];state.revision++;save();}
+  else if(action==='redo'&&redo.length){remember();strokes=redo.pop();state.revision++;save();}
+  else if(action==='clear'){remember();redo=[];strokes=[];state.revision++;save();}
   else if(action==='capture'){
    controls.hide();try{await new Promise(resolve=>setTimeout(resolve,180));const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:display.size.width*display.scaleFactor,height:display.size.height*display.scaleFactor}});const source=sources.find(s=>s.display_id===String(display.id))||sources[0];if(!source||source.thumbnail.isEmpty())throw new Error('Screen capture unavailable.');const folder=path.join(getFolder(),'Annotations');await fs.mkdir(folder,{recursive:true});const name=`display-${Date.now()}.png`;await fs.writeFile(path.join(folder,name),source.thumbnail.toPNG());return {saved:true,name};}finally{controls?.show();keepControlsOnTop();}
   }send();

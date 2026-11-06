@@ -1,6 +1,5 @@
-"use client";
-
 import {getPerformanceProfile} from '@/lib/performance';
+import {notifyPreferencesChanged} from '@/lib/preferences';
 import {BRANDING} from '@/config/branding';
 import {InsertSpecialObject,SpecialObjectsLayer} from '@/components/board/SpecialObjects';
 import {createSolid,isSolid,type SolidKind} from '@/lib/solid-shapes';
@@ -65,6 +64,11 @@ import {
 } from "@/components/board/Tools";
 import {FLOATING_TOOLS, type FloatingToolId, type MediaItem } from "@/lib/constants";
 import type { Notebook, Page } from "@/db/schema";
+import { useI18n } from "@/lib/i18n";
+import { usePrint } from "./use-print";
+import { useViewPersistence } from "./use-view-persistence";
+import { useBoardKeyboard } from "./use-board-keyboard";
+import { BoardLoadState } from "./BoardLoadState";
 
 type Modal = "special" | "backgrounds" | "themes" | "settings" | "help" | "about" | "import" | "export" | "board-tools" | "exam-timer" | null;
 
@@ -79,6 +83,10 @@ export default function BoardPage() {
   const [pages, setPages] = useState<Page[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError,setLoadError]=useState<string|null>(null);
+  const [loadAttempt,setLoadAttempt]=useState(0);
+  const { t } = useI18n();
+  const pagesRef=useRef(pages);pagesRef.current=pages;
   const [background, setBackground] = useState("#18212b");
   const [pageImage,setPageImage]=useState<string|undefined>();
   const pageImageRef=useRef(pageImage);pageImageRef.current=pageImage;
@@ -96,7 +104,7 @@ export default function BoardPage() {
   const [operation,setOperation]=useState<string|null>(null);
   const [textValue, setTextValue] = useState("");
   const [toolbarLayout]=useState<'bottom'|'top'|'left'|'right'>(()=>{try{const s=localStorage.getItem('phoenix-toolbar-layout');return ['bottom','top','left','right'].includes(s||'')?(s as any):'left';}catch{return 'left';}});
-  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout',toolbarLayout);window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
+  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-layout',toolbarLayout);notifyPreferencesChanged();window.dispatchEvent(new Event('phoenix-popup-layout'));}catch{/* Layout remains usable when storage is unavailable. */}},[toolbarLayout]);
   const [assistantOpen,setAssistantOpen]=useState(false);
   const [subjectTool, setSubjectTool] = useState<SubjectTool | null>(null);
 
@@ -176,6 +184,10 @@ export default function BoardPage() {
     onDraftChange:handleDraftChange,
     isViewLocked: viewSync,
   });
+  // Latest board for window listeners and async flows that must not re-subscribe per frame.
+  const wbRef=useRef(wb);wbRef.current=wb;
+  /** Serialises a storage write behind any in-flight autosave. */
+  const enqueueWrite=useCallback((write:()=>Promise<unknown>)=>{const run=saveQueue.current.catch(()=>{}).then(write).then(()=>{});saveQueue.current=run;return run;},[]);
 
   const getSlideFrame = useCallback(() => {
     if (frameRef.current && frameRef.current.width > 0 && frameRef.current.height > 0) {
@@ -203,10 +215,12 @@ export default function BoardPage() {
     setApplyingView(true);
     try {
       await flushSave();
-      let currentMedia = wb.media;
+      // Read the board and slide list after the save settles, not from a stale render.
+      const board = wbRef.current, pages = pagesRef.current, view = board.getView();
+      let currentMedia = board.media;
       if (isViewSyncEnabled(id)) {
         currentMedia = currentMedia.map(m => ['pdf', 'image', 'docx'].includes(m.kind) ? { ...m, locked: true } : m);
-        wb.commitMedia(currentMedia);
+        board.commitMedia(currentMedia);
       }
       const currentDoc = currentMedia.find(m => ['pdf', 'image', 'docx'].includes(m.kind)) ?? currentMedia[0];
       const targetFrame = currentDoc
@@ -291,73 +305,70 @@ export default function BoardPage() {
         setPages(nextPages);
       }
 
-      if (wb.view) {
-        applyViewToAllPages(id, pages.map(p => p.id), wb.view);
+      if (view) {
+        applyViewToAllPages(id, pages.map(p => p.id), view);
       }
 
       if (currentDoc) {
         push(`Applied slide position, size (${Math.round(currentDoc.width)}×${Math.round(currentDoc.height)}), and zoom to all ${pages.length} slides.`, 'success');
-      } else if (wb.view) {
-        push(`Applied ${Math.round(wb.view.scale * 100)}% zoom and position to all ${pages.length} slides.`, 'success');
+      } else if (view) {
+        push(`Applied ${Math.round(view.scale * 100)}% zoom and position to all ${pages.length} slides.`, 'success');
       }
     } catch {
       push('Could not apply alignment to all slides. Please try again.', 'error');
     } finally {
       setApplyingView(false);
     }
-  }, [applyingView, flushSave, wb.media, wb.view, id, pages, push]);
+  }, [applyingView, flushSave, id, push]);
 
   const toggleViewSync = useCallback(() => {
-    setViewSync(prev => {
-      const next = !prev;
-      setViewSyncEnabled(id, next);
-
-      // Immediately lock or unlock slide media on active board
-      const nextCurrentMedia = wb.media.map(m =>
-        ['pdf', 'image', 'docx'].includes(m.kind) ? { ...m, locked: next } : m
-      );
-      wb.commitMedia(nextCurrentMedia);
-
-      // Update pages in state
-      const nextPages = pages.map(p => ({
-        ...p,
-        media: (p.media ?? []).map(m =>
-          ['pdf', 'image', 'docx'].includes(m.kind) ? { ...m, locked: next } : m
-        ),
-      }));
-      setPages(nextPages);
-
-      // Persist to storage
+    // Decide first, then run side effects once (never inside a state updater).
+    const next = !viewSync;
+    setViewSync(next);
+    setViewSyncEnabled(id, next);
+    const lockDocs = (list: MediaItem[]) => list.map(m => ['pdf', 'image', 'docx'].includes(m.kind) ? { ...m, locked: next } : m);
+    // Immediately lock or unlock slide media on the active board.
+    const nextCurrentMedia = lockDocs(wb.media);
+    wb.commitMedia(nextCurrentMedia);
+    // The active slide uses the live board media, not its last-saved copy.
+    const nextPages = pages.map(p => ({ ...p, media: p.id === pageIdRef.current ? nextCurrentMedia : lockDocs(p.media ?? []) }));
+    setPages(nextPages);
+    // Persist behind any in-flight autosave so writes cannot interleave.
+    void enqueueWrite(async () => {
+      let failed = 0;
       for (const p of nextPages) {
-        void localRequest(`/api/pages/${p.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ media: p.media, importFrame: p.importFrame }),
-        }).catch(() => {});
+        const response = await localRequest(`/api/pages/${p.id}`, { method: 'PUT', body: JSON.stringify({ media: p.media, importFrame: p.importFrame }) }).catch(() => null);
+        if (!response?.ok) failed++;
       }
-
-      if (next) {
-        void handleApplyViewToAll();
-        push('Slide locked in place. Slide movement and canvas pan are locked.', 'success');
-      } else {
-        push('Slide unlocked. You can now move, zoom, and reposition.', 'info');
-      }
-      return next;
+      if (failed) push(`Could not save the slide lock on ${failed} slide${failed === 1 ? '' : 's'}. Try again.`, 'error');
     });
-  }, [id, wb, pages, handleApplyViewToAll, push]);
+    if (next) {
+      void handleApplyViewToAll();
+      push('Slide locked in place. Slide movement and canvas pan are locked.', 'success');
+    } else {
+      push('Slide unlocked. You can now move, zoom, and reposition.', 'info');
+    }
+  }, [viewSync, id, wb.media, wb.commitMedia, pages, enqueueWrite, handleApplyViewToAll, push]);
 
   // -------------------------------- loading --------------------------------
 
   const [previewSize,setPreviewSize]=useState({width:1280,height:720});
   useEffect(()=>{const canvas=wb.canvasRef.current;if(!canvas)return;let frame=0;const update=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{const width=canvas.clientWidth,height=canvas.clientHeight;if(width&&height)setPreviewSize(previous=>previous.width===width&&previous.height===height?previous:{width,height});});};const observer=new ResizeObserver(update);observer.observe(canvas);update();return()=>{observer.disconnect();cancelAnimationFrame(frame);};},[loading]);
-  const previewFrames=useMemo(()=>Object.fromEntries(pages.map(page=>{
-    const defaultV = savedLessonDefaultView(id);
-    const view=page.id===currentPage?.id?wb.view:(isViewSyncEnabled(id)?(defaultV??wb.view??savedPageView(page.id)):(savedPageView(page.id)??defaultV))??{tx:0,ty:0,scale:1};
-    return [page.id,{x:-view.tx/view.scale,y:-view.ty/view.scale,width:previewSize.width/view.scale,height:previewSize.height/view.scale,zoom:view.scale}];
-  })), [pages,currentPage?.id,wb.view,previewSize,id,viewSync]);
+  // View writes are debounced; previews follow the settled view instead of every pan frame.
+  const {settledView,flushView}=useViewPersistence({lessonId:id,pageId:currentPage?.id,view:wb.view,viewSync,enabled:!loading});
+  const previewFrames=useMemo(()=>{
+    const defaultV = savedLessonDefaultView(id), syncOn = isViewSyncEnabled(id);
+    const activeView = settledView.pageId===currentPage?.id ? settledView.view : undefined;
+    return Object.fromEntries(pages.map(page=>{
+      const view=(page.id===currentPage?.id&&activeView?activeView:(syncOn?(defaultV??activeView??savedPageView(page.id)):(savedPageView(page.id)??defaultV)))??{tx:0,ty:0,scale:1};
+      return [page.id,{x:-view.tx/view.scale,y:-view.ty/view.scale,width:previewSize.width/view.scale,height:previewSize.height/view.scale,zoom:view.scale}];
+    }));
+  }, [pages,currentPage?.id,settledView,previewSize,id,viewSync]);
   const loadPageIntoBoard = useCallback(
     (i: number, list: Page[]) => {
       const pg = list[i];
       if (!pg) return;
+      flushView();
       pageIdRef.current = pg.id;
       lastDraftCheckpoint.current=0;
       frameRef.current=pg.importFrame;
@@ -397,7 +408,7 @@ export default function BoardPage() {
       }
 
       const view = syncOn
-        ? (defaultView ?? wb.view ?? savedPageView(pg.id))
+        ? (defaultView ?? wb.getView() ?? savedPageView(pg.id))
         : (savedPageView(pg.id) ?? defaultView);
       wb.reset(pg.objects ?? [], mediaToLoad, !view);
       if (view) {
@@ -410,46 +421,46 @@ export default function BoardPage() {
         }, 100);
       }
     },
-    [wb, id, notebook?.title],
+    [wb.reset, wb.restoreView, wb.getView, wb.fitToBounds, flushView, id, notebook?.title],
   );
 
   useEffect(() => {
     let alive = true;
+    setLoading(true);setLoadError(null);
     (async () => {
       try {
         const res = await localRequest(`/api/notebooks/${id}`, { cache: "no-store" });
-        if (!res.ok) throw new Error("not found");
+        if (!res.ok) throw new Error(res.status === 404 ? "This lesson no longer exists on this device." : "The lesson could not be read from storage.");
         const data = (await res.json()) as { notebook: Notebook; pages: Page[] };
         if (!alive) return;
+        let pgs = Array.isArray(data.pages) ? data.pages : [];
+        // A lesson with no slides would leave nothing to save strokes into; create the first one.
+        if (!pgs.length) {
+          const created = await localRequest(`/api/notebooks/${id}/pages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+          if (!created.ok) throw new Error("The lesson has no slides and a first slide could not be created.");
+          pgs = ((await created.json()) as { pages: Page[] }).pages;
+          if (!alive) return;
+        }
         setNotebook(data.notebook);
-        const pgs = data.pages.length ? data.pages : [];
         setPages(pgs);
         let last:string|null=null;try{last=localStorage.getItem('phoenix-last-page:'+id);}catch{}
-        if(pgs.length)loadPageIntoBoard(Math.max(0,pgs.findIndex(p=>p.id===last)),pgs);
+        loadPageIntoBoard(Math.max(0,pgs.findIndex(p=>p.id===last)),pgs);
         const unfinished=await unfinishedEdits(id),activity=await lastWorkActivity(id);if(alive){setRecoveryEdits(unfinished);setLastActivity(activity);}
-      } catch {
-        if (alive) push("Could not open this lesson.", "error");
+      } catch (error) {
+        if (alive) {setLoadError(error instanceof Error && error.message ? error.message : "Could not open this lesson.");push("Could not open this lesson.", "error");}
       } finally {
         if (alive) setLoading(false);
       }
     })();
-    return () => {
-      alive = false;
-      void finishSession(id).catch(()=>{});
-      if (saveTimer.current) { window.clearTimeout(saveTimer.current); void flushSave().catch(()=>{}); }
-    };
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, loadAttempt]);
+  useEffect(() => () => {
+    void finishSession(id).catch(()=>{});
+    if (saveTimer.current) { window.clearTimeout(saveTimer.current); void flushSave().catch(()=>{}); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  useEffect(()=>{
-    if(loading||!currentPage)return;
-    try{
-      localStorage.setItem('phoenix-view:'+currentPage.id,JSON.stringify(wb.view));
-      if (viewSync) {
-        saveLessonDefaultView(id, wb.view);
-      }
-    }catch{}
-  },[loading,currentPage?.id,wb.view,viewSync,id]);
   useEffect(()=>{
     const neighbors=[...(pages[index-1]?.media??[]),...(pages[index+1]?.media??[])].filter(m=>m.kind==='pdf');
     for(const media of currentPage?.media??[])if(media.kind==='pdf')for(const number of [media.pageNumber-1,media.pageNumber+1])if(number>0&&number<=(media.numPages??0))neighbors.push({...media,pageNumber:number});
@@ -464,7 +475,8 @@ export default function BoardPage() {
   };
   useEffect(() => {
     const save = () => { if (document.visibilityState === 'hidden') void flushSave().catch(()=>{}); };
-    const exit = (event: BeforeUnloadEvent) => { if (pendingRef.current) { event.preventDefault(); event.returnValue = ''; void flushSave().catch(()=>{}); } };
+    // Electron's main process flushes the board before closing; a veto there would block the close.
+    const exit = (event: BeforeUnloadEvent) => { if (pendingRef.current) { if (!window.phoenixDeviceLibrary) { event.preventDefault(); event.returnValue = ''; } void flushSave().catch(()=>{}); } };
     const deviceFlush=(event:Event)=>{(event as CustomEvent<{pending:Promise<unknown>[]}>).detail.pending.push(flushSave());};
     window.addEventListener('phoenix-flush-board',deviceFlush);document.addEventListener('visibilitychange', save); window.addEventListener('beforeunload', exit);
     return () => { window.removeEventListener('phoenix-flush-board',deviceFlush);document.removeEventListener('visibilitychange', save); window.removeEventListener('beforeunload', exit); void flushSave().catch(()=>{}); };
@@ -515,8 +527,8 @@ export default function BoardPage() {
 
   const deletePage = useCallback(async (slideIndex=index) => {
     if (pages.length <= 1 || !pages[slideIndex]) return;
-    await flushSave();
     try {
+      await flushSave();
       const response=await localRequest(`/api/pages/${pages[slideIndex].id}`, { method: "DELETE" });
       if(!response.ok)throw new Error("Could not delete slide");
       const next = pages.filter((_, i) => i !== slideIndex);
@@ -538,22 +550,16 @@ export default function BoardPage() {
   },[id,flushSave]);
 
   const duplicatePage = useCallback(async (slideIndex:number) => {
+    const source=pages[slideIndex];if(!source)return;
     try {
+      // Save the source first; the store copies it and inserts the copy after it in one transaction.
       await flushSave();
-      const original=await localRequest(`/api/pages/${pages[slideIndex].id}`);
-      if(!original.ok)throw new Error('Slide not found');
-      const {page:source}=await original.json() as {page:Page};
-      const created=await localRequest(`/api/notebooks/${id}/pages`,{method:'POST',body:JSON.stringify({background:source.background,pattern:source.pattern,backgroundImage:source.backgroundImage??''})});
-      if(!created.ok)throw new Error('Could not create the copy');
+      const created=await localRequest(`/api/pages/${source.id}/duplicate`,{method:'POST'});
+      if(!created.ok)throw new Error('Could not duplicate this slide.');
       const {page:copy}=await created.json() as {page:Page};
-      const copied={...copy,importFrame:source.importFrame,objects:source.objects.map(object=>({...object,id:uid()})),media:source.media.map(media=>({...media,id:uid()}))};
-      const saved=await localRequest(`/api/pages/${copy.id}`,{method:'PUT',body:JSON.stringify(copied)});
-      if(!saved.ok)throw new Error('Could not save the copy');
-      const next=[...pages];next.splice(slideIndex+1,0,copied);
-      const sorted=await localRequest(`/api/notebooks/${id}/pages/reorder`,{method:'PUT',body:JSON.stringify({pageIds:next.map(page=>page.id)})});
-      if(!sorted.ok)throw new Error('Could not arrange the copy');
-      const {pages:ordered}=await sorted.json() as {pages:Page[]};
-      setPages(ordered);loadPageIntoBoard(slideIndex+1,ordered);
+      const listed=await localRequest(`/api/notebooks/${id}`).then(response=>response.ok?response.json() as Promise<{pages:Page[]}>:null).catch(()=>null);
+      const ordered=listed?.pages?.some(page=>page.id===copy.id)?listed.pages:(()=>{const next=pagesRef.current.filter(page=>page.id!==copy.id),at=next.findIndex(page=>page.id===source.id);next.splice(at+1,0,copy);return next;})();
+      setPages(ordered);loadPageIntoBoard(Math.max(0,ordered.findIndex(page=>page.id===copy.id)),ordered);
     } catch(error) {push(error instanceof Error?error.message:'Could not duplicate this slide.','error');}
   },[pages,id,flushSave,loadPageIntoBoard,push]);
 
@@ -565,7 +571,7 @@ export default function BoardPage() {
       for (const item of items) wb.addMedia(item);
       // Import placement changes the document, never the current zoom.
     },
-    [wb],
+    [wb.addMedia],
   );
 
   // -------------------------------- export ---------------------------------
@@ -574,7 +580,7 @@ export default function BoardPage() {
     setOperation('Exporting image');await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
     try{const url = wb.exportPNG();
     if (url) download(url, `${notebook?.title ?? "page"}-p${index + 1}.png`);}finally{setOperation(null);void setWorkActivity(id,undefined).catch(()=>{});}
-  }, [wb, notebook, index]);
+  }, [wb.exportPNG, notebook, index, id]);
 
   const exportPDF = useCallback(async (scope:PDFScope,onProgress:(progress:ExportProgress)=>void) => {
     await flushSave();
@@ -602,23 +608,17 @@ export default function BoardPage() {
     download(URL.createObjectURL(blob),`${notebook?.title??'lesson'}.enb`);
   },[flushSave,id,notebook]);
 
-  const printPage = useCallback(() => {
-    const canvas = wb.renderToCanvas();
-    if (!canvas) return;
-    const url = canvas.toDataURL("image/png");
-    const w = window.open("", "_blank");
-    if (w) {
-      w.document.write(
-        `<html><body style="margin:0"><img src="${url}" style="width:100%"/></body></html>`,
-      );
-      w.document.close();
-      w.print();
-    } else {
-      push("Allow pop-ups to print.", "error");
-    }
-  }, [wb, push]);
+  const printPage = usePrint(wb.renderToCanvas, push, notebook?.title);
 
   // -------------------------------- menus ----------------------------------
+
+  const displayAnnotationAvailable = typeof window !== 'undefined' && !!window.phoenixDisplay;
+  const startDisplayAnnotation = useCallback(() => {
+    const display = window.phoenixDisplay;
+    if (!display) return;
+    // Save first so annotating over other apps never strands unsaved board edits.
+    void flushSave().then(() => display.start()).catch(error => push(error instanceof Error && error.message ? `Display annotation could not start: ${error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')}` : 'Display annotation could not start.', 'error'));
+  }, [flushSave, push]);
 
   const onFileAction = useCallback(
     (action: string) => {
@@ -664,9 +664,12 @@ export default function BoardPage() {
         case "exam-timer":
           setModal("exam-timer");
           break;
+        case "display-annotation":
+          startDisplayAnnotation();
+          break;
       }
     },
-    [router, flushSave, push, exportJSON, printPage],
+    [router, flushSave, push, exportJSON, printPage, startDisplayAnnotation],
   );
 
   const toggleTool = useCallback((toolId: FloatingToolId) => {
@@ -684,56 +687,7 @@ export default function BoardPage() {
 
   // ----------------------------- keyboard ----------------------------------
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      const typing = !!target.closest('input, textarea, select, [role=combobox], [role=listbox], [contenteditable]:not([contenteditable="false"])');
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        void flushSave().catch(() => push("Autosave failed. Your edits are still in memory. Free storage and try again.", "error"));
-        return;
-      }
-      if (e.defaultPrevented || typing || document.querySelector('dialog[open]')) return;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        if (e.shiftKey) wb.redo();
-        else wb.undo();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
-        e.preventDefault();
-        wb.redo();
-        return;
-      }
-      if (e.key === "Delete" || e.key === "Backspace") {
-        if (wb.selection) {
-          e.preventDefault();
-          wb.deleteSelected();
-        }
-        return;
-      }
-      if (e.key === "Escape") {
-        if (panel) setPanel(null);
-        else wb.setSelection(null);
-        return;
-      }
-      if(e.key==='PageDown'||e.key==='PageUp'){
-        e.preventDefault();void goTo(index+(e.key==='PageDown'?1:-1)).catch(()=>push('Could not save your edits.','error'));return;
-      }
-      const map: Record<string, typeof wb.tool> = {
-        v: "select",
-        p: "pen",
-        h: "highlighter",
-        e: "eraser",
-        l: "laser",
-        t: "text",
-      };
-      const t = map[e.key.toLowerCase()];
-      if (t) wb.setTool(t);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [wb, panel, flushSave, push, goTo, index]);
+  useBoardKeyboard({board:wb,panelOpen:!!panel,closePanel:()=>setPanel(null),save:flushSave,push,goTo,index});
 
   // reset text draft when a new text editor opens
   useEffect(() => {
@@ -750,21 +704,23 @@ export default function BoardPage() {
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return wb.screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
-  }, [wb]);
+  }, [wb.canvasRef, wb.screenToWorld]);
+  const centerWorldRef = useRef(centerWorld); centerWorldRef.current = centerWorld;
 
+  // Stamp listeners are registered once and read the latest board through refs.
   useEffect(() => {
     const onStampText = (e: Event) => {
       const custom = e as CustomEvent<{ text: string }>;
       if (!custom.detail?.text) return;
-      const center = centerWorld();
-      wb.addObjects([
+      const center = centerWorldRef.current(), board = wbRef.current;
+      board.addObjects([
         {
           id: uid(),
           kind: 'text',
           x: center.x - 200,
           y: center.y - 40,
           text: custom.detail.text,
-          color: wb.pen.color,
+          color: board.pen.color,
           fontSize: 22,
           fontFamily: 'Arial',
           bold: false,
@@ -776,6 +732,8 @@ export default function BoardPage() {
       const custom = e as CustomEvent<{ dataUrl: string; width: number; height: number }>;
       const { dataUrl, width, height } = custom.detail ?? {};
       if (!dataUrl) return;
+      // The snapshot belongs to the slide that was open when it was taken.
+      const targetPageId = pageIdRef.current, center = centerWorldRef.current();
       try {
         const blob = await (await fetch(dataUrl)).blob();
         const response = await localRequest('/api/assets', {
@@ -787,24 +745,37 @@ export default function BoardPage() {
             dataBase64: await fileToBase64(blob),
           }),
         });
-        if (response.ok) {
-          const { asset } = await response.json();
-          const center = centerWorld();
-          const scale = Math.min(1, 700 / width, 550 / height);
-          wb.addMedia({
-            id: uid(),
-            kind: 'image',
-            assetId: asset.id,
-            x: center.x - (width * scale) / 2,
-            y: center.y - (height * scale) / 2,
-            width: width * scale,
-            height: height * scale,
-            rotation: 0,
-            pageNumber: 1,
-          });
-        }
+        if (!response.ok) throw new Error('asset');
+        const { asset } = await response.json();
+        const scale = Math.min(1, 700 / width, 550 / height);
+        const item: MediaItem = {
+          id: uid(),
+          kind: 'image',
+          assetId: asset.id,
+          x: center.x - (width * scale) / 2,
+          y: center.y - (height * scale) / 2,
+          width: width * scale,
+          height: height * scale,
+          rotation: 0,
+          pageNumber: 1,
+        };
+        if (!targetPageId || pageIdRef.current === targetPageId) { wbRef.current.addMedia(item); return; }
+        // The teacher moved on: append to the original slide without disturbing the open one.
+        let added = false;
+        await enqueueWrite(async () => {
+          const read = await localRequest(`/api/pages/${targetPageId}`).catch(() => null);
+          if (!read?.ok) return;
+          const { page } = await read.json() as { page: Page };
+          const media = [...(page.media ?? []), item];
+          const saved = await localRequest(`/api/pages/${targetPageId}`, { method: 'PUT', body: JSON.stringify({ media }) }).catch(() => null);
+          if (!saved?.ok) return;
+          added = true;
+          setPages(list => list.map(p => p.id === targetPageId ? { ...p, media } : p));
+        });
+        if (!added) throw new Error('save');
+        push('Snapshot added to the slide it was taken from.', 'success');
       } catch {
-        /* ignore */
+        push('Could not add the snapshot to the board. Please try again.', 'error');
       }
     };
 
@@ -814,19 +785,10 @@ export default function BoardPage() {
       window.removeEventListener('phoenix-stamp-text', onStampText);
       window.removeEventListener('phoenix-stamp-image', onStampImage);
     };
-  }, [centerWorld, id, wb]);
+  }, [id, enqueueWrite, push]);
 
   if (loading || !notebook) {
-    return (
-      <div className="grid h-dvh w-full place-items-center bg-base">
-        <div className="flex flex-col items-center gap-4">
-          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-brand shadow-[0_0_50px_-8px_var(--color-brand-glow)]">
-            <Icon name="pen" className="h-8 w-8 text-white" />
-          </div>
-          <p className="text-sm text-muted">Opening lesson…</p>
-        </div>
-      </div>
-    );
+    return <BoardLoadState error={loading ? null : loadError ?? (notebook ? null : "Could not open this lesson.")} onRetry={() => setLoadAttempt(n => n + 1)} onBack={() => router.push("/library")} />;
   }
 
   function addSolid(kind:SolidKind){const center=centerWorld(),object=createSolid(kind,center.x-100,center.y-100,wb.pen.color);object.fillColor=wb.pen.shapeFillColor??'#6296bd';wb.addObjects([object]);wb.setTool('select');wb.setSelection({kind:'object',id:object.id});}
@@ -962,7 +924,7 @@ export default function BoardPage() {
                   body: JSON.stringify({ title: notebook.title, subject: notebook.subject }),
                 })
               }
-              title="Click to rename lesson"
+              title="Click to rename lesson" aria-label="Lesson title"
               className="kn-focus min-w-0 max-w-sm rounded-lg border border-transparent bg-transparent px-2.5 py-1 text-sm font-medium text-ink transition-colors hover:border-line hover:bg-base-2 focus:border-brand"
             />
             <span className="hidden rounded-md bg-panel-2 px-2 py-0.5 text-[11px] font-semibold text-muted md:inline-block">
@@ -1009,6 +971,19 @@ export default function BoardPage() {
             >
               <Icon name="sync" className="h-5 w-5" />
             </button>
+            {displayAnnotationAvailable && (
+              <button
+                type="button"
+                onClick={startDisplayAnnotation}
+                data-action="display-annotation"
+                className="kn-focus flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-muted hover:bg-elevated hover:text-ink"
+                title={t('display_annotation')}
+              >
+                <Icon name="pen" className="h-4 w-4" />
+                <span className="hidden md:inline">{t('display_annotation')}</span>
+                <span className="sr-only md:hidden">{t('display_annotation')}</span>
+              </button>
+            )}
             <div className="mx-1 h-6 w-px bg-line" />
             <div className="hidden items-center gap-2 px-1 text-sm text-muted sm:flex">
               <Icon name="board" className="h-4 w-4" />
@@ -1358,9 +1333,9 @@ export default function BoardPage() {
 
 function SaveBadge({ state }: { state: "saved" | "saving" | "dirty" }) {
   const map = {
-    saved: { text: "Saved", dotCls: "bg-emerald-400 shadow-[0_0_10px_#10b981]", textCls: "text-emerald-400 font-semibold" },
-    saving: { text: "Saving…", dotCls: "bg-amber-400 animate-pulse shadow-[0_0_10px_#f59e0b]", textCls: "text-amber-400 font-semibold" },
-    dirty: { text: "Unsaved", dotCls: "bg-rose-400 shadow-[0_0_8px_#f43f5e]", textCls: "text-rose-400 font-semibold" },
+    saved: { text: "Saved", dotCls: "bg-success", textCls: "text-success font-semibold" },
+    saving: { text: "Saving…", dotCls: "bg-warn motion-safe:animate-pulse", textCls: "text-warn font-semibold" },
+    dirty: { text: "Unsaved", dotCls: "bg-danger", textCls: "text-danger font-semibold" },
   } as const;
   const s = map[state];
   return (

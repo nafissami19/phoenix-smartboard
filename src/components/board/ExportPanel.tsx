@@ -1,5 +1,3 @@
-"use client";
-
 import {LoadingOverlay} from '@/components/LoadingOverlay';
 import {CustomSelect} from '@/components/CustomSelect';
 import {useEffect, useRef, useState} from 'react';
@@ -31,22 +29,26 @@ export function ExportPanel({onClose, pageTitle, pageCount = 1, onPNG, onPDF, on
   const [ready, setReady] = useState<{url: string; filename: string} | null>(null);
   const mounted = useRef(true);
   const inFlight = useRef(false);
+  // PDF export reports progress before each page; throwing from that callback stops the page loop.
+  const cancelPdf = useRef(false), [pdfRunning, setPdfRunning] = useState(false);
   useEffect(() => {mounted.current = true; return () => {mounted.current = false;};}, []);
   useEffect(() => () => {if (ready) window.setTimeout(() => URL.revokeObjectURL(ready.url), 30000);}, [ready]);
 
   const preparePDF = async () => {
     if (inFlight.current) return;
-    inFlight.current = true; setPending(true); setError(''); setReady(null); setProgress(null);
+    inFlight.current = true; cancelPdf.current = false; setPending(true); setPdfRunning(true); setError(''); setReady(null); setProgress(null);
     try {
       await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
-      const result = await onPDF(scope, value => {if (mounted.current) setProgress(value);});
+      const result = await onPDF(scope, value => {if (cancelPdf.current) throw new DOMException('PDF export cancelled', 'AbortError'); if (mounted.current) setProgress(value);});
+      if (cancelPdf.current) return;
       if (!result.blob.size || result.blob.type !== 'application/pdf') throw new Error('PDF preparation did not produce a document.');
       if (mounted.current) setReady({url: URL.createObjectURL(result.blob), filename: result.filename});
     } catch (e) {
+      if (cancelPdf.current) return;
       if (mounted.current) setError(e instanceof Error ? e.message : 'Could not prepare the PDF. Please try again.');
     } finally {
       inFlight.current = false;
-      if (mounted.current) setPending(false);
+      if (mounted.current) {setPending(false); setPdfRunning(false);}
     }
   };
 
@@ -59,7 +61,7 @@ export function ExportPanel({onClose, pageTitle, pageCount = 1, onPNG, onPDF, on
 
   return (
     <Modal title="Export" icon={<Icon name="export" className="h-5 w-5 text-brand-light" />} onClose={onClose}>
-      {pending&&<LoadingOverlay detail={progress?`Exporting page ${progress.page} of ${progress.total}`:'Preparing document export'}/>}
+      {pending&&<LoadingOverlay detail={progress?`Exporting page ${progress.page} of ${progress.total}`:'Preparing document export'} progress={progress?(progress.page-1)/progress.total:null} onCancel={pdfRunning?()=>{cancelPdf.current=true;}:undefined}/>}
       <div className="space-y-3">
         <div className="rounded-xl border border-line bg-base-2 p-4">
           <div className="flex items-center gap-3"><Icon name="doc" className="h-5 w-5 text-brand-light" /><h3 className="text-sm font-semibold">PDF document</h3></div>
@@ -69,16 +71,16 @@ export function ExportPanel({onClose, pageTitle, pageCount = 1, onPNG, onPDF, on
             className="kn-focus mt-1 w-full rounded-lg border border-line bg-base p-2 text-sm">
             <option value="current">Current page</option><option value="all">All pages ({pageCount})</option>
           </CustomSelect>
-          <button type="button" disabled={pending} onClick={() => void preparePDF()} className="kn-focus mt-3 w-full rounded-lg bg-brand p-3 text-sm font-semibold text-white disabled:opacity-60">
+          <button type="button" disabled={pending} onClick={() => void preparePDF()} className="kn-focus mt-3 w-full rounded-lg bg-brand p-3 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60">
             {pending ? 'Preparing PDF…' : ready ? 'Prepare PDF again' : 'Prepare PDF'}
           </button>
           {pending && <p role="status" className="mt-2 text-xs text-muted">{progress ? `Rendering page ${progress.page} of ${progress.total}…` : 'Loading pages and files…'}</p>}
-          {error && <p role="alert" className="mt-2 text-sm text-red-400">{error}</p>}
+          {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
           {ready && <div className="mt-3 space-y-2">
             <p role="status" className="text-xs text-muted">PDF ready. Choose Download PDF to save it.</p>
             <a href={ready.url} download={ready.filename} className="kn-focus block rounded-lg border border-brand p-3 text-center text-sm font-semibold">Download PDF</a>
             <a href={ready.url} target="_blank" rel="noopener noreferrer" className="kn-focus block text-center text-xs text-muted underline">Open PDF for preview or sharing</a>
-            <p className="text-xs text-faint">If your browser opens the PDF, use its Save or Share control.</p>
+            <p className="text-xs text-muted">If your browser opens the PDF, use its Save or Share control.</p>
           </div>}
         </div>
         {otherOptions.map(o => <button key={o.id} disabled={pending} onClick={async()=>{if(inFlight.current)return;inFlight.current=true;setPending(true);try{await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));await o.action();if(o.id!=='print')onClose();}catch(error){setError(error instanceof Error?error.message:'Export failed. Please try again.');}finally{inFlight.current=false;if(mounted.current)setPending(false);}}}
@@ -88,7 +90,7 @@ export function ExportPanel({onClose, pageTitle, pageCount = 1, onPNG, onPDF, on
           <Icon name="chevronRight" className="h-4 w-4 text-faint" />
         </button>)}
       </div>
-      <p className="mt-4 text-xs text-faint">Exporting “{pageTitle}”.</p>
+      <p className="mt-4 text-xs text-muted">Exporting “{pageTitle}”.</p>
     </Modal>
   );
 }

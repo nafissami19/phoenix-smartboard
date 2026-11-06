@@ -1,10 +1,9 @@
-"use client";
-
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { useToast } from "@/lib/toast";
 import { Icon } from "./Icon";
 import { BUILTIN_THEMES, type ThemePack, isLightTheme } from "@/lib/theme-pack";
+import { useDialog } from "@/lib/use-dialog";
 
 interface ThemeModalProps {
   onClose: () => void;
@@ -30,8 +29,8 @@ const THEME_METAS: Record<string, ThemeMeta> = {
   "phoenix-ember": {
     tag: "Default Dark",
     category: "dark",
-    description: "Deep obsidian workspace with royal cobalt highlights. High contrast and razor sharp for interactive displays.",
-    badgeColor: "#0062ff",
+    description: "Deep navy workspace with Phoenix crimson highlights. High contrast and razor sharp for interactive displays.",
+    badgeColor: "#e63946",
   },
   "phoenix-chalkboard": {
     tag: "Chalkboard Slate",
@@ -87,14 +86,8 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
   const [syncBoardBackground, setSyncBoardBackground] = useState<boolean>(false);
   const [savingThemeId, setSavingThemeId] = useState<string | null>(null);
 
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  // Focus moves in, Tab is trapped, Escape closes and focus returns to the opener.
+  const dialogRef = useDialog<HTMLDivElement>({ onClose });
 
   // Combine built-in themes and any custom saved packs
   const allThemes: ThemePack[] = [
@@ -157,10 +150,11 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label="Workspace Theme & Background"
-      className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 select-none animate-fadeIn"
+      className="fixed inset-0 z-(--z-modal) flex items-center justify-center p-3 sm:p-6 select-none animate-fadeIn"
       style={{
         backgroundColor: "rgba(0, 0, 0, 0.65)",
         backdropFilter: "blur(12px)",
@@ -171,7 +165,7 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
       }}
     >
       <div
-        className="kn-modal-card flex flex-col w-full max-w-4xl max-h-[92vh] rounded-3xl border border-line bg-panel text-ink shadow-2xl overflow-hidden"
+        className="kn-modal-card flex flex-col w-full max-w-4xl max-h-[92dvh] rounded-3xl border border-line bg-panel text-ink shadow-2xl overflow-hidden"
         style={{
           boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.15)",
         }}
@@ -198,8 +192,9 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="p-2.5 rounded-xl border border-line/60 text-muted hover:text-ink hover:bg-elevated transition-colors"
+            className="grid min-h-11 min-w-11 place-items-center p-2.5 rounded-xl border border-line/60 text-muted hover:text-ink hover:bg-elevated transition-colors"
             title="Close theme selector"
+            aria-label="Close theme selector"
           >
             <Icon name="close" className="w-5 h-5" />
           </button>
@@ -224,7 +219,7 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
                 onClick={() => setActiveCategory(cat.id)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap border ${
                   activeCategory === cat.id
-                    ? "bg-brand text-white border-brand shadow-sm"
+                    ? "bg-brand text-on-brand border-brand shadow-sm"
                     : "bg-panel-2 text-muted border-line hover:text-ink hover:bg-elevated hover:border-line-2"
                 }`}
               >
@@ -237,7 +232,8 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-56">
               <input
-                type="text"
+                type="search"
+                aria-label="Search themes"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search themes..."
@@ -272,6 +268,7 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
               const hasRadialPattern = pack.id === "warm-ivory" || baseColor === "#f3e9dc";
 
               return (
+                // Pointer users can click anywhere on the card; keyboard/AT users use the inner Select button (its click bubbles here).
                 <div
                   key={pack.id}
                   onClick={() => void handleApplyTheme(pack)}
@@ -298,7 +295,7 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
                     </span>
 
                     {isActive ? (
-                      <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand text-white shadow-sm">
+                      <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand text-on-brand shadow-sm">
                         <Icon name="check" className="w-3 h-3" />
                         Active
                       </span>
@@ -403,10 +400,12 @@ export function ThemeModal({ onClose, onThemeSelect }: ThemeModalProps) {
                       <button
                         type="button"
                         disabled={savingThemeId === pack.id}
-                        className={`ml-auto text-xs px-3 py-1 rounded-lg font-semibold transition-colors border ${
+                        aria-label={`${isActive ? "Active theme" : "Select theme"} ${pack.name}`}
+                        aria-pressed={isActive}
+                        className={`ml-auto min-h-11 text-xs px-3 py-1 rounded-lg font-semibold transition-colors border ${
                           isActive
                             ? "bg-brand/15 text-brand border-brand/30"
-                            : "bg-panel text-ink border-line shadow-xs group-hover:bg-brand group-hover:text-white group-hover:border-brand"
+                            : "bg-panel text-ink border-line shadow-xs group-hover:bg-brand group-hover:text-on-brand group-hover:border-brand group-focus-within:bg-brand group-focus-within:text-on-brand"
                         }`}
                       >
                         {isActive ? "Active" : savingThemeId === pack.id ? "Applying..." : "Select"}

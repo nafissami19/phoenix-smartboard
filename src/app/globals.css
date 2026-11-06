@@ -1,531 +1,561 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
 
 /* ---------------------------------------------------------------------------
-   Phoenix Smartboard — dark + red theme tokens (Tailwind v4 @theme).
-   Usage examples: bg-base, bg-panel, text-ink, border-line, bg-brand ...
+   Cascade order. Tailwind's own layers come first, then the app's layers, so
+   app rules beat utility classes (as the old unlayered CSS did) and each app
+   layer beats the one before it without needing !important:
+     kn-base       element defaults (form controls, scrollbars, focus)
+     kn-components shared surfaces + every component stylesheet
+     kn-themes     theme-appearance and light-mode adaptations
+     kn-overrides  accessibility preferences, disabled state, drawing focus
+   Component stylesheets repeat this statement as their first line so the order
+   is fixed even when they load before this file.
 --------------------------------------------------------------------------- */
-@theme {
-  --color-base: #0a0a0c;
-  --color-base-2: #101014;
-  --color-panel: #17171c;
-  --color-panel-2: #1f1f26;
-  --color-elevated: #26262e;
-  --color-line: #2f2f38;
-  --color-line-2: #3d3d47;
-
-  --color-ink: #f4f4f5;
-  --color-muted: #a1a1ab;
-  --color-faint: #6b6b75;
-
-  --color-brand: #0062ff;
-  --color-brand-dark: #004ecc;
-  --color-brand-darker: #003a99;
-  --color-brand-light: #3385ff;
-  --color-brand-glow: #0062ff;
-
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, Helvetica, Arial, sans-serif;
-}
-
-/* Smooth, app-like feel */
-html,
-body {
-  height: 100%;
-  margin: 0;
-  background-color: var(--color-base);
-  background-image: var(--color-base-pattern, none);
-  background-size: var(--color-base-pattern-size, auto);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  overscroll-behavior: none;
-}
-
-* {
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Prevent the whole app from scrolling/bouncing like a webpage */
-body {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-}
-
-/* Custom scrollbars that match the theme */
-.kn-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-line-2) transparent;
-}
-.kn-scroll::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-.kn-scroll::-webkit-scrollbar-thumb {
-  background: var(--color-line-2);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-.kn-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--color-brand-dark);
-  background-clip: padding-box;
-}
-.kn-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* Range slider (pen thickness etc.) with tactile knurled thumb & track */
-.kn-range {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--color-base-2) 0%, var(--color-line-2) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
-  outline: none;
-  transition: all 0.15s ease;
-}
-.kn-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #d4d4d8 55%, #71717a 100%);
-  border: 2px solid #ffffff;
-  cursor: grab;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(0, 98, 255, 0.3);
-  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease;
-}
-.kn-range::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(0, 98, 255, 0.45);
-}
-.kn-range::-webkit-slider-thumb:active {
-  cursor: grabbing;
-  transform: scale(1.22);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 0 5px rgba(0, 98, 255, 0.55);
-}
-.kn-range::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #d4d4d8 55%, #71717a 100%);
-  border: 2px solid #ffffff;
-  cursor: grab;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(0, 98, 255, 0.3);
-}
-
-/* The whiteboard surface: never show a text caret / selection while drawing */
-.kn-canvas-surface {
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  cursor: crosshair;
-}
-.kn-canvas-surface[data-tool="select"] {
-  cursor: default;
-}
-.kn-canvas-surface[data-tool="pan"] {
-  cursor: grab;
-}
-.kn-canvas-surface[data-tool="eraser"] {
-  cursor: cell;
-}
-
-/* Small enter/exit animation used by floating panels */
-@keyframes kn-pop {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-.kn-pop {
-  animation: kn-pop 0.14s ease-out;
-}
-
-@keyframes kn-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-.kn-fade {
-  animation: kn-fade 0.18s ease-out;
-}
-
-/* Focus ring consistent with brand */
-.kn-focus:focus-visible {
-  outline: 2px solid var(--color-brand);
-  outline-offset: 2px;
-}
-/* Shared controls retain keyboard/assistive semantics with Phoenix styling. */
-* { scrollbar-width:thin;scrollbar-color:var(--color-line-2) transparent; }
-*::-webkit-scrollbar {width:8px;height:8px;}
-*::-webkit-scrollbar-track {background:transparent;}
-*::-webkit-scrollbar-thumb {background:var(--color-line-2);border:2px solid transparent;border-radius:999px;background-clip:padding-box;}
-*::-webkit-scrollbar-thumb:hover {background:var(--color-muted);background-clip:padding-box;}
-button,[role="button"],summary {cursor:pointer;}
-button:disabled {cursor:not-allowed;}
-button:enabled:active {filter:brightness(.94);}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,[role="button"]:focus-visible {outline:2px solid var(--color-brand);outline-offset:3px;}
-select {appearance:none;min-height:40px;background-color:var(--color-base-2);color:var(--color-ink);border:1px solid var(--color-line);border-radius:8px;padding:8px 32px 8px 10px;max-width:100%;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2389949e' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;}
-select option {background:var(--color-base-2);color:var(--color-ink);}
-input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),textarea {background-color:var(--color-base-2);color:var(--color-ink);border-color:var(--color-line);min-width:0;}
-input[type=checkbox],input[type=radio] {appearance:none;width:18px;height:18px;flex-shrink:0;border:1.5px solid var(--color-muted);background:var(--color-base-2);border-radius:4px;vertical-align:middle;cursor:pointer;}
-input[type=radio] {border-radius:50%;}
-input[type=checkbox]:checked {background-color:var(--color-brand);border-color:var(--color-brand);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='white' stroke-width='2.5'%3E%3Cpath d='m4 10 4 4 8-8'/%3E%3C/svg%3E");}
-input[type=radio]:checked {box-shadow:inset 0 0 0 4px var(--color-base-2);background:var(--color-brand);border-color:var(--color-brand);}
-input[type=range] {accent-color:var(--color-brand);}
-input[type=file]::file-selector-button {background:var(--color-panel-2);color:var(--color-ink);border:1px solid var(--color-line);border-radius:8px;padding:8px 12px;margin-right:10px;cursor:pointer;}
-.kn-dialog > div {margin:0;}
-.kn-dialog fieldset {min-width:0;}
-@media(prefers-reduced-motion:reduce){.kn-pop,.kn-fade {animation:none;}}
-
-/* The application's scrollbars and touch feedback stay quiet across browsers. */
-html,body{scrollbar-width:none;}body::-webkit-scrollbar{display:none;}
-button,a,summary,[role="button"],input,select{touch-action:manipulation;}
-summary::-webkit-details-marker{display:none;}
-@media(pointer:coarse){input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea{font-size:16px;}input[type=range]{min-height:32px;} .kn-range{background-size:100% 6px;}}
-@media(prefers-reduced-transparency:reduce){.backdrop-blur{backdrop-filter:none;background:var(--color-panel);}}
+@layer theme, base, components, utilities, kn-base, kn-components, kn-themes, kn-overrides;
 
 /* ---------------------------------------------------------------------------
-   Modern Glassmorphism & Depth Hierarchy (Luminous Frosted HUD Surfaces)
-   --------------------------------------------------------------------------- */
-.kn-main-tools, .kn-dock, .treasure-panel {
-  background: rgba(18, 20, 28, 0.76) !important;
-  backdrop-filter: blur(28px) saturate(210%) brightness(1.05) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 20px !important;
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.35),
-    0 16px 40px -8px rgba(0, 0, 0, 0.7),
-    0 4px 16px 0 rgba(0, 0, 0, 0.45) !important;
-}
+   Phoenix Smartboard design tokens (Tailwind v4 @theme).
+   Dark-first: flat tinted navy-slate surfaces, one hairline, one soft shadow
+   per elevation, crimson accent. Theme packs re-tint these at runtime.
+   Usage: bg-base, bg-panel, text-ink, border-line, bg-brand, rounded-lg, ...
+--------------------------------------------------------------------------- */
+@theme static {
+  /* Surfaces, lowest to highest */
+  --color-base: #0b0f1a;
+  --color-base-2: #0f1524;
+  --color-panel: #111827;
+  --color-panel-2: #172033;
+  --color-elevated: #1e293d;
+  --color-overlay: #243149;
 
-.kn-tool-options, .kn-shape-palette, .kn-file-menu, .kn-slides-panel {
-  background: rgba(18, 20, 28, 0.82) !important;
-  backdrop-filter: blur(28px) saturate(210%) brightness(1.05) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 20px !important;
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
-    0 24px 54px -10px rgba(0, 0, 0, 0.8),
-    0 8px 20px 0 rgba(0, 0, 0, 0.5) !important;
-}
+  /* Hairlines. line-strong is the >=3:1 outline for inputs and controls. */
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-2: rgb(255 255 255 / 0.14);
+  --color-line-strong: rgb(255 255 255 / 0.36);
 
-/* Modal Scrim and Floating Windows */
-.kn-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.65) !important;
-  backdrop-filter: blur(10px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(160%) !important;
-}
+  /* Text */
+  --color-ink: #e6e9ef;
+  --color-muted: #9aa6b9;
+  --color-faint: #7d8aa0;
 
-.kn-modal-card {
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-    0 32px 72px -12px rgba(0, 0, 0, 0.85) !important;
-}
+  /* Accent: Phoenix Crimson */
+  --color-brand: #e63946;
+  --color-brand-solid: #d62f3c;
+  --color-brand-hover: #c42b37;
+  --color-brand-active: #b8232f;
+  --color-brand-text: #ff5a66;
+  --color-brand-subtle: rgb(230 57 70 / 0.14);
+  --color-brand-ring: rgb(255 90 102 / 0.55);
+  --color-on-brand: #fff;
+  /* Legacy aliases kept so existing classes keep working */
+  --color-brand-dark: var(--color-brand-hover);
+  --color-brand-darker: var(--color-brand-active);
+  --color-brand-light: var(--color-brand-text);
+  --color-brand-glow: var(--color-brand);
 
+  /* Status */
+  --color-success: #34d399;
+  --color-success-subtle: rgb(52 211 153 / 0.14);
+  --color-warn: #fbbf24;
+  --color-warn-subtle: rgb(251 191 36 / 0.14);
+  --color-danger: #f87171;
+  --color-danger-subtle: rgb(248 113 113 / 0.14);
+  --color-info: #60a5fa;
+  --color-scrim: rgb(5 8 15 / 0.62);
 
-/* Light mode adaptations for frosted HUD & floating panels */
-[data-theme-mode="light"] .kn-main-tools,
-[data-theme-mode="light"] .kn-dock,
-[data-theme-mode="light"] .treasure-panel {
-  background: color-mix(in srgb, var(--color-panel) 92%, transparent) !important;
-  border: 1px solid var(--color-line) !important;
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
-    0 16px 36px -8px rgba(0, 0, 0, 0.12),
-    0 4px 12px 0 rgba(0, 0, 0, 0.05) !important;
-}
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
 
-[data-theme-mode="light"] .kn-tool-options,
-[data-theme-mode="light"] .kn-shape-palette,
-[data-theme-mode="light"] .kn-file-menu,
-[data-theme-mode="light"] .kn-slides-panel {
-  background: color-mix(in srgb, var(--color-panel) 96%, transparent) !important;
-  border: 1px solid var(--color-line) !important;
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
-    0 20px 48px -10px rgba(0, 0, 0, 0.16),
-    0 6px 16px 0 rgba(0, 0, 0, 0.06) !important;
-}
+  /* Elevation: one soft shadow per level */
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.28);
+  --shadow-2: 0 4px 12px -2px rgb(0 0 0 / 0.36), 0 1px 3px rgb(0 0 0 / 0.2);
+  --shadow-3: 0 12px 32px -8px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.22);
+  --shadow-4: 0 24px 64px -16px rgb(0 0 0 / 0.62), 0 4px 12px rgb(0 0 0 / 0.26);
+  --shadow-focus: 0 0 0 2px var(--color-base), 0 0 0 4px var(--color-brand-ring);
 
-[data-theme-mode="light"] .kn-dialog::backdrop {
-  background: rgba(45, 35, 30, 0.35) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-}
+  /* Type scale (12px minimum) */
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Bengali", Helvetica, Arial, sans-serif;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 26px;
+  --text-xl: 22px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 34px;
 
-[data-theme-mode="light"] .kn-modal-card {
-  background: var(--color-panel) !important;
-  border: 1px solid var(--color-line) !important;
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
-    0 24px 64px -12px rgba(0, 0, 0, 0.18) !important;
-}
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
+  --animate-fadeIn: fadeIn var(--duration-base) var(--ease-out) both;
 
-/* Ensure page navigation ancestor NEVER creates a containing block for fixed side paddles */
-.page-toolbar, .page-toolbar > nav, .kn-page-navigation {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* ---------------------------------------------------------------------------
-   Auto-Dimming Zen Drawing Mode
-   --------------------------------------------------------------------------- */
-.kn-board[data-drawing="true"] :is(.board-toolbar, .menu-dock, .page-toolbar, .board-meta) {
-  opacity: 0.18 !important;
-  pointer-events: none !important;
-  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.kn-board :is(.board-toolbar, .menu-dock, .page-toolbar, .board-meta) {
-  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* ---------------------------------------------------------------------------
-   Glassmorphism Surfaces
-   --------------------------------------------------------------------------- */
-.kn-main-tools,
-.kn-dock {
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
-}
-
-/* ---------------------------------------------------------------------------
-   Sleek Active Tool Indicators & Micro-Interactions (Spring-Physics)
-   --------------------------------------------------------------------------- */
-.kn-main-tools button {
-  position: relative;
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease, box-shadow 0.15s ease;
-}
-.kn-main-tools button:hover:not(:disabled) {
-  transform: translateY(-3px) scale(1.06);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 6px 14px -2px rgba(0, 0, 0, 0.4);
-}
-.kn-main-tools button:active:not(:disabled) {
-  transform: translateY(1px) scale(0.95);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-.kn-dock button, .page-toolbar button:not(.kn-page-side) {
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease, box-shadow 0.15s ease;
-}
-.kn-dock button:hover:not(:disabled), .page-toolbar button:not(.kn-page-side):hover:not(:disabled) {
-  transform: translateY(-2px) scale(1.05);
-}
-.kn-dock button:active:not(:disabled), .page-toolbar button:not(.kn-page-side):active:not(:disabled) {
-  transform: translateY(0) scale(0.95);
-}
-
-/* Laser & Active Tool Neon Aura with Glowing LED Dot */
-button[aria-pressed="true"] {
-  box-shadow: 0 0 18px -2px var(--active-ink, var(--color-brand, #0062ff)), 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
-}
-
-.kn-main-tools button[aria-pressed="true"]::after {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background-color: var(--active-ink, #ffffff);
-  box-shadow: 0 0 8px var(--active-ink, #0062ff);
-  pointer-events: none;
-}
-
-@keyframes kn-neon-glow-ring {
-  0%, 100% {
-    box-shadow: 0 0 16px -2px var(--active-ink, var(--color-brand, #0062ff)), 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
-  }
-  50% {
-    box-shadow: 0 0 26px 2px var(--active-ink, var(--color-brand, #0062ff)), 0 0 0 1.5px rgba(255, 255, 255, 0.6) inset;
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }
 
-.kn-main-tools button[aria-pressed="true"],
-.treasure-panel button[aria-pressed="true"] {
-  animation: kn-neon-glow-ring 2.4s ease-in-out infinite;
-}
-
-/* ---------------------------------------------------------------------------
-   Tactile Ceramic Ink Swatches
-   --------------------------------------------------------------------------- */
-.kn-ink-swatch {
-  border-radius: 999px !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 
-    inset 0 2px 4px rgba(255, 255, 255, 0.38),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.45),
-    0 2px 6px rgba(0, 0, 0, 0.35) !important;
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease !important;
-}
-
-.kn-ink-swatch:hover {
-  transform: scale(1.15) translateY(-2px) !important;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5) !important;
-}
-
-.kn-ink-swatch.border-white {
-  transform: scale(1.18) !important;
-  border: 2px solid #ffffff !important;
-  box-shadow: 
-    0 0 0 3px rgba(255, 255, 255, 0.35),
-    0 4px 16px rgba(0, 0, 0, 0.6) !important;
-}
-
-/* ---------------------------------------------------------------------------
-   Cockpit Slide-to-Erase Bar
-   --------------------------------------------------------------------------- */
-.kn-slide-erase {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 48px;
-  margin: 12px 0;
-  border-radius: 999px;
-  background: repeating-linear-gradient(
-    -45deg,
-    rgba(225, 29, 72, 0.12),
-    rgba(225, 29, 72, 0.12) 10px,
-    rgba(225, 29, 72, 0.24) 10px,
-    rgba(225, 29, 72, 0.24) 20px
-  ) !important;
-  border: 1px solid rgba(244, 63, 94, 0.38) !important;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45);
-  touch-action: none;
-  user-select: none;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.kn-slide-erase-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
-  pointer-events: none;
-}
-
-.kn-slide-erase-thumb {
-  position: absolute;
-  top: 4px;
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #f43f5e, #be123c) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 0 16px rgba(244, 63, 94, 0.75), 0 2px 6px rgba(0, 0, 0, 0.45) !important;
-  display: grid;
-  place-items: center;
-  color: #ffffff;
-  transform: translateX(-50%);
-  transition: transform 0.08s ease;
-}
-
-/* ---------------------------------------------------------------------------
-   Tactile Squircle Selection Handles & Resize Badge
-   --------------------------------------------------------------------------- */
-.selection-handle {
-  width: 15px !important;
-  height: 15px !important;
-  border: 2px solid #ffffff !important;
-  background: var(--color-brand, #0062ff) !important;
-  border-radius: 5px !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 98, 255, 0.3) !important;
-  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease, box-shadow 0.15s ease !important;
-}
-.selection-handle:hover {
-  transform: scale(1.3) !important;
-  background: var(--color-brand-light, #3385ff) !important;
-  box-shadow: 0 0 0 3px rgba(0, 98, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-}
-.selection-handle.is-active {
-  transform: scale(1.42) !important;
-  background: var(--color-brand, #0062ff) !important;
-  border-color: #ffffff !important;
-  box-shadow: 0 0 0 4px rgba(0, 98, 255, 0.55), 0 6px 16px rgba(0, 0, 0, 0.6) !important;
-  cursor: grabbing !important;
-}
-
-/* ---------------------------------------------------------------------------
-   Floating Windows & Treasure Box Tools
-   --------------------------------------------------------------------------- */
-div[data-layout-panel] {
-  background: rgba(18, 20, 28, 0.82) !important;
-  backdrop-filter: blur(28px) saturate(210%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 24px 60px -12px rgba(0, 0, 0, 0.8) !important;
-}
-div[data-layout-panel] > div:first-child {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-.kn-board .treasure-panel .kn-library-tool {
-  border-radius: 12px !important;
-  background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-.kn-board .treasure-panel .kn-library-tool:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.22) !important;
-  transform: translateY(-2px) scale(1.02) !important;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
-}
-.kn-board .treasure-panel .kn-library-tool.is-active {
-  background: linear-gradient(135deg, rgba(0, 98, 255, 0.2), rgba(0, 98, 255, 0.05)) !important;
-  border-color: var(--color-brand) !important;
-  box-shadow: 0 0 16px -2px var(--color-brand), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-}
-
-@media(prefers-reduced-motion:reduce){
-  .kn-main-tools button, .kn-dock button, .page-toolbar button:not(.kn-page-side) {
-    transition: none !important;
+@layer kn-base {
+  :root {
+    color-scheme: dark;
+    /* Stacking order */
+    --z-canvas: 0;
+    --z-chrome: 30;
+    --z-popover: 50;
+    --z-panel: 60;
+    --z-modal: 100;
+    --z-toast: 200;
+    --z-keyboard: 10000;
+    --z-select: 11000;
+    --z-loader: 12000;
+    /* Static chrome scale for large panels (a user setting may override inline) */
+    --ui-scale: 1;
+    --transition-colors: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), fill var(--duration-fast) var(--ease-out), stroke var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
   }
-  .kn-main-tools button:hover:not(:disabled),
-  .kn-main-tools button:active:not(:disabled),
-  .kn-dock button:hover:not(:disabled),
-  .kn-dock button:active:not(:disabled) {
-    transform: none !important;
+  @media (min-width: 2400px) { :root { --ui-scale: 1.25; } }
+  @media (min-width: 3400px) { :root { --ui-scale: 1.5; } }
+
+  /* Smooth, app-like feel */
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    background-color: var(--color-base);
+    background-image: var(--color-base-pattern, none);
+    background-size: var(--color-base-pattern-size, auto);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
   }
-  .kn-main-tools button[aria-pressed="true"],
-  .treasure-panel button[aria-pressed="true"] {
-    animation: none !important;
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent the whole app from scrolling/bouncing like a webpage */
+  body {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  /* Custom scrollbars that match the theme */
+  .kn-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-2) transparent;
+  }
+  .kn-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .kn-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-line-2);
+    border-radius: var(--radius-pill);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .kn-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--color-line-strong);
+    background-clip: padding-box;
+  }
+  .kn-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Range slider (pen thickness etc.) */
+  .kn-range {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--color-elevated);
+    border: 1px solid var(--color-line-2);
+    outline: none;
+    transition: var(--transition-colors);
+  }
+  .kn-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-pill);
+    background: #fff;
+    border: 2px solid var(--color-brand);
+    cursor: grab;
+    box-shadow: var(--shadow-1);
+    transition: box-shadow var(--duration-fast) var(--ease-out);
+  }
+  .kn-range::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    box-shadow: 0 0 0 4px var(--color-brand-ring);
+  }
+  .kn-range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-pill);
+    background: #fff;
+    border: 2px solid var(--color-brand);
+    cursor: grab;
+    box-shadow: var(--shadow-1);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .kn-range::-webkit-slider-thumb:hover { box-shadow: 0 0 0 4px var(--color-brand-subtle); }
+  }
+
+  /* The whiteboard surface: never show a text caret / selection while drawing */
+  .kn-canvas-surface {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: crosshair;
+  }
+  .kn-canvas-surface[data-tool="select"] {
+    cursor: default;
+  }
+  .kn-canvas-surface[data-tool="pan"] {
+    cursor: grab;
+  }
+  .kn-canvas-surface[data-tool="eraser"] {
+    cursor: cell;
+  }
+
+  /* Small enter/exit animation used by floating panels */
+  @keyframes kn-pop {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  .kn-pop {
+    animation: kn-pop var(--duration-base) var(--ease-out);
+  }
+
+  @keyframes kn-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  .kn-fade {
+    animation: kn-fade var(--duration-base) var(--ease-out);
+  }
+
+  /* Focus ring: solid brand outline with a panel-coloured halo, visible on any accent. */
+  :is(.kn-focus,button,a,input,select,textarea,summary,[role="button"],[tabindex]):focus-visible {outline:2px solid var(--color-brand-text);outline-offset:2px;box-shadow:0 0 0 2px var(--color-panel);}
+  /* Shared controls retain keyboard/assistive semantics with Phoenix styling. */
+  * { scrollbar-width:thin;scrollbar-color:var(--color-line-2) transparent; }
+  *::-webkit-scrollbar {width:8px;height:8px;}
+  *::-webkit-scrollbar-track {background:transparent;}
+  *::-webkit-scrollbar-thumb {background:var(--color-line-2);border:2px solid transparent;border-radius:var(--radius-pill);background-clip:padding-box;}
+  *::-webkit-scrollbar-thumb:hover {background:var(--color-muted);background-clip:padding-box;}
+  button,[role="button"],summary {cursor:pointer;}
+  button:disabled {cursor:not-allowed;}
+  button:enabled:active {filter:brightness(.94);}
+  select {appearance:none;min-height:40px;background-color:var(--color-base-2);color:var(--color-ink);border:1px solid var(--color-line-strong);border-radius:var(--radius-md);padding:8px 32px 8px 10px;max-width:100%;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239aa6b9' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;transition:var(--transition-colors);}
+  select option {background:var(--color-base-2);color:var(--color-ink);}
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),textarea {background-color:var(--color-base-2);color:var(--color-ink);border-color:var(--color-line-strong);min-width:0;}
+  ::placeholder {color:var(--color-faint);opacity:1;}
+  input[type=checkbox],input[type=radio] {appearance:none;width:18px;height:18px;flex-shrink:0;border:1.5px solid var(--color-line-strong);background:var(--color-base-2);border-radius:var(--radius-xs);vertical-align:middle;cursor:pointer;transition:var(--transition-colors);}
+  input[type=radio] {border-radius:50%;}
+  input[type=checkbox]:checked {background-color:var(--color-brand);border-color:var(--color-brand);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='white' stroke-width='2.5'%3E%3Cpath d='m4 10 4 4 8-8'/%3E%3C/svg%3E");}
+  input[type=radio]:checked {box-shadow:inset 0 0 0 4px var(--color-base-2);background:var(--color-brand);border-color:var(--color-brand);}
+  input[type=range] {accent-color:var(--color-brand);}
+  input[type=file]::file-selector-button {background:var(--color-panel-2);color:var(--color-ink);border:1px solid var(--color-line-strong);border-radius:var(--radius-md);padding:8px 12px;margin-right:10px;cursor:pointer;}
+  .kn-dialog > div {margin:0;}
+  .kn-dialog fieldset {min-width:0;}
+
+  /* The application's scrollbars and touch feedback stay quiet across browsers. */
+  html,body{scrollbar-width:none;}body::-webkit-scrollbar{display:none;}
+  button,a,summary,[role="button"],input,select{touch-action:manipulation;}
+  summary::-webkit-details-marker{display:none;}
+  @media(pointer:coarse){input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea{font-size:16px;}input[type=range]{min-height:32px;} .kn-range{background-size:100% 6px;}}
+}
+
+@layer kn-components {
+  /* -------------------------------------------------------------------------
+     Board chrome (main toolbar, menu dock, page navigation): one flat tinted
+     surface derived from the theme's control palette, one hairline, one shadow.
+     Text uses the matching control ink so light and dark themes stay readable.
+     ------------------------------------------------------------------------- */
+  .kn-main-tools, .kn-dock, .kn-page-navigation {
+    background: color-mix(in srgb, var(--control-panel, var(--color-panel)) 92%, transparent);
+    color: var(--control-ink, var(--color-ink));
+    border: 1px solid var(--control-line, var(--color-line-2));
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    --kn-selected-ink: color-mix(in srgb, var(--color-brand) 70%, var(--control-ink, var(--color-ink)));
+  }
+
+  /* Popovers and panels: the theme panel with the theme ink. */
+  .treasure-panel, .kn-tool-options, .kn-shape-palette, .kn-more-tools, .kn-file-menu, .kn-slides-panel, div[data-layout-panel] {
+    background: color-mix(in srgb, var(--color-panel) 96%, transparent);
+    color: var(--color-ink);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-3);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    --kn-selected-ink: var(--color-brand-text);
+  }
+  div[data-layout-panel] > div:first-child {
+    background: var(--color-panel-2);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  /* Large interactive panels: scale static chrome only (never the canvas or JS-positioned popovers). */
+  .kn-main-tools, .kn-dock, .kn-page-navigation, .kn-slides-panel {
+    zoom: var(--ui-scale, 1);
+  }
+
+  /* Modal scrim and cards */
+  .kn-dialog::backdrop {
+    background: var(--color-scrim);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .kn-modal-card {
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-4);
+  }
+
+  /* Page navigation must NEVER create a containing block for its fixed side paddles. */
+  .page-toolbar, .page-toolbar > nav, .kn-page-navigation {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Drawing-mode dimming transition (the dimmed state itself lives in kn-overrides). */
+  .kn-board :is(.board-toolbar, .menu-dock, .page-toolbar, .board-meta) {
+    transition: opacity var(--duration-slow) var(--ease-out);
+  }
+
+  /* -------------------------------------------------------------------------
+     Chrome buttons. Selected = brand-subtle fill + brand ink + inset hairline.
+     No glows, no pulses, no lift on touch.
+     ------------------------------------------------------------------------- */
+  :is(.kn-main-tools, .kn-dock, .kn-page-navigation) button {
+    position: relative;
+    transition: var(--transition-colors);
+  }
+  :is(.kn-main-tools, .kn-dock, .kn-page-navigation, .treasure-panel) button:is([aria-pressed="true"],[aria-expanded="true"]):not([data-tool-id="record"]):not(.kn-page-side) {
+    background: var(--color-brand-subtle);
+    color: var(--kn-selected-ink, var(--color-brand-text));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand) 45%, transparent);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    :is(.kn-main-tools, .kn-dock, .kn-page-navigation) button:hover:not(:disabled):not([aria-pressed="true"]):not(.kn-page-side) {
+      background: color-mix(in srgb, currentColor 10%, transparent);
+    }
+  }
+  :is(.kn-main-tools, .kn-dock, .kn-page-navigation) button:active:not(:disabled):not(.kn-page-side) {
+    background: color-mix(in srgb, currentColor 16%, transparent);
+  }
+
+  /* -------------------------------------------------------------------------
+     Ink swatches
+     ------------------------------------------------------------------------- */
+  .kn-ink-swatch {
+    border-radius: var(--radius-pill);
+    border: 1px solid color-mix(in srgb, var(--color-ink) 22%, transparent);
+    box-shadow: var(--shadow-1);
+    transition: var(--transition-colors), outline-color var(--duration-fast) var(--ease-out);
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  .kn-ink-swatch.border-white {
+    scale: 1;
+    border-color: var(--color-panel);
+    outline-color: var(--color-ink);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .kn-ink-swatch:hover:not(.border-white) { outline-color: var(--color-line-strong); }
+  }
+
+  /* -------------------------------------------------------------------------
+     Slide-to-erase bar (destructive: danger tone)
+     ------------------------------------------------------------------------- */
+  .kn-slide-erase {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 52px;
+    margin: 14px 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-danger-subtle);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+    touch-action: none;
+    user-select: none;
+    cursor: ew-resize;
+    overflow: hidden;
+  }
+  .kn-slide-erase:focus-visible {outline:2px solid var(--color-brand-text);outline-offset:3px;}
+  .kn-slide-erase-label {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    padding-left: 24px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+    pointer-events: none;
+  }
+  .kn-slide-erase-thumb {
+    position: absolute;
+    top: 4px;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--color-danger) 55%, #7f1d1d);
+    box-shadow: var(--shadow-1);
+    display: grid;
+    place-items: center;
+    color: #fff;
+    transform: translateX(-50%);
+    transition: transform 80ms linear;
+  }
+
+  /* -------------------------------------------------------------------------
+     Selection resize handles (single definition). ::before gives a ~44px
+     touch target around the 16px visual square.
+     ------------------------------------------------------------------------- */
+  .selection-handle {
+    position: fixed;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #fff;
+    background: var(--color-brand);
+    border-radius: var(--radius-xs);
+    z-index: calc(var(--z-chrome) + 5);
+    box-shadow: var(--shadow-1);
+    transition: transform var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  }
+  .selection-handle::before {content:"";position:absolute;inset:-14px;}
+  @media (hover: hover) and (pointer: fine) {
+    .selection-handle:hover {
+      transform: scale(1.15);
+      background: var(--color-brand-hover);
+      box-shadow: 0 0 0 3px var(--color-brand-subtle), var(--shadow-1);
+    }
+  }
+  .selection-handle.is-active {
+    transform: scale(1.25);
+    background: var(--color-brand-active);
+    box-shadow: 0 0 0 4px var(--color-brand-ring), var(--shadow-2);
+    cursor: grabbing !important; /* beats the inline resize cursor */
+  }
+
+  /* -------------------------------------------------------------------------
+     Treasure box tools
+     ------------------------------------------------------------------------- */
+  .kn-board .treasure-panel .kn-library-tool {
+    border-radius: var(--radius-lg);
+    background: var(--color-panel-2);
+    border: 1px solid var(--color-line);
+    box-shadow: none;
+    transition: var(--transition-colors);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .kn-board .treasure-panel .kn-library-tool:hover {
+      background: var(--color-elevated);
+      border-color: var(--color-line-2);
+    }
+  }
+  .kn-board .treasure-panel .kn-library-tool.is-active {
+    background: var(--color-brand-subtle);
+    border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+    color: var(--color-ink);
+  }
+}
+
+@layer kn-themes {
+  /* Light themes: softer shadows, lighter scrim, darker accent text fallback
+     (runtime theme derivation may override these inline on :root). */
+  [data-theme-mode="light"] {
+    color-scheme: light;
+    --shadow-1: 0 1px 2px rgb(15 23 42 / 0.08);
+    --shadow-2: 0 4px 12px -2px rgb(15 23 42 / 0.12), 0 1px 3px rgb(15 23 42 / 0.06);
+    --shadow-3: 0 12px 32px -8px rgb(15 23 42 / 0.18), 0 2px 6px rgb(15 23 42 / 0.06);
+    --shadow-4: 0 24px 64px -16px rgb(15 23 42 / 0.26), 0 4px 12px rgb(15 23 42 / 0.08);
+    --color-scrim: rgb(15 23 42 / 0.32);
+    --color-brand-text: color-mix(in srgb, var(--color-brand) 78%, black);
+    --color-line-strong: color-mix(in srgb, var(--color-ink) 55%, transparent);
+  }
+}
+
+@layer kn-overrides {
+  /* Auto-dimming while drawing */
+  .kn-board[data-drawing="true"] :is(.board-toolbar, .menu-dock, .page-toolbar, .board-meta) {
+    opacity: 0.18;
+    pointer-events: none;
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+
+  /* Disabled controls: muted and desaturated. Hover rules use :not(:disabled),
+     and pointer feedback (cursor, active filter) is switched off here. */
+  button:disabled, [aria-disabled="true"] {
+    opacity: .45;
+    filter: saturate(.4);
+    cursor: not-allowed;
+  }
+  :is(button:disabled, [aria-disabled="true"]):is(:hover, :active) { filter: saturate(.4); }
+
+  /* Reduced transparency: solid panels instead of frosted ones. */
+  @media (prefers-reduced-transparency: reduce) {
+    .backdrop-blur, .kn-main-tools, .kn-dock, .kn-page-navigation, .treasure-panel, .kn-tool-options, .kn-shape-palette, .kn-more-tools, .kn-file-menu, .kn-slides-panel, div[data-layout-panel], .kn-dialog::backdrop {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    .backdrop-blur, .treasure-panel, .kn-tool-options, .kn-shape-palette, .kn-more-tools, .kn-file-menu, .kn-slides-panel, div[data-layout-panel] { background: var(--color-panel); }
+    .kn-main-tools, .kn-dock, .kn-page-navigation { background: var(--control-panel, var(--color-panel)); }
+  }
+
+  /* Reduced motion: no animations or transitions anywhere (spinners become static). */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  @media (forced-colors: active) {
+    :is(.kn-main-tools, .kn-dock, .kn-page-navigation) button[aria-pressed="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
   }
 }

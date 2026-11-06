@@ -1,16 +1,12 @@
-/* Modern Frosted HUD Page Navigation & Slides Panel */
+@layer theme, base, components, utilities, kn-base, kn-components, kn-themes, kn-overrides;
+/* Page navigation & slides panel. The surfaces themselves (background, hairline, shadow, blur)
+   come from the shared chrome/popover rules in globals.css; the side paddles live in reference-ui.css. */
+@layer kn-components {
 .kn-page-navigation {
   display: flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid var(--color-line);
-  border-radius: 16px;
-  background: var(--color-panel);
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  color: var(--color-ink, #f4f4f5);
   padding: 5px;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.12), 0 12px 32px -4px rgba(0, 0, 0, 0.65), 0 4px 12px 0 rgba(0, 0, 0, 0.4);
 }
 
 .kn-page-navigation button {
@@ -21,12 +17,12 @@
   min-width: 40px;
   min-height: 44px;
   padding: 5px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 650;
-  color: var(--color-ink, #f4f4f5);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-ink);
   border: 1px solid transparent;
-  transition: all 0.16s ease;
+  transition: var(--transition-colors);
 }
 
 .kn-page-navigation svg {
@@ -35,18 +31,11 @@
   flex-shrink: 0;
 }
 
-.kn-page-navigation button:hover:not(:disabled) {
-  background: var(--color-elevated);
-  border-color: var(--color-line);
-}
-
-.kn-page-navigation button:active:not(:disabled) {
-  transform: scale(0.96);
-}
-
-.kn-page-navigation button:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+@media (hover: hover) and (pointer: fine) {
+  .kn-page-navigation button:not(.kn-page-side):hover:not(:disabled) {
+    background: var(--color-elevated);
+    border-color: var(--color-line);
+  }
 }
 
 .kn-page-navigation .kn-page-counter {
@@ -59,20 +48,25 @@
 .kn-page-counter strong {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .kn-page-navigation .kn-page-add {
-  background: var(--color-brand, #0062ff);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 98, 255, 0.35);
+  background: var(--color-brand-solid);
+  color: var(--color-on-brand);
+  box-shadow: var(--shadow-1);
 }
 
-.kn-page-navigation .kn-page-add:hover:not(:disabled) {
-  background: var(--color-brand-light, #3385ff);
+@media (hover: hover) and (pointer: fine) {
+  .kn-page-navigation .kn-page-add:hover:not(:disabled) {
+    background: var(--color-brand-hover);
+  }
+}
+.kn-page-navigation .kn-page-add:active:not(:disabled) {
+  background: var(--color-brand-active);
 }
 
-/* Slides Filmstrip Panel */
+/* Slides filmstrip panel */
 .kn-slides-panel {
   position: fixed;
   left: 14px;
@@ -80,16 +74,9 @@
   bottom: 84px;
   width: 260px;
   max-width: calc(100vw - 28px);
-  z-index: 45;
+  z-index: calc(var(--z-chrome) + 15);
   display: flex;
   flex-direction: column;
-  background: var(--color-panel);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  color: var(--color-ink, #f4f4f5);
-  border: 1px solid var(--color-line);
-  border-radius: 18px;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.12), 0 20px 48px -8px rgba(0, 0, 0, 0.75), 0 4px 16px 0 rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 
@@ -109,8 +96,8 @@
 }
 
 .kn-slides-panel header span {
-  font-size: 11px;
-  color: var(--color-muted, #a1a1ab);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
   font-weight: 500;
 }
 
@@ -119,14 +106,16 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  color: var(--color-muted, #a1a1ab);
-  transition: all 0.15s ease;
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+  transition: var(--transition-colors);
 }
 
-.kn-slides-panel header button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-ink, #f4f4f5);
+@media (hover: hover) and (pointer: fine) {
+  .kn-slides-panel header button:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-ink) 10%, transparent);
+    color: var(--color-ink);
+  }
 }
 
 .kn-slides-panel header svg {
@@ -135,9 +124,9 @@
 }
 
 .kn-slides-hint {
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 1.4;
-  color: var(--color-muted, #a1a1ab);
+  color: var(--color-muted);
   padding: 8px 14px;
   margin: 0;
 }
@@ -153,55 +142,51 @@
 .kn-slide-row {
   display: flex;
   align-items: center;
-  border: 1.5px solid var(--color-line);
-  border-radius: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
   padding: 6px;
   margin-bottom: 10px;
   touch-action: none;
   background: var(--color-panel-2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: var(--transition-colors);
 }
 
-.kn-slide-row:hover {
-  border-color: var(--color-line-2);
-  background: var(--color-elevated);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+@media (hover: hover) and (pointer: fine) {
+  .kn-slide-row:hover {
+    border-color: var(--color-line-2);
+    background: var(--color-elevated);
+  }
 }
 
 .kn-slide-row.is-active {
-  border-color: var(--color-brand, #0062ff);
-  background: linear-gradient(135deg, rgba(0, 98, 255, 0.18), rgba(0, 98, 255, 0.06));
-  box-shadow: 
-    0 0 20px -2px rgba(0, 98, 255, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 0 1px rgba(0, 98, 255, 0.4);
-  transform: scale(1.01);
+  border-color: color-mix(in srgb, var(--color-brand) 60%, transparent);
+  background: var(--color-brand-subtle);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand) 45%, transparent);
 }
 
 .kn-slide-row.is-dragging {
-  border-color: var(--color-brand-light, #3385ff);
-  background: rgba(0, 98, 255, 0.25);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
-  transform: scale(1.03);
+  border-color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 20%, var(--color-panel));
+  box-shadow: var(--shadow-3);
 }
 
 .kn-slide-handle {
   width: 26px;
   min-height: 64px;
-  color: var(--color-faint, #6b6b75);
+  color: var(--color-faint);
   cursor: grab;
   flex-shrink: 0;
   touch-action: none;
   display: grid;
   place-items: center;
-  border-radius: 6px;
-  transition: color 0.15s ease;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
-.kn-slide-handle:hover {
-  color: var(--color-ink, #f4f4f5);
+@media (hover: hover) and (pointer: fine) {
+  .kn-slide-handle:hover {
+    color: var(--color-ink);
+  }
 }
 
 .kn-slide-handle:active {
@@ -222,52 +207,51 @@
   display: block;
   width: 100%;
   text-align: left;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
+/* Thumbnails keep the canvas attribute size from scaling the row. */
 .kn-slide-preview canvas {
   display: block;
   width: 100%;
-  height: auto !important;
+  height: auto;
   max-height: none;
   object-fit: contain;
   aspect-ratio: 16/9;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: var(--color-base, #0a0a0c);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-base);
 }
 
 .kn-slide-preview span {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 4px 2px;
-  font-size: 11px;
-  color: var(--color-muted, #a1a1ab);
+  font-size: var(--text-xs);
 }
 
 .kn-slide-preview strong {
-  color: var(--color-ink, #f4f4f5);
-  font-size: 12px;
+  color: var(--color-ink);
+  font-size: var(--text-xs);
   font-weight: 600;
 }
 
 .kn-slide-duplicate {
-  font-size: 11px;
-  color: var(--color-ink, #f4f4f5);
+  font-size: var(--text-xs);
+  color: var(--color-ink);
   padding: 3px 7px;
-  border-radius: 6px;
-  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line-2);
   background: var(--color-panel-2);
-  transition: all 0.15s ease;
+  transition: var(--transition-colors);
 }
 
-.kn-slide-duplicate:hover {
-  background: var(--color-elevated);
-  border-color: var(--color-line-2);
-  color: var(--color-ink, #f4f4f5);
+@media (hover: hover) and (pointer: fine) {
+  .kn-slide-duplicate:hover:not(:disabled) {
+    background: var(--color-elevated);
+    border-color: var(--color-line-strong);
+  }
 }
 
 .kn-slides-panel footer {
@@ -283,105 +267,40 @@
   gap: 8px;
   width: 100%;
   min-height: 42px;
-  border-radius: 10px;
-  background: var(--color-brand, #0062ff);
-  color: white;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-solid);
+  color: var(--color-on-brand);
   font-size: 13px;
   font-weight: 600;
-  box-shadow: 0 2px 10px rgba(0, 98, 255, 0.35);
-  transition: all 0.16s ease;
+  box-shadow: var(--shadow-1);
+  transition: var(--transition-colors);
 }
 
-.kn-slides-panel footer button:hover {
-  background: var(--color-brand-light, #3385ff);
+@media (hover: hover) and (pointer: fine) {
+  .kn-slides-panel footer button:hover:not(:disabled) {
+    background: var(--color-brand-hover);
+  }
+}
+.kn-slides-panel footer button:active:not(:disabled) {
+  background: var(--color-brand-active);
+}
+
+/* Footer page arrows are secondary navigation, not primary actions. */
+.kn-slides-panel footer > button:is(:first-child, :last-child) {
+  background: var(--color-panel-2);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line-2);
+  box-shadow: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kn-slides-panel footer > button:is(:first-child, :last-child):hover:not(:disabled) {
+    background: var(--color-elevated);
+  }
 }
 
 .kn-slides-panel footer svg {
   width: 18px;
   height: 18px;
-}
-
-/* Side navigation quick-flip paddles */
-.kn-page-side-group {
-  position: fixed !important;
-  right: env(safe-area-inset-right, 0px);
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 3px !important;
-  z-index: 40 !important;
-  transition: right 0.2s ease;
-}
-
-.kn-page-navigation .kn-page-side {
-  position: relative !important;
-  top: auto !important;
-  left: auto !important;
-  right: auto !important;
-  bottom: auto !important;
-  min-width: 48px !important;
-  min-height: 56px !important;
-  border: 1.5px solid #cbd5e1 !important;
-  border-right: none !important;
-  background: #ffffff !important;
-  color: #1e293b !important;
-  box-shadow: -2px 3px 14px rgba(0, 0, 0, 0.22) !important;
-  border-radius: 10px 0 0 10px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  cursor: pointer !important;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.kn-page-navigation .kn-page-side.kn-page-side-prev {
-  border-bottom-left-radius: 4px !important;
-}
-
-.kn-page-navigation .kn-page-side.kn-page-side-next {
-  border-top-left-radius: 4px !important;
-}
-
-.kn-page-navigation .kn-page-side:hover:not(:disabled) {
-  background: #f1f5f9 !important;
-  color: #0f172a !important;
-}
-
-.kn-page-navigation .kn-page-side:active:not(:disabled) {
-  background: #e2e8f0 !important;
-}
-
-.kn-page-navigation .kn-page-side:disabled {
-  opacity: 0.45 !important;
-  background: #f8fafc !important;
-  color: #94a3b8 !important;
-  cursor: not-allowed !important;
-  border-color: #e2e8f0 !important;
-}
-
-.kn-page-navigation .kn-page-side svg {
-  width: 26px !important;
-  height: 26px !important;
-  color: #1e293b !important;
-  stroke: #1e293b !important;
-  stroke-width: 2.4px !important;
-}
-
-.kn-page-navigation .kn-page-side:disabled svg {
-  color: #94a3b8 !important;
-  stroke: #94a3b8 !important;
-  stroke-width: 2px !important;
-}
-
-.kn-page-navigation .kn-page-side svg[data-note3-artwork] path {
-  fill: #1e293b !important;
-  stroke: #0f172a !important;
-}
-
-.kn-page-navigation .kn-page-side:disabled svg[data-note3-artwork] path {
-  fill: #94a3b8 !important;
-  stroke: #94a3b8 !important;
 }
 
 .kn-slides-sync-strip {
@@ -390,9 +309,9 @@
   gap: 8px;
   padding: 8px 10px;
   margin: 6px 10px 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  background: var(--color-panel-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
   flex-shrink: 0;
 }
 
@@ -404,28 +323,30 @@
   flex: 1;
   min-height: 34px;
   padding: 4px 8px;
-  background: var(--color-elevated, #26262e);
-  color: var(--color-ink, #f4f4f5);
-  border-radius: 8px;
-  font-size: 11px;
+  background: var(--color-elevated);
+  color: var(--color-ink);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
   font-weight: 600;
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--color-line-2);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: var(--transition-colors);
 }
 
-.kn-slides-sync-strip .kn-sync-btn:hover {
-  background: var(--color-line-2, #3d3d47);
-  border-color: var(--color-line-2);
+@media (hover: hover) and (pointer: fine) {
+  .kn-slides-sync-strip .kn-sync-btn:hover:not(:disabled) {
+    background: var(--color-overlay);
+    border-color: var(--color-line-strong);
+  }
 }
 
 .kn-slides-sync-strip .kn-sync-lock {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--color-muted, #a1a1ab);
+  color: var(--color-muted);
   cursor: pointer;
   user-select: none;
   padding: 0 4px;
@@ -434,15 +355,17 @@
 .kn-page-navigation .kn-page-sync {
   background: var(--color-panel-2);
   border: 1px solid var(--color-line);
-  color: var(--color-ink, #f4f4f5);
+  color: var(--color-ink);
 }
 
-.kn-page-navigation .kn-page-sync:hover {
-  background: var(--color-elevated);
-  border-color: var(--color-line-2);
+@media (hover: hover) and (pointer: fine) {
+  .kn-page-navigation .kn-page-sync:hover:not(:disabled) {
+    background: var(--color-elevated);
+    border-color: var(--color-line-2);
+  }
 }
 
-@media(max-width: 600px) {
+@media (max-width: 600px) {
   .kn-page-navigation button {
     padding: 4px;
     min-width: 36px;
@@ -453,7 +376,7 @@
   }
   .kn-page-navigation .kn-page-counter > span {
     display: block;
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
   .kn-page-navigation .kn-page-counter {
     min-width: 54px;
@@ -463,14 +386,5 @@
     bottom: 82px;
     width: 226px;
   }
-  .kn-page-navigation .kn-page-side {
-    min-width: 38px;
-    min-height: 48px;
-  }
 }
-
-@media(prefers-reduced-motion: reduce) {
-  .kn-slide-row {
-    transition: none;
-  }
 }

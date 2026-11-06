@@ -1,15 +1,19 @@
 import {toolPopupPosition} from '@/lib/tool-popup';
 import {useLayoutEffect,useRef,useState,type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
+import {useDialog} from '@/lib/use-dialog';
 
 /** Render outside the scrolling toolbar so vertical docks never clip menus. */
-export function ToolPopover({anchor,children,selector}:{anchor:string;children:ReactNode;selector?:string}){
+export function ToolPopover({anchor,children,selector,id}:{anchor:string;children:ReactNode;selector?:string;id?:string}){
   const panel=useRef<HTMLDivElement>(null),[position,setPosition]=useState<{x:number;y:number;maxWidth:number;maxHeight:number}|null>(null);
+  // Once placed (visible): keyboard openers get focus on the first item; pointer/pen users keep focus where it was.
+  // Escape is handled by the owner (Toolbar) which unmounts us; focus then returns to the trigger.
+  useDialog({ref:panel,open:!!position,modal:false,escape:false,initialFocus:()=>document.activeElement instanceof HTMLElement&&document.activeElement.matches(':focus-visible')?'first':false});
   useLayoutEffect(()=>{
     let frame=0;
     const place=()=>{
       let button=document.querySelector<HTMLElement>(selector??`.kn-main-tools button[data-tool-id="${anchor.toLowerCase()}"],.kn-main-tools button[aria-label="${anchor}"]`),node=panel.current;
-      if(button&&!button.getClientRects().length)button=document.querySelector<HTMLElement>('.kn-main-tools button[aria-label="Board & tools"]');
+      if(button&&!button.getClientRects().length)button=document.querySelector<HTMLElement>('.kn-main-tools button[data-tool="board-tools"],.kn-main-tools button[aria-label="Board & tools"]');
       if(!button||!node)return;
       const a=button.getBoundingClientRect(),r=node.getBoundingClientRect(),toolbar=document.querySelector<HTMLElement>('.board-toolbar')?.getBoundingClientRect();
       const gap=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tool-popup-gap'))||0;
@@ -25,5 +29,5 @@ export function ToolPopover({anchor,children,selector}:{anchor:string;children:R
     return()=>{cancelAnimationFrame(frame);observer.disconnect();window.visualViewport?.removeEventListener('resize',schedule);window.visualViewport?.removeEventListener('scroll',schedule);window.removeEventListener('resize',schedule);window.removeEventListener('scroll',schedule,true);window.removeEventListener('phoenix-layout-updated',schedule);window.removeEventListener('phoenix-popup-layout',schedule);};
   },[anchor,selector]);
   const root=document.querySelector('.kn-board');if(!root)return null;
-  return createPortal(<div ref={panel} data-toolbar-surface className="kn-anchored-popover" style={{position:'fixed',zIndex:70,left:position?.x??8,top:position?.y??8,visibility:position?'visible':'hidden',maxWidth:position?.maxWidth??'calc(100vw - 16px)',maxHeight:position?.maxHeight??'calc(100dvh - 16px)'}}>{children}</div>,root);
+  return createPortal(<div ref={panel} id={id} data-toolbar-surface className="kn-anchored-popover z-(--z-popover)" style={{position:'fixed',left:position?.x??8,top:position?.y??8,visibility:position?'visible':'hidden',maxWidth:position?.maxWidth??'calc(100vw - 16px)',maxHeight:position?.maxHeight??'calc(100dvh - 16px)'}}>{children}</div>,root);
 }

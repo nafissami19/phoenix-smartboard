@@ -1,3 +1,4 @@
+import {notifyPreferencesChanged} from '@/lib/preferences';
 export interface ExamSection {
   id: string;
   name: string;
@@ -61,7 +62,7 @@ export function loadExamPresets(): ExamPreset[] {
 export function saveExamPresets(presets: ExamPreset[]): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
+    localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));notifyPreferencesChanged();
   } catch (err) {
     console.error("Failed to save exam presets to localStorage:", err);
   }
@@ -79,7 +80,7 @@ export function loadActiveExamPresetId(): string {
 export function saveActiveExamPresetId(presetId: string): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(ACTIVE_PRESET_ID_KEY, presetId);
+    localStorage.setItem(ACTIVE_PRESET_ID_KEY, presetId);notifyPreferencesChanged();
   } catch (err) {
     console.error("Failed to save active exam preset id:", err);
   }

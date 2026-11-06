@@ -1,4 +1,5 @@
 import {CustomSelect} from '@/components/CustomSelect';
+import {notifyPreferencesChanged} from '@/lib/preferences';
 import {useCallback,useEffect,useLayoutEffect,useRef,useState,type PointerEvent} from 'react';
 import {createPortal} from 'react-dom';
 import {Icon} from '@/components/Icon';
@@ -105,7 +106,7 @@ export function ControlLayoutEditor(){
       const position=controlPositionAt(x,y,width,height,{width:innerWidth,height:innerHeight},previous?.scale??1,floating??previous?.floating??false);
       const next={...storeRef.current,current:{...storeRef.current.current,[id]:position}};
       // A floating window still moves when storage is unavailable.
-      try{localStorage.setItem(CONTROL_LAYOUT_KEY,JSON.stringify(next));}catch{}
+      try{localStorage.setItem(CONTROL_LAYOUT_KEY,JSON.stringify(next));notifyPreferencesChanged();}catch{}
       setStore(next);
     };
     window.addEventListener('phoenix-panel-position',moved);return()=>{window.removeEventListener('phoenix-panel-position',moved);};

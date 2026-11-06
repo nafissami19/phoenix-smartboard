@@ -1,6 +1,6 @@
 import {openDB} from 'idb';
 import {exportLesson} from './lesson-bundle';
-type Snapshot={id:string;lessonId:string;savedAt:number;blob:Blob};
+type Snapshot={id:string;lessonId:string;savedAt:number;blob:Blob;pageId?:string};
 type WritableFile={write:(data:Blob)=>Promise<void>;close:()=>Promise<void>;abort:()=>Promise<void>};
 export type BackupDirectory={name:string;queryPermission:(options:{mode:'readwrite'})=>Promise<string>;requestPermission:(options:{mode:'readwrite'})=>Promise<string>;getFileHandle:(name:string,options:{create:boolean})=>Promise<{createWritable:()=>Promise<WritableFile>}>};
 const recoveryDB=async()=>{
@@ -24,7 +24,7 @@ export function saveRecovery(lessonId:string):Promise<{external:boolean;savedAt:
  const run=queue.catch(()=>{}).then(async()=>{
   const blob=await exportLesson(lessonId), savedAt=Date.now(), db=await recoveryDB();
   try {
-   const tx=db.transaction('snapshots','readwrite'), all=(await tx.store.getAll()).filter((s:Snapshot)=>s.lessonId===lessonId).sort((a:Snapshot,b:Snapshot)=>b.savedAt-a.savedAt);
+   const tx=db.transaction('snapshots','readwrite'), all=(await tx.store.getAll()).filter((s:Snapshot)=>s.lessonId===lessonId&&!s.pageId).sort((a:Snapshot,b:Snapshot)=>b.savedAt-a.savedAt);
    await tx.store.put({id:crypto.randomUUID(),lessonId,savedAt,blob});for(const old of all.slice(2))await tx.store.delete(old.id);await tx.done;
    const generation=(await db.get('settings',`generation:${lessonId}`) as number|undefined)??0;
    const results:{label:string;ok:boolean;message:string}[]=[];
@@ -38,6 +38,17 @@ export function saveRecovery(lessonId:string):Promise<{external:boolean;savedAt:
    }
    if(results.some(result=>result.ok))await db.put('settings',generation+1,`generation:${lessonId}`);
    return {external:results.some(result=>result.ok),savedAt,targets:results};
+  }finally{db.close();}
+ });queue=run;return run;
+}
+// A deleted slide keeps a small local copy (that slide and its files only). It is
+// never written to backup folders, whose rotating files hold whole lessons.
+export function savePageRecovery(lessonId:string,pageId:string):Promise<{savedAt:number}>{
+ const run=queue.catch(()=>{}).then(async()=>{
+  const blob=await exportLesson(lessonId,{pageIds:[pageId]}),savedAt=Date.now(),db=await recoveryDB();
+  try{
+   const tx=db.transaction('snapshots','readwrite'),old=(await tx.store.getAll()).filter((s:Snapshot)=>s.lessonId===lessonId&&s.pageId).sort((a:Snapshot,b:Snapshot)=>b.savedAt-a.savedAt);
+   await tx.store.put({id:crypto.randomUUID(),lessonId,pageId,savedAt,blob});for(const item of old.slice(4))await tx.store.delete(item.id);await tx.done;return {savedAt};
   }finally{db.close();}
  });queue=run;return run;
 }

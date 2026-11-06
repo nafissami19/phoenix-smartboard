@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Icon } from "@/components/Icon";
 
@@ -133,13 +131,14 @@ export function ReferencePin({
     setCropCurrent(null);
   };
 
-  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+  const handleHeaderMouseDown = (e: React.PointerEvent) => {
+    if ((e.target as Element).closest("button")) return;
     dragging.current = true;
     dragOffset.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y,
     };
-    const move = (ev: MouseEvent) => {
+    const move = (ev: PointerEvent) => {
       if (!dragging.current) return;
       setPosition({
         x: Math.max(12, Math.min(window.innerWidth - 120, ev.clientX - dragOffset.current.x)),
@@ -148,11 +147,11 @@ export function ReferencePin({
     };
     const up = () => {
       dragging.current = false;
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
     };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
   };
 
   if (!active && !pinned) return null;
@@ -162,16 +161,18 @@ export function ReferencePin({
       {/* Interactive Crop Overlay */}
       {isCropping && (
         <div
-          className="fixed inset-0 z-50 cursor-crosshair select-none bg-black/40"
+          className="fixed inset-0 z-(--z-modal) cursor-crosshair select-none touch-none bg-black/40"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-slate-900/90 px-4 py-1.5 text-xs font-semibold text-white shadow-xl backdrop-blur">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full border border-line-2 bg-panel/90 px-4 py-1.5 text-xs font-semibold text-ink shadow-3 backdrop-blur-md">
             Drag to crop any question, diagram, or formula to pin it across slides
             <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={cancelCrop}
-              className="ml-3 rounded bg-red-600/80 px-2 py-0.5 text-xs text-white hover:bg-red-500"
+              className="ml-3 min-h-9 rounded bg-danger px-3 py-0.5 text-xs text-white hover:brightness-110"
             >
               Cancel
             </button>
@@ -196,12 +197,12 @@ export function ReferencePin({
           role="region"
           aria-label="Pinned Reference"
           style={{ left: position.x, top: position.y }}
-          className="pointer-events-auto fixed z-40 transition-shadow select-none shadow-2xl rounded-2xl border border-line bg-panel/95 backdrop-blur-md overflow-hidden"
+          className="pointer-events-auto fixed z-(--z-panel) transition-shadow select-none shadow-2xl rounded-2xl border border-line bg-panel/95 backdrop-blur-md overflow-hidden"
         >
           {/* Header */}
           <div
-            onMouseDown={handleHeaderMouseDown}
-            className="flex items-center justify-between gap-2 px-3 py-2 cursor-grab active:cursor-grabbing border-b border-line bg-muted/10"
+            onPointerDown={handleHeaderMouseDown}
+            className="flex touch-none items-center justify-between gap-2 px-3 py-2 cursor-grab active:cursor-grabbing border-b border-line bg-muted/10"
           >
             <div className="flex items-center gap-1.5 text-xs font-semibold text-ink">
               <Icon name="pin" className="h-4 w-4 text-brand-light" />
@@ -234,7 +235,7 @@ export function ReferencePin({
                 }}
                 aria-label="Unpin reference"
                 title="Close and unpin"
-                className="kn-focus rounded p-1 text-muted hover:text-red-400 hover:bg-elevated transition-colors"
+                className="kn-focus rounded p-1 text-muted hover:text-danger hover:bg-elevated transition-colors"
               >
                 <Icon name="close" className="h-3.5 w-3.5" />
               </button>
@@ -243,11 +244,11 @@ export function ReferencePin({
 
           {/* Content */}
           {!collapsed && (
-            <div className="p-2 max-h-[70vh] max-w-[85vw] overflow-auto">
+            <div className="p-2 max-h-[70dvh] max-w-[85vw] overflow-auto">
               <img
                 src={pinned.imageUrl}
                 alt="Pinned Question"
-                className="rounded-lg border border-line shadow-inner max-w-full max-h-[50vh] object-contain"
+                className="rounded-lg border border-line shadow-inner max-w-full max-h-[50dvh] object-contain"
                 style={{ width: pinned.width }}
               />
             </div>
@@ -259,15 +260,18 @@ export function ReferencePin({
       {active && !pinned && !isCropping && (
         <div
           style={{ left: position.x, top: position.y }}
-          className="pointer-events-auto fixed z-40 rounded-2xl border border-line bg-panel p-4 shadow-2xl backdrop-blur-md flex flex-col gap-2 max-w-xs"
+          className="pointer-events-auto fixed z-(--z-panel) rounded-2xl border border-line bg-panel p-4 shadow-2xl backdrop-blur-md flex flex-col gap-2 max-w-xs"
         >
           <div className="flex items-center justify-between">
             <span className="font-semibold text-sm flex items-center gap-1.5">
               <Icon name="pin" className="h-4 w-4 text-brand-light" /> Reference Pin
             </span>
             <button
+              type="button"
               onClick={onClose}
-              className="text-muted hover:text-ink p-1"
+              aria-label="Close reference pin"
+              title="Close"
+              className="kn-focus -m-2 grid h-11 w-11 place-items-center rounded-lg text-muted hover:text-ink hover:bg-elevated"
             >
               <Icon name="close" className="h-4 w-4" />
             </button>
@@ -278,7 +282,7 @@ export function ReferencePin({
           <button
             type="button"
             onClick={startCrop}
-            className="kn-focus flex items-center justify-center gap-2 rounded-xl bg-brand py-2 text-xs font-semibold text-white hover:bg-brand-dark transition-colors"
+            className="kn-focus flex items-center justify-center gap-2 rounded-xl bg-brand py-2 text-xs font-semibold text-on-brand hover:bg-brand-hover transition-colors"
           >
             <Icon name="crop" className="h-4 w-4" /> Crop Region from Board
           </button>

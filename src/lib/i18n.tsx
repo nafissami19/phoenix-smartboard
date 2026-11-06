@@ -1,6 +1,5 @@
-"use client";
-
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {notifyPreferencesChanged} from '@/lib/preferences';
 
 export type Locale = "en" | "bn";
 
@@ -71,6 +70,11 @@ export const DICTIONARY: Record<Locale, Record<string, string>> = {
     language: "Language",
     english: "English",
     bangla: "বাংলা (Bangla)",
+
+    // Interface size
+    interface_size: "Interface size",
+    interface_size_auto: "Auto",
+    interface_size_hint: "Makes toolbars, menus and buttons larger for big classroom panels. Auto enlarges them on very wide screens.",
   },
   bn: {
     // Dock & Main Actions
@@ -138,6 +142,11 @@ export const DICTIONARY: Record<Locale, Record<string, string>> = {
     language: "ভাষা",
     english: "English",
     bangla: "বাংলা (Bangla)",
+
+    // Interface size
+    interface_size: "ইন্টারফেসের আকার",
+    interface_size_auto: "স্বয়ংক্রিয়",
+    interface_size_hint: "বড় ক্লাসরুম প্যানেলের জন্য টুলবার, মেনু ও বোতাম বড় করে। স্বয়ংক্রিয় অবস্থায় খুব চওড়া স্ক্রিনে এগুলো নিজে থেকেই বড় হয়।",
   },
 };
 
@@ -168,7 +177,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     setLocaleState(next);
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem("phoenix-locale", next);
+        localStorage.setItem("phoenix-locale", next);notifyPreferencesChanged();
         document.documentElement.lang = next;
       } catch {}
     }

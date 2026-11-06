@@ -1,6 +1,5 @@
-"use client";
-
 import {getPerformanceProfile,subscribePerformance} from './performance';
+import {notifyPreferencesChanged} from '@/lib/preferences';
 import {isSpecial,drawSpecialPreview} from './special-objects';
 import {readSelectionSettings,rectangleRegion,selectRegion,regionContainsBounds,type SelectionSettings} from './selection-region';
 import {readEraserMode,eraseSelection,type EraserMode} from './eraser-modes';
@@ -96,21 +95,21 @@ export function useWhiteboard(options: {
   const [pen, setPen] = useState<Pen>({ color: options.defaultPenColor??"#10151b", size: 4, opacity: 1, smartShapes: false, pressure: true, touchMode: "draw" });
   const [selectionSettings,setSelectionSettings]=useState<SelectionSettings>(()=>{try{return readSelectionSettings(JSON.parse(localStorage.getItem('phoenix-selection-settings')??'null'));}catch{return readSelectionSettings(null);}});
   const selectionSettingsRef=useRef(selectionSettings);selectionSettingsRef.current=selectionSettings;
-  useEffect(()=>{try{localStorage.setItem('phoenix-selection-settings',JSON.stringify(selectionSettings));}catch{}},[selectionSettings]);
+  useEffect(()=>{try{localStorage.setItem('phoenix-selection-settings',JSON.stringify(selectionSettings));notifyPreferencesChanged();}catch{}},[selectionSettings]);
   const [eraserSize, setEraserSize] = useState(24);
   const [eraserMode,setEraserMode]=useState<EraserMode>(()=>{try{return readEraserMode(localStorage.getItem('phoenix-eraser-mode'));}catch{return 'ink';}});
   const [palmEraser,setPalmEraser]=useState(()=>{try{return (localStorage.getItem('phoenix-palm-eraser'))==='true';}catch{return false;}});
   const eraserModeRef=useRef(eraserMode),palmEraserRef=useRef(palmEraser),gestureEraserMode=useRef<'ink'|'object'>('ink');
   eraserModeRef.current=eraserMode;palmEraserRef.current=palmEraser;
-  useEffect(()=>{try{localStorage.setItem('phoenix-eraser-mode',eraserMode);}catch{}},[eraserMode]);
-  useEffect(()=>{try{localStorage.setItem('phoenix-palm-eraser',String(palmEraser));}catch{}},[palmEraser]);
+  useEffect(()=>{try{localStorage.setItem('phoenix-eraser-mode',eraserMode);notifyPreferencesChanged();}catch{}},[eraserMode]);
+  useEffect(()=>{try{localStorage.setItem('phoenix-palm-eraser',String(palmEraser));notifyPreferencesChanged();}catch{}},[palmEraser]);
   const [dualNibMode, setDualNibMode] = useState<boolean>(() => {
     try { return localStorage.getItem('phoenix-dual-nib') === 'true'; } catch { return false; }
   });
   const dualNibModeRef = useRef(dualNibMode);
   dualNibModeRef.current = dualNibMode;
   useEffect(() => {
-    try { localStorage.setItem('phoenix-dual-nib', String(dualNibMode)); } catch {}
+    try { localStorage.setItem('phoenix-dual-nib', String(dualNibMode)); notifyPreferencesChanged(); } catch {}
   }, [dualNibMode]);
   const temporaryPalmGesture = useRef(false);
   const savedToolBeforePalm = useRef<ActiveTool>("pen");
@@ -124,8 +123,8 @@ export function useWhiteboard(options: {
   const [selection, setSelectionState] = useState<Selection>(null);
   const [selectedIds,setSelectedIds] = useState<string[]>([]);
   const selectedIdsRef=useRef<string[]>([]);
-  const setSelection=(next:Selection)=>{setSelectionState(next);const ids=next?[next.id]:[];selectedIdsRef.current=ids;setSelectedIds(ids);};
-  const selectIds=(ids:string[])=>{selectedIdsRef.current=ids;setSelectedIds(ids);const first=ids[0];setSelectionState(first?{kind:objectsRef.current.some(o=>o.id===first)?'object':'media',id:first}:null);};
+  const setSelection=useCallback((next:Selection)=>{setSelectionState(next);const ids=next?[next.id]:[];selectedIdsRef.current=ids;setSelectedIds(ids);},[]);
+  const selectIds=useCallback((ids:string[])=>{selectedIdsRef.current=ids;setSelectedIds(ids);const first=ids[0];setSelectionState(first?{kind:objectsRef.current.some(o=>o.id===first)?'object':'media',id:first}:null);},[]);
   const marquee=useRef<{a:Point;b:Point;points?:Point[]}|null>(null);
   const moveOriginal=useRef<Snap|null>(null);
   const [editingText, setEditingText] = useState<EditingText>(null);
@@ -149,9 +148,9 @@ export function useWhiteboard(options: {
   const patternRef = useRef(pattern);
   const watermarkRef=useRef(options.watermark);watermarkRef.current=options.watermark;
 
-  objectsRef.current = objects;
-  mediaRef.current = media;
-  viewRef.current = view;
+  // objects/media/view refs are authoritative: every writer updates the ref first and
+  // React state follows (at most once per frame during gestures), so never sync them
+  // back from state here or a mid-gesture render would rewind the board.
   toolRef.current = tool;
   penRef.current = pen;
   eraserSizeRef.current = eraserSize;
@@ -186,6 +185,19 @@ export function useWhiteboard(options: {
     viewRef.current = next;
     setViewState(next);
   }, []);
+  // Pan, pinch, wheel, move and resize gestures update refs and repaint the canvas
+  // imperatively; React state (HTML overlays, zoom label) catches up once per frame.
+  const liveFrame = useRef<number | null>(null);
+  const syncLiveState = useCallback(() => {setViewState(viewRef.current);setObjectsState(objectsRef.current);setMediaState(mediaRef.current);}, []);
+  const scheduleLiveState = useCallback(() => {
+    if (liveFrame.current !== null) return;
+    liveFrame.current = requestAnimationFrame(() => {liveFrame.current = null;syncLiveState();});
+  }, [syncLiveState]);
+  const flushLiveState = useCallback(() => {
+    if (liveFrame.current !== null) {cancelAnimationFrame(liveFrame.current);liveFrame.current = null;}
+    syncLiveState();
+  }, [syncLiveState]);
+  useEffect(() => () => {if (liveFrame.current !== null) cancelAnimationFrame(liveFrame.current);}, []);
 
   // ------------------------------- render ----------------------------------
 
@@ -302,9 +314,10 @@ export function useWhiteboard(options: {
       ctx.scale(v.scale, v.scale);
       const viewport={x:-v.tx/v.scale,y:-v.ty/v.scale,w:cssW/v.scale,h:cssH/v.scale};
       const visible=(b:{x:number;y:number;w:number;h:number},padding=32)=>b.x+b.w+padding>=viewport.x&&b.x-padding<=viewport.x+viewport.w&&b.y+b.h+padding>=viewport.y&&b.y-padding<=viewport.y+viewport.h;
-      const visibleMedia=mediaRef.current.filter(m=>visible(mediaBounds(m)));
+      const visibleMedia=mediaRef.current.filter(m=>{try{return !!m&&visible(mediaBounds(m));}catch{return false;}});
       setMediaWorkingSet(visibleMedia);
-      for (const m of visibleMedia) drawMediaItem(ctx, m);
+      // A malformed media item is skipped; it must not throw on every frame.
+      for (const m of visibleMedia) {try{drawMediaItem(ctx, m);}catch{/* skipped */}}
       for (const o of eraseWorking.current ?? objectsRef.current) {
         if(excludeLaser&&o.kind==='stroke'&&o.tool==='laser')continue;
         // Text bounds depend on fonts and imported layout; do not cull using estimates.
@@ -579,7 +592,7 @@ export function useWhiteboard(options: {
   // --------------------------------- zoom ----------------------------------
 
   const zoomAt = useCallback(
-    (clientX: number, clientY: number, factor: number) => {
+    (clientX: number, clientY: number, factor: number, live = false) => {
       const canvas = canvasRef.current!;
       const rect = canvas.getBoundingClientRect();
       const sx = clientX - rect.left;
@@ -587,10 +600,11 @@ export function useWhiteboard(options: {
       const v = viewRef.current;
       const newScale = clamp(v.scale * factor, MIN_SCALE, MAX_SCALE);
       const k = newScale / v.scale;
-      setView({ tx: sx - k * (sx - v.tx), ty: sy - k * (sy - v.ty), scale: newScale });
+      const next = { tx: sx - k * (sx - v.tx), ty: sy - k * (sy - v.ty), scale: newScale };
+      if (live) {viewRef.current = next;scheduleLiveState();} else setView(next);
       scheduleRender();
     },
-    [setView, scheduleRender],
+    [setView, scheduleLiveState, scheduleRender],
   );
 
   const zoomBy = useCallback(
@@ -926,7 +940,8 @@ export function useWhiteboard(options: {
         const worldY = (startMidScreen.y - pinch.current.startTy) / pinch.current.startScale;
         const tx = mid.x - rect.left - worldX * newScale;
         const ty = mid.y - rect.top - worldY * newScale;
-        setView({ tx, ty, scale: newScale });
+        viewRef.current = { tx, ty, scale: newScale };
+        scheduleLiveState();
         scheduleRender();
         return;
       }
@@ -935,11 +950,12 @@ export function useWhiteboard(options: {
       if (modeRef.current === "pan" && panStart.current) {
         const dx = e.clientX - panStart.current.sx;
         const dy = e.clientY - panStart.current.sy;
-        setView({
+        viewRef.current = {
           tx: panStart.current.tx + dx,
           ty: panStart.current.ty + dy,
           scale: viewRef.current.scale,
-        });
+        };
+        scheduleLiveState();
         scheduleRender();
         return;
       }
@@ -953,7 +969,7 @@ export function useWhiteboard(options: {
         if (!sel) return;
         objectsRef.current=objectsRef.current.map(o=>selectedIdsRef.current.includes(o.id)&&!o.locked?translateObject(o,dx,dy):o);
         mediaRef.current=mediaRef.current.map(m=>selectedIdsRef.current.includes(m.id)&&!m.locked&&!isViewLockedRef.current?{...m,x:m.x+dx,y:m.y+dy}:m);
-        setObjectsState(objectsRef.current);setMediaState(mediaRef.current);
+        scheduleLiveState();
         scheduleRender();
         return;
       }
@@ -1014,7 +1030,7 @@ export function useWhiteboard(options: {
         scheduleRender();
       }
     },
-    [screenToWorld, setView, scheduleRender],
+    [screenToWorld, scheduleLiveState, scheduleRender],
   );
 
   const onPointerUp = useCallback(
@@ -1031,6 +1047,7 @@ export function useWhiteboard(options: {
         if (pointers.current.size < 2) {
           pinch.current = null;
           modeRef.current = "idle";
+          flushLiveState();
         }
         return;
       }
@@ -1048,6 +1065,7 @@ export function useWhiteboard(options: {
       if (modeRef.current === "pan") {
         panStart.current = null;
         modeRef.current = "idle";
+        flushLiveState();
         return;
       }
 
@@ -1145,7 +1163,7 @@ export function useWhiteboard(options: {
       }
       modeRef.current = "idle";
     },
-    [commit, screenToWorld, worldToScreen, scheduleRender],
+    [commit, screenToWorld, worldToScreen, scheduleRender, flushLiveState, selectIds, setSelection],
   );
 
   const onWheel = useCallback(
@@ -1298,11 +1316,10 @@ export function useWhiteboard(options: {
       );
       objectsRef.current = nextObjects;
       mediaRef.current = nextMedia;
-      setObjectsState(nextObjects);
-      setMediaState(nextMedia);
+      scheduleLiveState();
       scheduleRender();
     },
-    [scheduleRender],
+    [scheduleLiveState, scheduleRender],
   );
 
   const cancelResize = useCallback(() => {
@@ -1397,11 +1414,10 @@ export function useWhiteboard(options: {
     marquee.current = null; drawingEdge.current = undefined;
     if (moveOriginal.current) {
       objectsRef.current = moveOriginal.current.objects; mediaRef.current = moveOriginal.current.media;
-      setObjectsState(objectsRef.current); setMediaState(mediaRef.current);
       moveOriginal.current = null;
     }
-    moveState.current = null; modeRef.current = 'idle'; scheduleRender();
-  }, [scheduleRender]);
+    moveState.current = null; modeRef.current = 'idle'; flushLiveState(); scheduleRender();
+  }, [scheduleRender, flushLiveState]);
   const onPointerCancel = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     if (pointers.current.has(event.pointerId) || activePen.current === event.pointerId) cancelGesture();
   }, [cancelGesture]);
@@ -1551,7 +1567,7 @@ export function useWhiteboard(options: {
       // Only zoom when the wheel is over the board surface (not toolbars).
       if (e.target !== canvasRef.current || isViewLockedRef.current) return;
       e.preventDefault();
-      zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015));
+      zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015), true);
     };
     window.addEventListener("wheel", onWheelNative, { passive: false });
 
@@ -1569,7 +1585,7 @@ export function useWhiteboard(options: {
   const previousBrush=useRef(tool);
   useEffect(()=>{try{const stored=JSON.parse(localStorage.getItem('phoenix-brush-profiles')??'{}');for(const [key,value] of Object.entries(stored)){const brush=value as Pen;if(/^#[0-9a-f]{6}$/i.test(brush.color)&&Number.isFinite(brush.size)&&brush.size>=1&&brush.size<=100)brushProfiles.current[key]=brush;}if(brushProfiles.current.pen)setPen(brushProfiles.current.pen);}catch{}},[]);
   useEffect(()=>{const previous=previousBrush.current;if(previous!==tool){if(['pen','highlighter','marker'].includes(previous))brushProfiles.current[previous]=penRef.current;previousBrush.current=tool;}},[tool]);
-  useEffect(()=>{if(['pen','highlighter','marker'].includes(tool)){brushProfiles.current[tool]=pen;try{localStorage.setItem('phoenix-brush-profiles',JSON.stringify(brushProfiles.current));}catch{}}},[pen]);
+  useEffect(()=>{if(['pen','highlighter','marker'].includes(tool)){brushProfiles.current[tool]=pen;try{localStorage.setItem('phoenix-brush-profiles',JSON.stringify(brushProfiles.current));notifyPreferencesChanged();}catch{}}},[pen]);
   // re-render when external-controlled inputs change
   useEffect(() => {
     scheduleRender();
@@ -1587,8 +1603,31 @@ export function useWhiteboard(options: {
     () => ({ objects: objects.length, media: media.length }),
     [objects.length, media.length],
   );
+  // Recomputed only when the selection or the committed board changes, not every render.
+  const selectionBoundsValue = useMemo(() => selectionBounds(), [objects, media, selectedIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return {
+  const setSelectionSettingsAndClear=useCallback((value:SelectionSettings)=>{setSelectionSettings(value);setSelection(null);},[setSelection]);
+  const selectAll=useCallback(()=>{setTool('select');selectIds([...objectsRef.current.map(o=>o.id),...mediaRef.current.map(m=>m.id)]);scheduleRender();},[selectIds,scheduleRender]);
+  const editSelectedText=useCallback(() => {
+    const object = objectsRef.current.find(item=>item.id===selectedIdsRef.current[0]);
+    if(object?.kind !== 'text') return;
+    const screen=worldToScreen(object.x,object.y);
+    setEditingText({id:object.id,screenX:screen.x,screenY:screen.y,value:object.text});
+  },[worldToScreen]);
+  const zoomIn=useCallback(() => zoomBy(1.2),[zoomBy]);
+  const zoomOut=useCallback(() => zoomBy(1 / 1.2),[zoomBy]);
+  const getView=useCallback(()=>viewRef.current,[]);
+  const hasVisibleContent=useCallback(()=>{const canvas=canvasRef.current;if(!canvas)return false;const v=viewRef.current;return [...objectsRef.current.map(o=>objectBounds(o)),...mediaRef.current.map(mediaBounds)].some(b=>b.x*v.scale+v.tx<canvas.clientWidth&&(b.x+b.w)*v.scale+v.tx>0&&b.y*v.scale+v.ty<canvas.clientHeight&&(b.y+b.h)*v.scale+v.ty>0);},[]);
+  const changeMedia=useCallback((idOrItems:string|MediaItem[],patchOrHistory?:Partial<MediaItem>|boolean,history=true)=>{if(Array.isArray(idOrItems)){const hist=typeof patchOrHistory==='boolean'?patchOrHistory:history;commit(objectsRef.current,idOrItems,hist);return;}if(!mediaRef.current.some(m=>m.id===idOrItems))return;const patch=(typeof patchOrHistory==='object'?patchOrHistory:{})as Partial<MediaItem>;commit(objectsRef.current,mediaRef.current.map(m=>m.id===idOrItems?{...m,...patch,id:m.id}:m),history);},[commit]);
+  const commitMedia=useCallback((nextMedia: MediaItem[]) => commit(objectsRef.current, nextMedia, false),[commit]);
+  const setGuideEdges=useCallback((id:string, edges:GuideEdge[]) => { if(edges.length)guideEdges.current.set(id,edges);else guideEdges.current.delete(id); },[]);
+  const addObjects=useCallback((items: BoardObject[]) => commit([...objectsRef.current, ...items], mediaRef.current),[commit]);
+  const changeObjects=useCallback((change:(objects:BoardObject[])=>BoardObject[]) => commit(change(objectsRef.current),mediaRef.current),[commit]);
+  const onDoubleClick=useCallback((event:React.MouseEvent<HTMLCanvasElement>) => {const world=screenToWorld(event.clientX,event.clientY),hit=hitTest(world);if(hit?.kind!=='object')return;const object=objectsRef.current.find(o=>o.id===hit.id);if(object?.kind!=='text')return;const screen=worldToScreen(object.x,object.y);setEditingText({id:object.id,screenX:screen.x,screenY:screen.y,value:object.text});},[screenToWorld,hitTest,worldToScreen]);
+
+  // One stable object per committed state so consumers can depend on members (or on
+  // the whole board) without re-subscribing on every pointer sample.
+  return useMemo(() => ({
     processing,
     canvasRef,
     attachCanvas,
@@ -1596,7 +1635,7 @@ export function useWhiteboard(options: {
     objects,
     media,
     counts,
-    view,
+    view,getView,
     tool,shapeFeedback,
     setTool,
     pen,
@@ -1605,22 +1644,17 @@ export function useWhiteboard(options: {
     setEraserSize,
     selection,
     setSelection,
-    selectionSettings,setSelectionSettings:(value:SelectionSettings)=>{setSelectionSettings(value);setSelection(null);},
-    selectedIds,selectionBounds:selectionBounds(),resizeSelected,previewResize,commitResize,cancelResize,
+    selectionSettings,setSelectionSettings:setSelectionSettingsAndClear,
+    selectedIds,selectionBounds:selectionBoundsValue,resizeSelected,previewResize,commitResize,cancelResize,
     toggleLockSelected,groupSelected,ungroupSelected,isSelectionLocked,isSelectionGrouped,
     toggleInfiniteClonerSelected,isSelectionInfiniteCloner,
     dualNibMode,setDualNibMode,
     updateTextSelected,
     contentBounds,
     isDrawing,
-    selectAll:()=>{setTool('select');selectIds([...objectsRef.current.map(o=>o.id),...mediaRef.current.map(m=>m.id)]);scheduleRender();},
+    selectAll,
     editingText,
-    editSelectedText: () => {
-      const object = objectsRef.current.find(item=>item.id===selectedIdsRef.current[0]);
-      if(object?.kind !== 'text') return;
-      const screen=worldToScreen(object.x,object.y);
-      setEditingText({id:object.id,screenX:screen.x,screenY:screen.y,value:object.text});
-    },
+    editSelectedText,
     commitText,
     cancelText,
     undo,
@@ -1632,19 +1666,19 @@ export function useWhiteboard(options: {
     screenToWorld,
     worldToScreen,
     zoomBy,
-    zoomIn: () => zoomBy(1.2),
-    zoomOut: () => zoomBy(1 / 1.2),
+    zoomIn,
+    zoomOut,
     resetView,
     fitToContent,
     fitToBounds,centerBounds,
     restoreView:setView,
-    hasVisibleContent:()=>{const canvas=canvasRef.current;if(!canvas)return false;const v=viewRef.current;return [...objectsRef.current.map(o=>objectBounds(o)),...mediaRef.current.map(mediaBounds)].some(b=>b.x*v.scale+v.tx<canvas.clientWidth&&(b.x+b.w)*v.scale+v.tx>0&&b.y*v.scale+v.ty<canvas.clientHeight&&(b.y+b.h)*v.scale+v.ty>0);},
+    hasVisibleContent,
     addMedia,
-    changeMedia:(idOrItems:string|MediaItem[],patchOrHistory?:Partial<MediaItem>|boolean,history=true)=>{if(Array.isArray(idOrItems)){const hist=typeof patchOrHistory==='boolean'?patchOrHistory:history;commit(objectsRef.current,idOrItems,hist);return;}if(!mediaRef.current.some(m=>m.id===idOrItems))return;const patch=(typeof patchOrHistory==='object'?patchOrHistory:{})as Partial<MediaItem>;commit(objectsRef.current,mediaRef.current.map(m=>m.id===idOrItems?{...m,...patch,id:m.id}:m),history);},
-    commitMedia: (nextMedia: MediaItem[]) => commit(objectsRef.current, nextMedia, false),
-    setGuideEdges: (id:string, edges:GuideEdge[]) => { if(edges.length)guideEdges.current.set(id,edges);else guideEdges.current.delete(id); },
-    addObjects: (items: BoardObject[]) => commit([...objectsRef.current, ...items], mediaRef.current),
-    changeObjects: (change:(objects:BoardObject[])=>BoardObject[]) => commit(change(objectsRef.current),mediaRef.current),
+    changeMedia,
+    commitMedia,
+    setGuideEdges,
+    addObjects,
+    changeObjects,
     removeMedia,
     setPdfPage,
     deleteSelected,transformSelected,
@@ -1655,7 +1689,7 @@ export function useWhiteboard(options: {
     exportPNG,
     renderToCanvas,
     renderSlideScene,
-    onDoubleClick: (event:React.MouseEvent<HTMLCanvasElement>) => {const world=screenToWorld(event.clientX,event.clientY),hit=hitTest(world);if(hit?.kind!=='object')return;const object=objectsRef.current.find(o=>o.id===hit.id);if(object?.kind!=='text')return;const screen=worldToScreen(object.x,object.y);setEditingText({id:object.id,screenX:screen.x,screenY:screen.y,value:object.text});},
+    onDoubleClick,
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -1663,5 +1697,5 @@ export function useWhiteboard(options: {
     onPointerLeave,
     onWheel,
     loadPdf,
-  };
+  }), [processing,attachCanvas,objects,media,counts,view,getView,tool,shapeFeedback,pen,eraserSize,eraserMode,palmEraser,selection,setSelection,selectionSettings,setSelectionSettingsAndClear,selectedIds,selectionBoundsValue,resizeSelected,previewResize,commitResize,cancelResize,toggleLockSelected,groupSelected,ungroupSelected,isSelectionLocked,isSelectionGrouped,toggleInfiniteClonerSelected,isSelectionInfiniteCloner,dualNibMode,updateTextSelected,contentBounds,isDrawing,selectAll,editingText,editSelectedText,commitText,cancelText,undo,redo,canUndo,canRedo,clearPage,clearAnnotations,reset,screenToWorld,worldToScreen,zoomBy,zoomIn,zoomOut,resetView,fitToContent,fitToBounds,centerBounds,setView,hasVisibleContent,addMedia,changeMedia,commitMedia,setGuideEdges,addObjects,changeObjects,removeMedia,setPdfPage,deleteSelected,transformSelected,duplicateSelected,recolorSelected,updateShapeSelected,updateMediaSelected,placeSelectedMedia,exportPNG,renderToCanvas,renderSlideScene,onDoubleClick,onPointerDown,onPointerMove,onPointerUp,onPointerCancel,onPointerLeave,onWheel]);
 }

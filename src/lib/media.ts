@@ -1,4 +1,3 @@
-"use client";
 import { database, localAssetURL } from "@/lib/local-store";
 import DOMPurify from "dompurify";
 import {getPerformanceProfile,subscribePerformance} from "./performance";

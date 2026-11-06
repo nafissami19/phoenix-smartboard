@@ -1,6 +1,5 @@
-"use client";
-
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback, useId } from "react";
+import { useDialog } from "@/lib/use-dialog";
 import { Icon } from "../Icon";
 import { useApp } from "@/lib/app-context";
 import { BUILTIN_THEMES, isLightTheme, type ThemePack } from "@/lib/theme-pack";
@@ -25,7 +24,7 @@ interface ExamTimerModalProps {
 }
 
 function getContrastTextColor(hexColor: string): string {
-  const hex = (hexColor || "#0062ff").replace(/^#/, "");
+  const hex = (hexColor || "#e63946").replace(/^#/, "");
   const r = parseInt(hex.substring(0, 2), 16) || 0;
   const g = parseInt(hex.substring(2, 4), 16) || 0;
   const b = parseInt(hex.substring(4, 6), 16) || 0;
@@ -88,6 +87,9 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
   const [editingPreset, setEditingPreset] = useState<ExamPreset | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  // Escape is handled by the layered handler below (theme modal > editor > timer).
+  useDialog<HTMLDivElement>({ ref: containerRef, escape: false });
   const deadlineRef = useRef<number | null>(null);
 
   // Live wall-clock updater
@@ -111,7 +113,8 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      // A nested dialog (e.g. ThemeModal) that already handled Escape marks it defaultPrevented.
+      if (e.key === "Escape" && !e.defaultPrevented) {
         if (themeModalOpen) {
           setThemeModalOpen(false);
         } else if (isEditorOpen) {
@@ -340,7 +343,10 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[100] flex flex-col select-none overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-(--z-modal) flex flex-col select-none overflow-y-auto"
       style={{
         backgroundColor: modalBg,
         color: themeColors.ink,
@@ -371,7 +377,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 style={{ color: themeColors.ink }} className="text-xl font-bold tracking-tight">
+              <h1 id={titleId} style={{ color: themeColors.ink }} className="text-xl font-bold tracking-tight">
                 {isChoosingPreset ? "Exam Timer" : activePreset.title}
               </h1>
               {!isChoosingPreset && (
@@ -490,6 +496,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             type="button"
             onClick={() => setIsMuted((m) => !m)}
             title={isMuted ? "Unmute sound alert" : "Mute sound alert"}
+            aria-label={isMuted ? "Unmute sound alert" : "Mute sound alert"}
             style={{
               backgroundColor: isMuted ? (isLight ? "#fee2e2" : "rgba(239, 68, 68, 0.2)") : themeColors.surface,
               borderColor: isMuted ? (isLight ? "#fca5a5" : "rgba(239, 68, 68, 0.4)") : themeColors.line,
@@ -505,6 +512,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             type="button"
             onClick={toggleFullscreen}
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             style={{
               backgroundColor: themeColors.surface,
               borderColor: themeColors.line,
@@ -520,12 +528,13 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             type="button"
             onClick={onClose}
             title="Exit Exam Timer"
+            aria-label="Exit Exam Timer"
             style={{
               backgroundColor: themeColors.surface,
               borderColor: themeColors.line,
               color: themeColors.ink,
             }}
-            className="p-2.5 rounded-2xl border hover:bg-rose-500/15 hover:text-rose-500 hover:border-rose-500/30 active:scale-[0.98] transition-all min-h-[44px] min-w-[44px] flex items-center justify-center shadow-xs"
+            className="p-2.5 rounded-2xl border hover:bg-danger-subtle hover:text-danger hover:border-danger/30 active:scale-[0.98] transition-all min-h-[44px] min-w-[44px] flex items-center justify-center shadow-xs"
           >
             <Icon name="close" className="w-5 h-5" />
           </button>
@@ -620,6 +629,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                       type="button"
                       onClick={() => openEditPreset(preset)}
                       title="Edit timer sections"
+                      aria-label={`Edit ${preset.title} sections`}
                       style={{
                         backgroundColor: themeColors.surface,
                         borderColor: themeColors.line,
@@ -635,13 +645,14 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
             })}
 
             {/* "+ Add New Exam Timer" Card */}
-            <div
+            <button
+              type="button"
               onClick={openNewPresetEditor}
               style={{
                 backgroundColor: `${themeColors.panel}90`,
                 borderColor: themeColors.line,
               }}
-              className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed hover:border-brand hover:bg-panel cursor-pointer transition-all text-center min-h-[260px] group shadow-xs"
+              className="kn-focus w-full flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed hover:border-brand hover:bg-panel cursor-pointer transition-all text-center min-h-[260px] group shadow-xs"
             >
               <div
                 style={{
@@ -658,7 +669,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
               <p style={{ color: themeColors.muted }} className="text-xs mt-1 max-w-xs">
                 Set up a custom examination with your own sections and durations.
               </p>
-            </div>
+            </button>
           </div>
         </main>
       ) : (
@@ -794,7 +805,7 @@ export function ExamTimerModal({ onClose }: ExamTimerModalProps) {
                   })`,
                 }}
                 className={`font-mono tabular-nums font-extrabold tracking-tight leading-none text-8xl sm:text-9xl md:text-[11rem] lg:text-[12.5rem] transition-colors ${
-                  isDangerTime ? "animate-pulse" : ""
+                  isDangerTime ? "motion-safe:animate-pulse" : ""
                 }`}
               >
                 {hasExamFinished ? "00:00" : formatTimeRemaining(remainingSeconds)}
@@ -1111,6 +1122,8 @@ function PresetEditorModal({
     );
   };
 
+  const editorRef = useDialog<HTMLDivElement>({ escape: false });
+  const formId = useId();
   const totalMins = sections.reduce((acc, s) => acc + (parseInt(String(s.durationMinutes), 10) || 0), 0);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1130,14 +1143,18 @@ function PresetEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-(--z-modal) flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div
+        ref={editorRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${formId}-heading`}
         style={{
           backgroundColor: themeColors.panel,
           borderColor: themeColors.line,
           color: themeColors.ink,
         }}
-        className="w-full max-w-xl border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-xl border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]"
       >
         {/* Header */}
         <div
@@ -1148,7 +1165,7 @@ function PresetEditorModal({
           className="flex items-center justify-between px-6 py-4 border-b"
         >
           <div>
-            <h3 style={{ color: themeColors.ink }} className="text-lg font-bold">
+            <h3 id={`${formId}-heading`} style={{ color: themeColors.ink }} className="text-lg font-bold">
               {isNew ? "Create Exam Timer" : "Edit Exam Schedule"}
             </h3>
             <p style={{ color: themeColors.muted }} className="text-xs">
@@ -1158,8 +1175,10 @@ function PresetEditorModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close exam timer editor"
+            title="Close"
             style={{ color: themeColors.muted }}
-            className="p-2 rounded-xl hover:text-ink hover:bg-elevated transition-colors"
+            className="grid min-h-11 min-w-11 place-items-center p-2 rounded-xl hover:text-ink hover:bg-elevated transition-colors"
           >
             <Icon name="close" className="w-5 h-5" />
           </button>
@@ -1169,10 +1188,11 @@ function PresetEditorModal({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Title */}
           <div>
-            <label style={{ color: themeColors.muted }} className="block text-xs font-semibold uppercase tracking-wider mb-1.5">
+            <label htmlFor={`${formId}-title`} style={{ color: themeColors.muted }} className="block text-xs font-semibold uppercase tracking-wider mb-1.5">
               Exam Title
             </label>
             <input
+              id={`${formId}-title`}
               type="text"
               required
               value={title}
@@ -1190,10 +1210,11 @@ function PresetEditorModal({
 
           {/* Description */}
           <div>
-            <label style={{ color: themeColors.muted }} className="block text-xs font-semibold uppercase tracking-wider mb-1.5">
+            <label htmlFor={`${formId}-description`} style={{ color: themeColors.muted }} className="block text-xs font-semibold uppercase tracking-wider mb-1.5">
               Description (Optional)
             </label>
             <input
+              id={`${formId}-description`}
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -1211,15 +1232,15 @@ function PresetEditorModal({
           {/* Sections List */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label style={{ color: themeColors.muted }} className="text-xs font-semibold uppercase tracking-wider">
+              <h4 id={`${formId}-sections`} style={{ color: themeColors.muted }} className="text-xs font-semibold uppercase tracking-wider">
                 Sections & Durations ({sections.length})
-              </label>
+              </h4>
               <span style={{ color: themeColors.accent }} className="text-xs font-mono font-bold">
                 Total: {totalMins}m ({formatDurationLabel(totalMins)})
               </span>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2.5" role="group" aria-labelledby={`${formId}-sections`}>
               {sections.map((section, idx) => (
                 <div
                   key={section.id || idx}
@@ -1235,6 +1256,7 @@ function PresetEditorModal({
                   <input
                     type="text"
                     required
+                    aria-label={`Section ${idx + 1} name`}
                     value={section.name}
                     onChange={(e) => handleUpdateSection(idx, "name", e.target.value)}
                     placeholder="Section Name"
@@ -1252,6 +1274,7 @@ function PresetEditorModal({
                       required
                       min={1}
                       max={360}
+                      aria-label={`Section ${idx + 1} duration in minutes`}
                       value={section.durationMinutes}
                       onChange={(e) =>
                         handleUpdateSection(idx, "durationMinutes", e.target.value)
@@ -1272,7 +1295,8 @@ function PresetEditorModal({
                     onClick={() => handleRemoveSection(idx)}
                     disabled={sections.length <= 1}
                     title="Delete this section"
-                    className="p-2 rounded-lg text-rose-500 hover:bg-rose-500/15 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+                    aria-label={`Delete section ${idx + 1}`}
+                    className="grid min-h-11 min-w-11 place-items-center p-2 rounded-lg text-danger hover:bg-danger-subtle disabled:opacity-25 disabled:pointer-events-none transition-colors"
                   >
                     <Icon name="trash" className="w-4 h-4" />
                   </button>
@@ -1304,7 +1328,7 @@ function PresetEditorModal({
               <button
                 type="button"
                 onClick={() => onDelete(preset.id)}
-                className="px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border border-rose-500/30 text-xs font-bold transition-colors"
+                className="px-3.5 py-2 rounded-xl bg-danger-subtle hover:brightness-95 text-danger border border-danger/30 text-xs font-bold transition-colors"
               >
                 Delete
               </button>
