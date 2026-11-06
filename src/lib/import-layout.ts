@@ -1,7 +1,7 @@
 export type ImportFrame={x:number;y:number;width:number;height:number};
 export type ImportAlignment='top-left'|'top-center'|'top-right'|'center-left'|'center'|'center-right'|'bottom-left'|'bottom-center'|'bottom-right';
 export type ImportLayout={sizing:'fit'|'fill'|'original';frameWidth:number;frameHeight:number;alignment:ImportAlignment;locked?:boolean;margins:{top:number;right:number;bottom:number;left:number}};
-export const DEFAULT_IMPORT_LAYOUT:ImportLayout={sizing:'fit',frameWidth:1280,frameHeight:720,alignment:'center',locked:true,margins:{top:0,right:0,bottom:0,left:0}};
+export const DEFAULT_IMPORT_LAYOUT:ImportLayout={sizing:'fit',frameWidth:1280,frameHeight:720,alignment:'center',locked:false,margins:{top:0,right:0,bottom:0,left:0}};
 export function orientImportFrame(width:number,height:number,orientation:'portrait'|'landscape'){
  return orientation==='portrait'?{frameWidth:Math.min(width,height),frameHeight:Math.max(width,height)}:{frameWidth:Math.max(width,height),frameHeight:Math.min(width,height)};
 }
