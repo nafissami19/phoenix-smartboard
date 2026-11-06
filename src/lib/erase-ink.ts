@@ -72,7 +72,7 @@ export function eraseInk(objects:BoardObject[],a:Point,b:Point,radius:number,idF
     let candidate:string;do{candidate=`${base}-ink-${++fallback}`;}while(reserved.has(candidate));reserved.add(candidate);return candidate;
   };
   for(const object of objects){
-    if(object.kind!=='stroke'){result.push(object);continue;}
+    if(object.kind!=='stroke'||object.locked){result.push(object);continue;}
     const fragments=splitStroke(object,a,b,radius);
     if(fragments===undefined){result.push(object);continue;}
     changed=true;

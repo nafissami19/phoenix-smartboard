@@ -14,6 +14,21 @@ export function projectToEdge(point:Point,edge:GuideEdge):Point {
  const t=length?Math.max(0,Math.min(1,((point.x-edge.a.x)*dx+(point.y-edge.a.y)*dy)/length)):0;
  return {x:edge.a.x+t*dx,y:edge.a.y+t*dy,p:point.p};
 }
+/** The edges of the single instrument (ruler, compass arc…) closest to the point, if one is within tolerance. */
+export function nearbyGuide(point:Point,guides:Iterable<GuideEdge[]>,tolerance=22):GuideEdge[]|undefined {
+ let closest:GuideEdge[]|undefined,best=tolerance;
+ for(const edges of guides){const edge=nearbyEdge(point,edges,best);if(edge){best=Math.hypot(projectToEdge(point,edge).x-point.x,projectToEdge(point,edge).y-point.y);closest=edges;}}
+ return closest;
+}
+/**
+ * Snap one sample onto the nearest segment of the chosen instrument. Re-picking the segment per sample
+ * follows a compass arc smoothly. Returns undefined once the pen has left the edge, so the rest of the
+ * stroke is free ink.
+ */
+export function snapToGuide(point:Point,edges:GuideEdge[],tolerance=30):Point|undefined {
+ const edge=nearbyEdge(point,edges,tolerance);
+ return edge?projectToEdge(point,edge):undefined;
+}
 export function nearbyEdge(point:Point,edges:GuideEdge[],tolerance=22):GuideEdge|undefined {
  let closest:GuideEdge|undefined,best=tolerance;
  for(const edge of edges){const p=projectToEdge(point,edge),distance=Math.hypot(p.x-point.x,p.y-point.y);if(distance<best){best=distance;closest=edge;}}

@@ -86,6 +86,11 @@
   font-weight: 600;
   transition: var(--transition-colors);
 }
+/* The selection panel's `.selection-actions button{min-width:42px}` lets labelled buttons shrink under their text; wrap the row instead. */
+.board-lab-controls .board-lab-buttons button {
+  flex: 1 1 auto;
+  min-width: max-content;
+}
 .board-lab-object {
   position: fixed;
   pointer-events: none;

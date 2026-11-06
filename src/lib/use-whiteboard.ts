@@ -9,7 +9,8 @@ import {mediaBounds,placeMediaInFrame} from "@/lib/media-layout";
 import {persistentObjects} from './pen-strokes';
 import {loadBackgroundImage} from './background-image';
 import {eraseInk} from '@/lib/erase-ink';
-import { nearbyEdge, projectToEdge, type GuideEdge } from "@/lib/guide-geometry";
+import { nearbyGuide, snapToGuide, type GuideEdge } from "@/lib/guide-geometry";
+import {sameObjects,samplePressure,minSampleSpacing,isPalmContact,isRestingHand,secondTouchMayPinch} from "@/lib/pen-input";
 import type { BoardObject, MediaItem, Point, ShapeObject, StrokeObject, TextObject } from "@/db/schema";
 import {
   drawBackground,
@@ -20,7 +21,6 @@ import {
   objectHitByEraser,
   pointNearStroke,
   recognizeShape,
-  simplifyStroke,
   simplifyRDP,
   dist,
 } from "@/lib/render";
@@ -142,7 +142,10 @@ export function useWhiteboard(options: {
   const gestureRadius = useRef(24);
   const lastErasePoint=useRef<Point|null>(null);
   const guideEdges = useRef(new Map<string,GuideEdge[]>());
-  const drawingEdge = useRef<GuideEdge | undefined>(undefined);
+  // Edges of the instrument the current stroke started on; cleared once the pen leaves that edge.
+  const drawingEdge = useRef<GuideEdge[] | undefined>(undefined);
+  const drawPointerId = useRef<number | null>(null);
+  const drawStartedAt = useRef(0);
   const backgroundPicture=useRef<HTMLImageElement|null>(null);
   const backgroundRef = useRef(background);
   const patternRef = useRef(pattern);
@@ -753,6 +756,15 @@ export function useWhiteboard(options: {
         pointers.current.clear(); draft.current = null; pinch.current = null; eraseWorking.current = null; marquee.current=null;
       }
       if (pointers.current.size && e.pointerType !== "touch") return;
+      // A resting hand (large contact with the palm eraser off) neither draws nor erases.
+      if (isRestingHand(e.pointerType, Math.max(e.width, e.height), palmEraserRef.current)) return;
+      // A second finger during a stroke: only a pinch right at the start, never when the view is locked.
+      if (pointers.current.size === 1 && e.pointerType === "touch") {
+        if (isViewLockedRef.current) return;
+        const d = draft.current;
+        if (modeRef.current === "draw" && d && !secondTouchMayPinch(d.kind === "stroke" ? d.points.length : 99, performance.now() - drawStartedAt.current)) return;
+        if (modeRef.current === "erase" || modeRef.current === "move" || modeRef.current === "marquee" || modeRef.current === "erase-marquee") return;
+      }
       try { canvas.setPointerCapture?.(e.pointerId); } catch { /* A cancelled native pointer may already have gone. */ }
       pointers.current.set(e.pointerId, {
         x: e.clientX,
@@ -781,8 +793,7 @@ export function useWhiteboard(options: {
       const t = toolRef.current;
       if(t!=="select")setSelection(null);
       const contactDim = Math.max(e.width, e.height);
-      const isPalm = contactDim >= 40 || (palmEraserRef.current && contactDim >= 32);
-      const palmErase = (e.pointerType === 'touch' || e.pointerType === 'pen') && isPalm;
+      const palmErase = isPalmContact(e.pointerType, contactDim, palmEraserRef.current);
       if (palmErase && t !== "eraser") {
         temporaryPalmGesture.current = true;
         savedToolBeforePalm.current = t;
@@ -794,8 +805,8 @@ export function useWhiteboard(options: {
         return;
       }
 
-      drawingEdge.current = t === 'pen' || t === 'line' ? nearbyEdge({x:e.clientX,y:e.clientY},[...guideEdges.current.values()].flat()) : undefined;
-      const projected = drawingEdge.current ? projectToEdge({x:e.clientX,y:e.clientY},drawingEdge.current) : {x:e.clientX,y:e.clientY};
+      drawingEdge.current = t === 'pen' || t === 'line' ? nearbyGuide({x:e.clientX,y:e.clientY},guideEdges.current.values()) : undefined;
+      const projected = (drawingEdge.current && snapToGuide({x:e.clientX,y:e.clientY},drawingEdge.current)) || {x:e.clientX,y:e.clientY};
       const world = screenToWorld(projected.x, projected.y);
 
       if (t === "select" && !palmErase) {
@@ -855,7 +866,7 @@ export function useWhiteboard(options: {
         lastErasePoint.current=world;
         eraseWorking.current = gestureEraserMode.current==='ink'
           ? eraseInk(objectsRef.current,world,world,gestureRadius.current)
-          : objectsRef.current.filter(o => !objectHitByEraser(o, world, gestureRadius.current));
+          : objectsRef.current.filter(o => o.locked || !objectHitByEraser(o, world, gestureRadius.current));
         eraseCenterRef.current = world;
         scheduleRender();
         return;
@@ -865,6 +876,8 @@ export function useWhiteboard(options: {
 
       // pen / marker / highlighter / shapes
       modeRef.current = "draw";
+      drawPointerId.current = e.pointerId;
+      drawStartedAt.current = performance.now();
       setIsDrawing(true);
       const p = penRef.current;
       let strokeColor = p.color;
@@ -883,9 +896,10 @@ export function useWhiteboard(options: {
           opacity:p.opacity,
           ...(t==='pen'&&p.brushSettings?{brushSettings:{...p.brushSettings}}:{}),
           ...(t==='laser'?{laserExpiresAt:performance.now()+6000,laserCreatedAt:performance.now()}:{}),
-          color: p.color,
-          width: p.size,
-          points: [{...world, p: e.pointerType === "pen" && p.pressure ? Math.max(0.05, e.pressure) : undefined}],
+          // Dual-nib: the thick nib of a smartboard stylus writes in a second colour and width.
+          color: t === 'pen' ? strokeColor : p.color,
+          width: t === 'pen' ? strokeWidth : p.size,
+          points: [{...world, p: samplePressure(e.pointerType, p.pressure, e.pressure)}],
         };
       } else {
         // shape preview
@@ -983,6 +997,7 @@ export function useWhiteboard(options: {
         else {
           const steps=Math.max(1,Math.ceil(dist(previous,world)/Math.max(1,r/2)));
           eraseWorking.current=eraseWorking.current.filter(object=>{
+            if(object.locked)return true;
             for(let i=0;i<=steps;i++)if(objectHitByEraser(object,{x:previous.x+(world.x-previous.x)*i/steps,y:previous.y+(world.y-previous.y)*i/steps},r))return false;
             return true;
           });
@@ -993,20 +1008,30 @@ export function useWhiteboard(options: {
       }
 
       if (modeRef.current === "draw") {
-        const projected = drawingEdge.current ? projectToEdge({x:e.clientX,y:e.clientY},drawingEdge.current) : {x:e.clientX,y:e.clientY};
+        // Only the finger or pen that started the stroke extends it.
+        if (drawPointerId.current !== null && e.pointerId !== drawPointerId.current) return;
+        const snap = (x: number, y: number) => {
+          if (!drawingEdge.current) return {x, y};
+          const snapped = snapToGuide({x, y}, drawingEdge.current);
+          if (!snapped) drawingEdge.current = undefined; // the pen left the ruler/compass edge: free ink from here
+          return snapped ?? {x, y};
+        };
+        const projected = snap(e.clientX, e.clientY);
         const world = screenToWorld(projected.x, projected.y);
         const t = toolRef.current;
         const d = draft.current;
         if (!d) return;
         if (d.kind === "stroke") {
           const last = d.points[d.points.length - 1];
-          if (dist(last, world) > 1.2) {
+          if (dist(last, world) > minSampleSpacing(viewRef.current.scale)) {
             const samples = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent];
-            const points = (samples.length ? samples : [e.nativeEvent]).map(sample => { const point = drawingEdge.current ? projectToEdge({x:sample.clientX,y:sample.clientY},drawingEdge.current) : {x:sample.clientX,y:sample.clientY};return {...screenToWorld(point.x, point.y), p: sample.pointerType === "pen" && penRef.current.pressure ? Math.max(0.05, sample.pressure) : undefined}; });
+            const points = (samples.length ? samples : [e.nativeEvent]).map(sample => { const point = snap(sample.clientX, sample.clientY);return {...screenToWorld(point.x, point.y), p: samplePressure(sample.pointerType, penRef.current.pressure, sample.pressure)}; });
             draft.current = { ...d, ...(d.tool==="laser"?{laserExpiresAt:performance.now()+1500}:{}),points: [...d.points, ...points] };
           }
           if (drawHoldTimer.current) clearTimeout(drawHoldTimer.current);
-          if (d.points.length >= 6 && (!drawHoldPos.current || dist(drawHoldPos.current, world) > 4)) {
+          // Hold-to-snap only when Smart shapes (or the Auto shape tool) is on, and only for pen ink.
+          const holdSnapAllowed = d.tool === "pen" && (t === "auto-shape" || !!penRef.current.smartShapes);
+          if (holdSnapAllowed && d.points.length >= 6 && (!drawHoldPos.current || dist(drawHoldPos.current, world) > 4)) {
             drawHoldPos.current = world;
             drawHoldTimer.current = setTimeout(() => {
               if (modeRef.current === "draw" && draft.current && draft.current.kind === "stroke" && draft.current.points.length >= 6) {
@@ -1023,7 +1048,8 @@ export function useWhiteboard(options: {
               }
             }, 380);
           }
-        } else if (d.kind === "shape") {
+        } else if (d.kind === "shape" && !drawHoldSnapped.current) {
+          // A held-and-snapped shape stays as recognized; only freshly dragged shapes follow the pen.
           const w=world.x-d.x,h=world.y-d.y,size=Math.min(Math.abs(w),Math.abs(h));
           draft.current = { ...d, w:d.shape==='circle'?Math.sign(w)*size:w, h:d.shape==='circle'?Math.sign(h)*size:h };
         }
@@ -1055,7 +1081,7 @@ export function useWhiteboard(options: {
       const t = toolRef.current;
       const world = screenToWorld(e.clientX, e.clientY);
 
-      if(modeRef.current==='erase-marquee'&&marquee.current){const {a,b}=marquee.current;commit(eraseSelection(objectsRef.current,a,b,canvas?.getContext('2d')??undefined),mediaRef.current);marquee.current=null;modeRef.current='idle';scheduleRender();return;}
+      if(modeRef.current==='erase-marquee'&&marquee.current){const {a,b}=marquee.current;const kept=eraseSelection(objectsRef.current,a,b,canvas?.getContext('2d')??undefined);if(kept!==objectsRef.current)commit(kept,mediaRef.current);marquee.current=null;modeRef.current='idle';scheduleRender();return;}
       if(modeRef.current==='marquee'&&marquee.current){
         const {a,b,points}=marquee.current,ctx=canvas?.getContext('2d')??undefined;
         if(dist(a,b)<3/viewRef.current.scale&&(points?.length??0)<3){const hit=hitTest(world);setSelection(hit);}
@@ -1107,7 +1133,8 @@ export function useWhiteboard(options: {
         setTool(savedToolBeforePalm.current);
       }
       if (modeRef.current === "erase") {
-        if (eraseWorking.current) {
+        // Only record an undo step (and save) when something was actually erased.
+        if (eraseWorking.current && !sameObjects(eraseWorking.current, objectsRef.current)) {
           commit(eraseWorking.current, mediaRef.current);
         }
         eraseWorking.current = null;
@@ -1128,13 +1155,22 @@ export function useWhiteboard(options: {
       }
 
       if (modeRef.current === "draw") {
+        if (drawPointerId.current !== null && e.pointerId !== drawPointerId.current) return;
+        drawPointerId.current = null;
         const p = penRef.current;
-        const d = draft.current;
+        let d = draft.current;
         draft.current = null;
         modeRef.current = "idle";
+        const liftEdge = drawingEdge.current;
+        drawingEdge.current = undefined;
         if (!d) return;
 
         if (d.kind === "stroke") {
+          // Keep the exact lift position so the end of the stroke is never cut short (matters at high zoom).
+          const lastPoint = d.points[d.points.length - 1];
+          const lift = liftEdge ? (snapToGuide({x:e.clientX,y:e.clientY},liftEdge) ?? {x:e.clientX,y:e.clientY}) : {x:e.clientX,y:e.clientY};
+          const liftWorld = screenToWorld(lift.x, lift.y);
+          if (lastPoint && dist(lastPoint, liftWorld) > 0.01 && dist(lastPoint, liftWorld) < 50 / viewRef.current.scale) d = { ...d, points: [...d.points, { ...liftWorld, p: lastPoint.p }] };
           if ((t==='auto-shape'||p.smartShapes) && d.tool === "pen") {
             const recognized = recognizeShape(d.points, d.color, d.width);
             if (recognized) {
@@ -1153,8 +1189,9 @@ export function useWhiteboard(options: {
             scheduleRender();
             return;
           }
-          const simplified = d.points.length > 3 ? simplifyStroke(d, 0.65) : d;
-          commit([...objectsRef.current, simplified], mediaRef.current);
+          // Save exactly what the teacher saw while writing. Simplifying the points here changed the
+          // stroke's shape and thickness the moment the pen lifted (worst for brushes and stamps).
+          commit([...objectsRef.current, d], mediaRef.current);
         } else if (d.kind === "shape") {
           if (Math.abs(d.w) < 4 && Math.abs(d.h) < 4) return; // ignore taps
           commit([...objectsRef.current, d], mediaRef.current);
@@ -1407,6 +1444,12 @@ export function useWhiteboard(options: {
   // ------------------------------- export ----------------------------------
 
   const cancelGesture = useCallback(() => {
+    // An OS cancel (Android palm detection, a popup taking focus) keeps the ink already written.
+    const pending = modeRef.current === "draw" ? draft.current : null;
+    if (pending?.kind === "stroke" && pending.tool !== "laser" && pending.points.length >= 2) commit([...objectsRef.current, pending], mediaRef.current);
+    if (drawHoldTimer.current) { clearTimeout(drawHoldTimer.current); drawHoldTimer.current = null; }
+    drawHoldPos.current = null; drawHoldSnapped.current = false; drawPointerId.current = null;
+    if (temporaryPalmGesture.current) { temporaryPalmGesture.current = false; setTool(savedToolBeforePalm.current); }
     pointers.current.clear(); activePen.current = null; setIsDrawing(false); pointerPosRef.current = null;
     draft.current = null; pinch.current = null; panStart.current = null;
     eraseWorking.current = null; eraseCenterRef.current = null;
@@ -1417,7 +1460,7 @@ export function useWhiteboard(options: {
       moveOriginal.current = null;
     }
     moveState.current = null; modeRef.current = 'idle'; flushLiveState(); scheduleRender();
-  }, [scheduleRender, flushLiveState]);
+  }, [commit, scheduleRender, flushLiveState]);
   const onPointerCancel = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     if (pointers.current.has(event.pointerId) || activePen.current === event.pointerId) cancelGesture();
   }, [cancelGesture]);

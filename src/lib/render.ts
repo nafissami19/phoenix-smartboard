@@ -1,8 +1,8 @@
 import {drawSolid} from './render-solid';
 import {isSolid} from './solid-shapes';
 import {brushSettings} from './brush-presets';
-
-
+import {isEquipment} from './chemistry-equipment';
+import {drawChemistryEquipment} from './render-chemistry';
 import {penOutline,drawStamp,laserOpacity,brushTexture,paintBristles} from './pen-strokes';
 import type {
   BoardObject,
@@ -269,7 +269,7 @@ function hatchFill(ctx:CanvasRenderingContext2D,shape:ShapeObject){
 
 export function drawShape(ctx: CanvasRenderingContext2D, shape: ShapeObject) {
   if(isSolid(shape)){drawSolid(ctx,shape);return;}
-
+  if(isEquipment(shape)){drawChemistryEquipment(ctx,shape);return;}
   ctx.save();
   const {x,y,w,h}=shape;ctx.translate(x+w/2,y+h/2);ctx.rotate(shape.rotation);if(shape.mirrorX||shape.mirrorY)ctx.scale(shape.mirrorX?-1:1,shape.mirrorY?-1:1);ctx.translate(-(x+w/2),-(y+h/2));
   ctx.globalAlpha=1;ctx.strokeStyle=shape.color;ctx.fillStyle=shape.fillColor??shape.color;ctx.lineWidth=shape.width;

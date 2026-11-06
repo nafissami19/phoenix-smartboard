@@ -101,7 +101,20 @@ export function Toolbar({
     const nextColor = nextTool === 'laser' && (!pen.color || ['#1f2937','#1e1e1e','#000000','#94a3b8'].includes(pen.color.toLowerCase())) ? '#ff1744' : pen.color;
     setTool(nextTool);setPen({...pen,color:nextColor,size,customPenId:undefined,opacity:1,...(nextTool==='pen'?{brush:id as Pen['brush'],brushSettings:brushSettings(id as Pen['brush']),customPenId:undefined,opacity:1}:{})});
   };
-  useEffect(()=>{if(tool==='pen'||tool==='highlighter'||tool==='laser'){brushSizes.current[tool==='pen'?(pen.brush??'normal'):tool]=pen.size;try{localStorage.setItem('phoenix-brush-sizes',JSON.stringify(brushSizes.current));notifyPreferencesChanged();}catch{}}},[tool,pen.brush,pen.size]);
+  // Each brush remembers its own size. When the tool or brush changes by any route (menu, keyboard
+  // shortcut, palm-eraser restore), load that brush's size instead of saving the old size under it.
+  const sizeKey=tool==='pen'?(pen.brush??'normal'):tool;
+  const lastSizeKey=useRef(sizeKey);
+  useEffect(()=>{
+    if(tool!=='pen'&&tool!=='highlighter'&&tool!=='laser')return;
+    if(lastSizeKey.current!==sizeKey){
+      lastSizeKey.current=sizeKey;
+      const saved=brushSizes.current[sizeKey];
+      if(Number.isFinite(saved)&&saved!==pen.size){setPen({...pen,size:Math.min(40,Math.max(1,saved))});return;}
+    }
+    brushSizes.current[sizeKey]=pen.size;
+    try{localStorage.setItem('phoenix-brush-sizes',JSON.stringify(brushSizes.current));notifyPreferencesChanged();}catch{}
+  },[tool,pen.brush,pen.size]);
   useEffect(()=>{if(tool!=='pen')return;const available=pen.customPenId?customPens.some(p=>p.id===pen.customPenId&&p.enabled!==false):penMenu.includes(pen.brush??'normal');if(!available)setPen({...pen,brush:'normal',brushSettings:brushSettings('normal'),customPenId:undefined,size:4,opacity:1});},[penMenu,customPens,tool,pen.customPenId,pen.brush]);
   const [touchOpen,setTouchOpen]=useState(false);
   const [recorderOpen, setRecorderOpen] = useState(false);
