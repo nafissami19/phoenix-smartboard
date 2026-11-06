@@ -45,7 +45,7 @@ export default function OnboardingPage(){
       ]}/>
       {loadError&&<p role="alert" className="mt-5 flex flex-wrap items-center gap-3 text-sm text-danger">Your saved settings could not be read. Saving is paused so they are not replaced.<button type="button" className="kn-focus rounded-lg border border-line px-3 py-1 text-ink" onClick={()=>void retryLoad()}>Retry</button></p>}
       {error&&<p role="alert" className="mt-5 text-sm text-danger">{error}</p>}
-      <footer className="kn-settings-footer"><div className="mr-auto flex items-center gap-3"><span className="text-xs text-muted">Saved locally on this device</span><span className="inline-block h-3.5 w-px bg-line" /><div className="flex items-center gap-2"><span className="text-xs text-muted">Language:</span><LanguageToggle /></div></div><button onClick={()=>void finish()} disabled={saving||loading||!!loadError} className="kn-focus flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 font-semibold text-white disabled:opacity-50">{saving?'Saving...':profile.onboarded?'Save changes':'Start teaching'}<Icon name="chevronRight" className="h-4 w-4"/></button></footer>
+      <footer className="kn-settings-footer"><div className="mr-auto flex items-center gap-3"><span className="text-xs text-muted">Saved locally on this device</span></div><button onClick={()=>void finish()} disabled={saving||loading||!!loadError} className="kn-focus flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 font-semibold text-white disabled:opacity-50">{saving?'Saving...':profile.onboarded?'Save changes':'Start teaching'}<Icon name="chevronRight" className="h-4 w-4"/></button></footer>
     </div>
   </div></main>;
 }

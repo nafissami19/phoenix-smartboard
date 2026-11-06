@@ -26,6 +26,7 @@ export const DICTIONARY: Record<Locale, Record<string, string>> = {
     treasure_box: "Treasure box",
     board_tools: "Board & tools",
     swap_sides: "Swap sides",
+    board_themes: "Board & themes",
 
     // Toolbar & Tools
     pen: "Pen",
@@ -98,6 +99,7 @@ export const DICTIONARY: Record<Locale, Record<string, string>> = {
     treasure_box: "ট্রেজার বক্স",
     board_tools: "বোর্ড ও টুলস",
     swap_sides: "পাশ পরিবর্তন করুন",
+    board_themes: "বোর্ড ও থিম",
 
     // Toolbar & Tools
     pen: "কলম (পেন)",

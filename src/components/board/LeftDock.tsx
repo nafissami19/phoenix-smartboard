@@ -1,4 +1,4 @@
-import {useI18n, LanguageToggle} from '@/lib/i18n';
+import {useI18n} from '@/lib/i18n';
 import {BoardFullscreen} from './BoardFullscreen';
 import {ThemeIcon} from './ThemeIcon';
 import {createPortal} from 'react-dom';
@@ -16,10 +16,9 @@ export type DockId =
   | "present"
   | "library";
 
-export function LeftDock({active,onOpen,onSave,onSwap}:{active:DockId|null;onOpen:(id:DockId)=>void;onSave:()=>void;onSwap:()=>void}){
+export function LeftDock({active,onOpen,onSave}:{active:DockId|null;onOpen:(id:DockId)=>void;onSave:()=>void}){
   const {t}=useI18n();
   return <div className="kn-dock pointer-events-auto flex items-center gap-1 rounded-xl border border-line bg-panel p-1 shadow-xl">
-    <button type="button" className="kn-side-switch kn-focus" aria-label={t("swap_sides")} title={t("swap_sides")} onClick={onSwap}><ThemeIcon name="flipHorizontal"/></button>
     <button type="button" data-dock-action="file" aria-label={t("menu")} title={t("menu")} aria-expanded={active==='file'} onClick={()=>onOpen('file')} className="kn-focus"><ThemeIcon name="menu"/></button>
     <BoardFullscreen dock/>
     <button type="button" data-dock-action="treasure" data-ui="treasure" aria-label={t("treasure_box")} title={t("treasure_box")} aria-expanded={active==='treasure'} onClick={()=>onOpen('treasure')} className="kn-focus"><ThemeIcon name="toolbox"/></button>
@@ -28,27 +27,26 @@ export function LeftDock({active,onOpen,onSave,onSwap}:{active:DockId|null;onOpe
   </div>;
 }
 
-const FILE_ITEMS: { id: string; key: string; label: string; icon: IconName }[] = [
+// Import and Save sit on the dock; on phones the dock hides them, so the menu shows them there only.
+const FILE_ITEMS: { id: string; key: string; label: string; icon: IconName; phoneOnly?: boolean }[] = [
   { id: "new", key: "new_lesson", label: "New lesson", icon: "plus" },
   { id: "open", key: "open", label: "Open…", icon: "folder" },
-  { id: "save", key: "save", label: "Save", icon: "save" },
-  { id: "saveas", key: "saveas", label: "Save as", icon: "copy" },
+  { id: "save", key: "save", label: "Save", icon: "save", phoneOnly: true },
+  { id: "import", key: "import_file", label: "Import", icon: "import", phoneOnly: true },
   { id: "special", key: "insert_object", label: "Insert object", icon: "play" },
-  { id: "import", key: "import_file", label: "Import", icon: "import" },
   { id: "export", key: "export", label: "Export", icon: "export" },
-  { id: "exam-timer", key: "exam_timer", label: "Exam timer", icon: "timer" },
   { id: "print", key: "print", label: "Print", icon: "print" },
   { id: "display-annotation", key: "display_annotation", label: "Display annotation", icon: "pen" },
   { id: "settings", key: "settings", label: "Settings", icon: "settings" },
-  { id: "themes", key: "themes", label: "Themes", icon: "board" },
+  { id: "themes", key: "board_themes", label: "Board & themes", icon: "board" },
   { id: "help", key: "help", label: "Help", icon: "help" },
   { id: "about", key: "about", label: "About", icon: "eye" },
   { id: "exit", key: "exit", label: "Exit to library", icon: "back" },
 ];
 
 const FILE_GROUPS=[
-  {label:'Lesson',ids:['new','open','save','saveas']},
-  {label:'Import & share',ids:['special','import','export','exam-timer','print','display-annotation']},
+  {label:'Lesson',ids:['new','open','save']},
+  {label:'Import & share',ids:['import','special','export','print','display-annotation']},
   {label:'Application',ids:['settings','themes','help','about','exit']},
 ];
 
@@ -98,7 +96,6 @@ export function FileMenu({
     >
       <div className="shrink-0 border-b border-line bg-panel-2 px-3 py-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted">
         <span>{appName}</span>
-        <LanguageToggle />
       </div>
       <div className="kn-scroll min-h-0 overflow-y-auto overscroll-contain p-1.5">
         {FILE_GROUPS.map(group=><section key={group.label} aria-label={group.label} className="kn-file-menu-group border-b border-line py-1 last:border-0">
@@ -110,9 +107,9 @@ export function FileMenu({
             style={{display:'flex',width:'100%',height:'auto',minHeight:44}}
             onClick={() => {
               onAction(item.id);
-              if(!['special','import','export','settings','themes','help','about','exam-timer'].includes(item.id))onClose();
+              if(!['special','import','export','settings','themes','help','about'].includes(item.id))onClose();
             }}
-            className="kn-focus flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-elevated"
+            className={`kn-focus flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-elevated ${item.phoneOnly?"kn-menu-phone-only":""}`}
           >
             <Icon name={item.icon} className="h-4 w-4 text-muted" />
             {t(item.key, item.label)}

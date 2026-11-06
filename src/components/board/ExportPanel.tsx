@@ -12,7 +12,7 @@ function download(url: string, filename: string) {
   if (url.startsWith('blob:')) window.setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
-export function ExportPanel({onClose, pageTitle, pageCount = 1, onPNG, onPDF, onJSON, onENB, onPrint}: {
+export function ExportPanel({onClose, pageTitle, pageCount = 1, onPNG, onPDF, onJSON, onENB}: {
   onClose: () => void;
   pageTitle: string;
   pageCount?: number;
@@ -20,7 +20,6 @@ export function ExportPanel({onClose, pageTitle, pageCount = 1, onPNG, onPDF, on
   onPDF: (scope: PDFScope, onProgress: (progress: ExportProgress) => void) => Promise<PreparedDownload>;
   onJSON: () => void|Promise<void>;
   onENB: () => Promise<void>;
-  onPrint: () => void;
 }) {
   const [scope, setScope] = useState<PDFScope>('current');
   const [pending, setPending] = useState(false);
@@ -56,7 +55,6 @@ export function ExportPanel({onClose, pageTitle, pageCount = 1, onPNG, onPDF, on
     {id: 'png', label: 'Image (PNG)', desc: 'Save a picture of the visible board.', icon: 'image' as const, action: onPNG},
     {id: 'json', label: 'Editable lesson (.ps)', desc: 'Every page, vector stroke and imported file in one portable Phoenix lesson.', icon: 'save' as const, action: onJSON},
     {id: 'enb', label: 'External Board (.enb)', desc: 'Export lesson for external classroom interactive panels.', icon: 'doc' as const, action: onENB},
-    {id: 'print', label: 'Print', desc: 'Send the current view to a printer.', icon: 'print' as const, action: onPrint},
   ];
 
   return (

@@ -65,7 +65,7 @@ export function Toolbar({
   redo,
   canUndo,
   canRedo,
-  selectionSettings,onSelectionSettings,onAddSolid,onOpenTreasure,eraserMode,onEraserMode,palmEraser,onPalmEraser,dualNibMode,onDualNibMode,onClearAnnotations,onOpenBoardTools,boardToolsActive,recorder,
+  selectionSettings,onSelectionSettings,onAddSolid,onOpenTreasure,eraserMode,onEraserMode,palmEraser,onPalmEraser,dualNibMode,onDualNibMode,onClearAnnotations,recorder,
 }: {
   selectionSettings:SelectionSettings;onSelectionSettings:(value:SelectionSettings)=>void;
   onAddSolid:(kind:SolidKind)=>void;
@@ -79,7 +79,7 @@ export function Toolbar({
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  onOpenTreasure?: () => void;eraserMode:EraserMode;onEraserMode:(mode:EraserMode)=>void;palmEraser:boolean;onPalmEraser:(enabled:boolean)=>void;dualNibMode?:boolean;onDualNibMode?:(enabled:boolean)=>void;onClearAnnotations:()=>void;onOpenBoardTools?: () => void;boardToolsActive?: boolean;
+  onOpenTreasure?: () => void;eraserMode:EraserMode;onEraserMode:(mode:EraserMode)=>void;palmEraser:boolean;onPalmEraser:(enabled:boolean)=>void;dualNibMode?:boolean;onDualNibMode?:(enabled:boolean)=>void;onClearAnnotations:()=>void;
   recorder?: LessonRecorderHandle;
 }) {
   const { t } = useI18n();
@@ -119,8 +119,6 @@ export function Toolbar({
   const [touchOpen,setTouchOpen]=useState(false);
   const [recorderOpen, setRecorderOpen] = useState(false);
   // moreOpen removed
-  const [pinned,setPinned]=useState<string[]>(()=>{try{const value=JSON.parse(localStorage.getItem('phoenix-toolbar-pins')??'[]');return Array.isArray(value)?value.filter(id=>['Select','Text','Shapes','Redo','Tools'].includes(id)):[];}catch{return [];}});
-  useEffect(()=>{try{localStorage.setItem('phoenix-toolbar-pins',JSON.stringify(pinned));notifyPreferencesChanged();}catch{}},[pinned]);
   const [shapeGroup,setShapeGroup]=useState<"2d"|"3d">("2d");
   const [shapeOpen, setShapeOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -346,14 +344,14 @@ export function Toolbar({
             expanded={(tItem.id==="pen"?isPen:tool===tItem.id)&&optionsOpen} controls={POPOVER_ID[tItem.id as 'select'|'pen'|'eraser']}
             active={tItem.id==="pen"?isPen:tool === tItem.id}
             onClick={() => { setShapeOpen(false);setTouchOpen(false);setRecorderOpen(false);setOptionsOpen((tItem.id==="pen"||tItem.id==="eraser"||tItem.id==="select")?openSettings(tItem.id,tItem.id==="pen"?isPen:tool===tItem.id,optionsOpen):false);if(tItem.id!=="pen"||!isPen)setTool(tItem.id); }}
-            secondary={tItem.id==="select"||tItem.id==="text"} pinned={pinned.includes(tItem.label)} art={tItem.id==="pen"?(tool==="laser"?"laser":tool==="highlighter"?"highlighter":pen.brush??"normal"):undefined} color={pen.color}
+            secondary={tItem.id==="select"||tItem.id==="text"} art={tItem.id==="pen"?(tool==="laser"?"laser":tool==="highlighter"?"highlighter":pen.brush??"normal"):undefined} color={pen.color}
             icon={tItem.icon}
             label={t(tItem.id, tItem.label)}
           />
         ))}
 
         {/* Shapes popover */}
-        <div className={`relative kn-responsive-secondary ${pinned.includes("Shapes")?"kn-pinned":""}`}>
+        <div className={`relative kn-responsive-secondary`}>
           <ToolButton
             active={isShape}
             dataToolId="shapes" dataTool="shapes" expanded={shapeOpen} controls={POPOVER_ID.shapes}
@@ -381,15 +379,14 @@ export function Toolbar({
         </div>
 
         <ToolButton dataTool="hand" active={tool==='pan'} onClick={()=>{lastToolClick.current='pan';setTool('pan');setOptionsOpen(false);setShapeOpen(false);setRecorderOpen(false);}} icon="hand" label={t("pan", "Hand")}/>
-        <ToolButton dataTool="text" active={tool==='text'} secondary pinned={pinned.includes('Text')} onClick={()=>{lastToolClick.current='text';setOptionsOpen(false);setTool('text');setShapeOpen(false);setRecorderOpen(false);}} icon="text" label={t("text", "Text")}/>
+        <ToolButton dataTool="text" active={tool==='text'} secondary onClick={()=>{lastToolClick.current='text';setOptionsOpen(false);setTool('text');setShapeOpen(false);setRecorderOpen(false);}} icon="text" label={t("text", "Text")}/>
 
         <div className="mx-1 h-8 w-px bg-line" />
 
         <ToolButton dataTool="undo" onClick={undo} icon="undo" label={t("undo", "Undo")} disabled={!canUndo} />
-        <ToolButton dataTool="redo" secondary pinned={pinned.includes("Redo")} onClick={redo} icon="redo" label={t("redo", "Redo")} disabled={!canRedo} />
+        <ToolButton dataTool="redo" secondary onClick={redo} icon="redo" label={t("redo", "Redo")} disabled={!canRedo} />
 
         <div className="mx-1 h-8 w-px bg-line" />
-        <ToolButton dataTool="board-tools" active={boardToolsActive} onClick={()=>{setOptionsOpen(false);setShapeOpen(false);setRecorderOpen(false);onOpenBoardTools?.();}} icon="board" label={t("board_tools", "Board & tools")}/>
         {recorder && (
           <ToolButton
             dataToolId="record" dataTool="record" expanded={recorderOpen} controls={POPOVER_ID.record}
@@ -420,7 +417,6 @@ function ToolButton({
   art,
   color,
   secondary,
-  pinned,
   dataToolId,
   dataTool,
   expanded,
@@ -435,7 +431,6 @@ function ToolButton({
   art?: string;
   color?: string;
   secondary?: boolean;
-  pinned?: boolean;
   active?: boolean;
   onClick: () => void;
   icon: IconName;
@@ -455,7 +450,7 @@ function ToolButton({
       aria-pressed={active}
       title={label}
       aria-label={label}
-      className={`${secondary ? "kn-responsive-secondary" : ""} ${pinned ? "kn-pinned" : ""} kn-focus relative grid h-11 w-11 place-items-center rounded-xl transition disabled:opacity-30 ${
+      className={`${secondary ? "kn-responsive-secondary" : ""} kn-focus relative grid h-11 w-11 place-items-center rounded-xl transition disabled:opacity-30 ${
         active
           ? dataToolId === "record"
             ? "bg-danger text-white shadow-lg shadow-danger/30"

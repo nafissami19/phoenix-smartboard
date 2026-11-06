@@ -7,11 +7,9 @@ import {BRANDING} from '@/config/branding';
 import {BrandMark} from '@/components/BrandMark';
 import {LanguageToggle} from '@/lib/i18n';
 import { cloneElement, isValidElement, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { TeachingPreferences } from "@/components/TeachingPreferences";
 import packageInfo from "../../../package.json";
 import { Icon } from "@/components/Icon";
 import { useApp } from "@/lib/app-context";
-import { BOARD_BACKGROUNDS, BOARD_PATTERNS } from "@/lib/constants";
 
 export function Modal({
   title,
@@ -60,16 +58,10 @@ const ACCENTS = ["#e11d48", "#f43f5e", "#dc2626", "#be123c", "#f97316", "#0ea5e9
 
 export function SettingsPanel({
   onClose,
-  background,
-  pattern,
-  onBackground,
-  onPattern,
+  onOpenBoard,
 }: {
   onClose: () => void;
-  background: string;
-  pattern: string;
-  onBackground: (bg: string) => void;
-  onPattern: (p: string) => void;
+  onOpenBoard?: () => void;
 }) {
   const { profile, updateProfile } = useApp();
   const [appName, setAppName] = useState(profile.appName);
@@ -97,46 +89,8 @@ export function SettingsPanel({
     <Modal title="Settings" icon={<Icon name="settings" className="h-5 w-5 text-brand-light" />} onClose={onClose} width={900}>
       <div className="space-y-5">
         {saveError&&<p role="alert" className="text-sm text-danger">{saveError}</p>}
+        {onOpenBoard&&<p className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel-2 px-4 py-3 text-sm text-muted">Board colour, patterns, backgrounds and themes are in one place.<button type="button" className="kn-focus rounded-lg border border-line-strong px-3 py-1.5 font-semibold text-ink hover:bg-elevated" onClick={()=>{onClose();onOpenBoard();}}>Open Board &amp; themes</button></p>}
         <SettingsSections sections={[
-          {id:'teaching',label:'Board & tools',description:'Themes and defaults for your classroom.',content:<>        <TeachingPreferences value={preferences} onChange={patch=>setPreferences(value=>({...value,...patch}))} onThemeChange={patch=>{setPreferences(value=>({...value,...patch}));if(patch.accent)setAccent(patch.accent);setSaveError("");void updateProfile(patch).catch(error=>setSaveError(error instanceof Error?error.message:"Could not apply theme."));}}/>
-</>},
-          {id:'page',label:'Current page',description:'Background and pattern for the page you are teaching.',content:<div className="space-y-5">        <Field label="Custom board color"><input aria-label="Board color" type="color" value={background} onChange={e=>onBackground(e.target.value)}/></Field>
-        <div className="h-px bg-line" />
-
-        <Field label="Board background (this page)">
-          <div className="flex flex-wrap gap-2">
-            {BOARD_BACKGROUNDS.map((b) => (
-              <button
-                key={b.value}
-                onClick={() => onBackground(b.value)}
-                className={`h-9 w-9 rounded-lg border-2 transition ${
-                  background === b.value ? "scale-110 border-ink" : "border-line"
-                }`}
-                style={{ background: b.value }}
-                aria-label={b.label}
-              />
-            ))}
-          </div>
-        </Field>
-        <Field label="Board pattern">
-          <div className="flex gap-2">
-            {BOARD_PATTERNS.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => onPattern(p.value)}
-                className={`kn-focus rounded-lg border px-3 py-1.5 text-sm transition ${
-                  pattern === p.value
-                    ? "border-brand bg-brand/15 text-ink"
-                    : "border-line text-muted hover:text-ink"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </Field>
-
-</div>},
           {id:'profile',label:'Profile',description:'Your application identity and interface color.',content:<div className="space-y-5">        <Field label="App / profile name" hint="Shown everywhere in the app.">
           <input
             value={appName}
@@ -175,10 +129,7 @@ export function SettingsPanel({
           {id:'storage',label:'Storage & backup',description:'Save device copies and manage connected backups.',content:<><DeviceStorage/><BackupConnections/></>},
         ]}/>
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted">Language:</span>
-            <LanguageToggle />
-          </div>
+          <div />
           <div className="flex justify-end gap-2">
           <button
             onClick={onClose}

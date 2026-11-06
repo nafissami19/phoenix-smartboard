@@ -15,9 +15,7 @@ import {newPageStyle} from '@/lib/new-page-style';
 import {BoardTooltips} from '@/components/board/BoardTooltips';
 import {persistentObjects} from '@/lib/pen-strokes';
 import {ThemeSettings} from '@/components/ThemeSettings';
-import {ThemeModal} from '@/components/ThemeModal';
 import {controlContrast,controlPalette,BUILTIN_THEMES} from '@/lib/theme-pack';
-import {BoardPresets} from '@/components/BoardPresets';
 import {ControlLayoutEditor} from '@/components/board/ControlLayoutEditor';
 import {TeachingPreferences} from '@/components/TeachingPreferences';
 import {useLessonRecorder} from '@/components/board/LessonRecorder';
@@ -70,7 +68,7 @@ import { useViewPersistence } from "./use-view-persistence";
 import { useBoardKeyboard } from "./use-board-keyboard";
 import { BoardLoadState } from "./BoardLoadState";
 
-type Modal = "special" | "backgrounds" | "themes" | "settings" | "help" | "about" | "import" | "export" | "board-tools" | "exam-timer" | null;
+type Modal = "special" | "settings" | "help" | "about" | "import" | "export" | "board-tools" | "exam-timer" | null;
 
 export default function BoardPage() {
   const params = useParams();
@@ -650,7 +648,7 @@ export default function BoardPage() {
           printPage();
           break;
         case "themes":
-          setModal("themes");
+          setModal("board-tools");
           break;
         case "settings":
           setModal("settings");
@@ -904,16 +902,22 @@ export default function BoardPage() {
       )}
       {/* ---------------------------- Top bar ---------------------------- */}
       {!presenting && (
-        <details className="board-meta"><summary aria-label="Lesson details">{ui.showTime?<BoardTime/>:<Icon name="doc"/>}</summary>
-        <header className="board-header z-30 flex h-14 shrink-0 items-center gap-3 border-b border-line/60 bg-panel/90 backdrop-blur-md px-3 shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-black/5">
+        <details className="board-meta"><summary aria-label="Lesson details" title="Lesson details"><Icon name="doc" className="h-5 w-5"/></summary>
+        <header className="board-header" aria-label="Lesson details">
+          <div className="board-header-row">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-black/5">
               <BrandMark className="h-5 w-5" />
             </span>
-            <span className="hidden text-sm font-semibold tracking-tight sm:block">{profile.appName}</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{profile.appName}</span>
+            <BoardTime/>
+            <button type="button" aria-label="Close lesson details" title="Close"
+              onClick={(e) => { const details = e.currentTarget.closest('details'); if (details) details.open = false; }}
+              className="kn-focus grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink">
+              <Icon name="close" className="h-5 w-5" />
+            </button>
           </div>
-          <div className="mx-2 h-6 w-px bg-line/60" />
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <label className="board-header-field">
+            <span>Lesson title</span>
             <input
               value={notebook.title}
               onChange={(e) => setNotebook({ ...notebook, title: e.target.value })}
@@ -924,71 +928,35 @@ export default function BoardPage() {
                   body: JSON.stringify({ title: notebook.title, subject: notebook.subject }),
                 })
               }
-              title="Click to rename lesson" aria-label="Lesson title"
-              className="kn-focus min-w-0 max-w-sm rounded-lg border border-transparent bg-transparent px-2.5 py-1 text-sm font-medium text-ink transition-colors hover:border-line hover:bg-base-2 focus:border-brand"
+              aria-label="Lesson title"
+              className="kn-focus"
             />
-            <span className="hidden rounded-md bg-panel-2 px-2 py-0.5 text-[11px] font-semibold text-muted md:inline-block">
-              {notebook.subject}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
+          </label>
+          <div className="board-header-row">
+            <span className="rounded-md bg-panel-2 px-2 py-1 text-xs font-semibold text-muted">{notebook.subject}</span>
+            <span className="flex-1" />
             <SaveBadge state={saveState} />
-            <div className="mx-1 h-6 w-px bg-line" />
-            <button
-              onClick={wb.zoomOut}
-              className="kn-focus grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink"
-              aria-label="Zoom out"
-            >
+          </div>
+          <div className="board-header-row board-header-actions">
+            <span className="text-xs font-semibold text-muted">Zoom</span>
+            <button onClick={wb.zoomOut} className="kn-focus grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink" aria-label="Zoom out">
               <Icon name="zoomOut" className="h-5 w-5" />
             </button>
-            <button
-              onClick={wb.resetView}
-              aria-label="Reset board view" title="Return to the original board position"
-              className="kn-focus rounded-lg px-2 py-1 text-xs tabular-nums text-muted hover:bg-elevated hover:text-ink"
-            >
+            <button onClick={wb.resetView} aria-label="Reset board view" title="Return to the original board position"
+              className="kn-focus min-h-11 rounded-lg px-2 text-sm font-semibold tabular-nums hover:bg-elevated">
               {Math.round(wb.view.scale * 100)}%
             </button>
-            <button
-              onClick={wb.zoomIn}
-              className="kn-focus grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink"
-              aria-label="Zoom in"
-            >
+            <button onClick={wb.zoomIn} className="kn-focus grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink" aria-label="Zoom in">
               <Icon name="zoomIn" className="h-5 w-5" />
             </button>
-            <button
-              onClick={wb.fitToContent}
-              className="kn-focus grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink"
-              aria-label="Fit to screen"
-              title="Fit to screen"
-            >
-              <Icon name="fit" className="h-5 w-5" />
-            </button>
-            <button
-              onClick={handleApplyViewToAll}
-              className="kn-focus grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-elevated hover:text-ink"
-              aria-label="Apply zoom and alignment to all slides"
-              title={`Apply this zoom (${Math.round(wb.view.scale * 100)}%) and position to all ${pages.length} slides`}
-            >
-              <Icon name="sync" className="h-5 w-5" />
-            </button>
             {displayAnnotationAvailable && (
-              <button
-                type="button"
-                onClick={startDisplayAnnotation}
-                data-action="display-annotation"
-                className="kn-focus flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-muted hover:bg-elevated hover:text-ink"
-                title={t('display_annotation')}
-              >
+              <button type="button" onClick={startDisplayAnnotation} data-action="display-annotation"
+                className="kn-focus ml-auto flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-muted hover:bg-elevated hover:text-ink"
+                title={t('display_annotation')}>
                 <Icon name="pen" className="h-4 w-4" />
-                <span className="hidden md:inline">{t('display_annotation')}</span>
-                <span className="sr-only md:hidden">{t('display_annotation')}</span>
+                <span>{t('display_annotation')}</span>
               </button>
             )}
-            <div className="mx-1 h-6 w-px bg-line" />
-            <div className="hidden items-center gap-2 px-1 text-sm text-muted sm:flex">
-              <Icon name="board" className="h-4 w-4" />
-              <span className="tabular-nums">{<BoardTime/>}</span>
-            </div>
           </div>
         </header>
         </details>
@@ -1070,8 +1038,10 @@ export default function BoardPage() {
                 wb.commitText(wb.editingText!.id, textValue);
               }
               if (e.key === "Escape") {
+                // Escape finishes editing and keeps what was typed (an empty box is removed).
                 e.preventDefault();
-                wb.cancelText();
+                e.stopPropagation();
+                wb.commitText(wb.editingText!.id, textValue);
               }
             }}
             placeholder="Type…"
@@ -1156,7 +1126,6 @@ export default function BoardPage() {
             <div className="menu-dock">
               <LeftDock
                 active={panel}
-                onSwap={()=>setSlidesSide(side=>side==='left'?'right':'left')}
                 onOpen={(d) => {setThumbsOpen(false);if(d==='import'||d==='export'){setPanel('file');setModal(d);}else {setModal(null);setPanel((p) => (p === d ? null : d));}}}
                 onSave={()=>onFileAction('save')}
               />
@@ -1165,14 +1134,14 @@ export default function BoardPage() {
               )}
             </div>
             {panel === "treasure" && (
-              <TreasureBox onOpenBackgrounds={()=>{setPanel(null);setModal("backgrounds");}} onOpenExamTimer={()=>{setPanel(null);setModal("exam-timer");}} onSubjectTool={tool=>setSubjectTool(tool)} openTools={openTools} onToggle={toggleTool} onClose={() => setPanel(null)} />
+              <TreasureBox onOpenBackgrounds={()=>{setPanel(null);setModal("board-tools");}} onOpenExamTimer={()=>{setPanel(null);setModal("exam-timer");}} onSubjectTool={tool=>setSubjectTool(tool)} openTools={openTools} onToggle={toggleTool} onClose={() => setPanel(null)} />
             )}
           </>
         )}
 
         {thumbsOpen && <SlidesPanel previewFrames={previewFrames} pages={pages} activePageId={currentPage?.id??''}
           onGo={i=>{void goTo(i).catch(()=>push('Could not save your edits. Keep this slide open.','error'));}}
-          onReorder={reorderPages} onClose={()=>setThumbsOpen(false)} onAdd={addPage} onDuplicate={duplicatePage} onDelete={deletePage} onSwap={()=>setSlidesSide(side=>side==='left'?'right':'left')}
+          onReorder={reorderPages} onClose={()=>setThumbsOpen(false)} onAdd={addPage} onDuplicate={duplicatePage} onDelete={deletePage}
           onApplyViewToAll={handleApplyViewToAll} applyingView={applyingView} viewSync={viewSync} onToggleViewSync={toggleViewSync}/>}
 
         {/* Bottom toolbar + page bar */}
@@ -1192,7 +1161,7 @@ export default function BoardPage() {
             redo={wb.redo}
             canUndo={wb.canUndo}
             canRedo={wb.canRedo}
-            onOpenTreasure={() => {setThumbsOpen(false);setPanel((p) => (p === "treasure" ? null : "treasure"));}} onOpenBoardTools={() => setModal((m) => (m === "board-tools" ? null : "board-tools"))} boardToolsActive={modal === "board-tools"}
+            onOpenTreasure={() => {setThumbsOpen(false);setPanel((p) => (p === "treasure" ? null : "treasure"));}}
             recorder={recorder}
           />
         </div>
@@ -1205,7 +1174,6 @@ export default function BoardPage() {
             onSwap={()=>setSlidesSide(side=>side==='left'?'right':'left')}
             onToggleThumbs={() => {setPanel(null);setThumbsOpen((o) => !o);}}
             thumbsOpen={thumbsOpen}
-            onApplyViewToAll={handleApplyViewToAll}
             onFitToScreen={wb.fitToContent}
           />
         </div>
@@ -1225,60 +1193,17 @@ export default function BoardPage() {
       {/* ---------------------------- Modals ---------------------------- */}
       <MenuScreenContext.Provider value={panel==='file'&&modal!==null}>
       {modal === "settings" && (
-        <SettingsPanel
-          onClose={() => setModal(null)}
-          background={background}
-          pattern={pattern}
-          onBackground={(bg) => {
-            pageImageRef.current=undefined;setPageImage(undefined);setBackground(bg);
-            void saveNow(wb.objects, wb.media, bg, patternRef.current);
-          }}
-          onPattern={(p) => {
-            setPattern(p);
-            void saveNow(wb.objects, wb.media, bgRef.current, p);
-          }}
-        />
+        <SettingsPanel onClose={() => setModal(null)} onOpenBoard={() => setModal("board-tools")} />
       )}
       {(slowSave||wb.processing)&&<LoadingOverlay detail="Processing and saving your edits..."/>}
       {(recoveryEdits.length>0||lastActivity)&&<Dialog title="Interrupted work" onClose={()=>{setRecoveryEdits([]);setLastActivity(undefined);}} width={460}><p className="mb-4 text-sm">{lastActivity&&<span className="mb-2 block">Last operation: {lastActivity}. Open the saved lesson to review it; an interrupted import or export can be started again.</span>}{recoveryEdits.length>0?'An unfinished edit was saved before this lesson closed. Restore it, or keep the last saved pages.':'Your saved pages are ready to open.'}</p><div className="flex gap-3">{recoveryEdits.length>0&&<button className="kn-focus rounded-lg bg-brand p-3 text-white" onClick={()=>{void recoverWork().then(()=>{setLastActivity(undefined);void setWorkActivity(id,undefined);});}}>Restore unfinished work</button>}<button className="kn-focus rounded-lg border border-line p-3" onClick={()=>{const entries=recoveryEdits;void Promise.all(entries.map(e=>acknowledge(e.pageId,e.revision))).then(()=>{setRecoveryEdits([]);setLastActivity(undefined);void setWorkActivity(id,undefined);});}}>Keep saved pages</button></div></Dialog>}
-      {modal === "themes" && (
-        <ThemeModal
-          onClose={() => setModal(null)}
-          onThemeSelect={pack => {
-            const primaryBoard = pack.boards[0];
-            if (primaryBoard) {
-              setBackground(primaryBoard.background);
-              bgRef.current = primaryBoard.background;
-              setPattern(primaryBoard.pattern);
-              patternRef.current = primaryBoard.pattern;
-              wb.setPen({ ...wb.pen, color: primaryBoard.ink });
-              void saveNow(wb.objects, wb.media, primaryBoard.background, primaryBoard.pattern);
-            }
-          }}
-        />
-      )}
-      {(modal === "board-tools" || modal === "backgrounds") && (
+      {modal === "board-tools" && (
         <Dialog
-          title={modal === "backgrounds" ? "Subject backgrounds" : "Board & tools"}
+          title="Board & themes"
           icon={<Icon name="board" className="h-5 w-5 text-brand-light" />}
           onClose={() => setModal(null)}
           width={700}
         >
-          {modal === "backgrounds" ? (
-            <BoardPresets
-              onlyGallery={true}
-              value={{ ...profile, boardBg: background, boardPattern: pattern, boardImage: pageImage }}
-              onChange={patch => {
-                if (patch.boardCredits) void updateProfile({ boardCredits: patch.boardCredits });
-                if (patch.boardBg) { setBackground(patch.boardBg); bgRef.current = patch.boardBg; }
-                if (patch.boardPattern) { setPattern(patch.boardPattern); patternRef.current = patch.boardPattern; }
-                if ('boardImage' in patch) { pageImageRef.current = patch.boardImage; setPageImage(patch.boardImage); }
-                if (patch.defaultPenColor) wb.setPen({ ...wb.pen, color: patch.defaultPenColor });
-                if (patch.boardPresets) void updateProfile({ boardPresets: patch.boardPresets });
-                void saveNow(wb.objects, wb.media, bgRef.current, patternRef.current).catch(e => push(e.message, 'error'));
-              }}
-            />
-          ) : (
             <TeachingPreferences
               value={{ ...profile, boardBg: background, boardPattern: pattern, boardImage: pageImage }}
               onChange={patch => {
@@ -1295,7 +1220,6 @@ export default function BoardPage() {
                 void updateProfile(patch).catch(e => push(e.message, 'error'));
               }}
             />
-          )}
         </Dialog>
       )}
       {modal === "help" && <HelpPanel onClose={() => setModal(null)} />}
@@ -1320,7 +1244,6 @@ export default function BoardPage() {
           onPDF={exportPDF}
           onJSON={exportJSON}
           onENB={exportENB}
-          onPrint={printPage}
         />
       )}
       {modal === "exam-timer" && (
@@ -1346,4 +1269,4 @@ function SaveBadge({ state }: { state: "saved" | "saving" | "dirty" }) {
   );
 }
 
-function BoardTime(){return <>{useNow().time}</>;}
+function BoardTime(){return <span className="shrink-0 text-xs tabular-nums text-muted">{useNow().time}</span>;}

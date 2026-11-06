@@ -25,3 +25,9 @@ test('other saved packs are untouched', () => {
   pack.colors = {...pack.colors, accent: '#0062ff'};
   assert.equal(withCurrentBrand({theme: pack}).theme?.colors.accent, '#0062ff');
 });
+
+test('the default pen is red, and the old off-white default moves to red while chosen colours stay', () => {
+  assert.equal(normalizeProfile({}).defaultPenColor, '#f43f5e');
+  assert.equal(normalizeProfile({defaultPenColor: '#F4F4F5'}).defaultPenColor, '#f43f5e');
+  assert.equal(normalizeProfile({defaultPenColor: '#22aa66'}).defaultPenColor, '#22aa66');
+});

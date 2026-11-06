@@ -139,10 +139,6 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 .kn-board .kn-main-tools > button, .kn-board .kn-main-tools > div > button { width:44px; height:44px; border-radius:var(--radius-md); }
 .kn-board .treasure-panel { position:absolute; inset:0 auto 52px 0; width:244px; border-radius:0 0 var(--radius-lg) 0; z-index:calc(var(--z-chrome) + 5); }
 .kn-board .treasure-panel .text-faint { color:var(--color-muted); }
-.kn-board .board-header { position:absolute; top:12px; right:16px; left:auto; z-index:calc(var(--z-chrome) - 5); max-width:60%; border:1px solid var(--control-line,var(--color-line-2)); background:color-mix(in srgb,var(--control-panel,var(--color-panel)) 92%,transparent); color:var(--control-ink,var(--color-ink)); border-radius:var(--radius-md); box-shadow:var(--shadow-2); }
-.kn-board .board-header input { color:inherit; max-width:200px; }
-.kn-board .board-header .text-muted,.kn-board .board-header .text-faint { color:color-mix(in srgb,var(--control-ink,var(--color-ink)) 78%,transparent); }
-.board-meta {position:absolute;right:16px;top:12px;z-index:calc(var(--z-chrome) - 5);color:var(--guide-ink,var(--color-ink));text-align:right;} .board-meta summary{padding:4px;cursor:pointer;font-size:16px;list-style:none;white-space:nowrap;} .board-meta[open] .board-header{position:relative;top:auto;right:auto;max-width:min(750px,95vw);margin-top:6px;} .board-meta[open] summary{font-size:13px;} .kn-board .board-header input{width:160px;}
 .board-meta[open] {z-index:calc(var(--z-chrome) - 4);}
 
 /* Teaching controls: writing below, navigation at the sides, capture above. */
@@ -163,9 +159,6 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 .kn-board .kn-file-menu{bottom:calc(100% + 12px);left:0;width:min(280px,calc(100vw - 24px));max-height:calc(100dvh - 96px);}
 .kn-board .kn-dock>div{height:28px;width:1px;margin:0 3px;}
 .kn-board .kn-tool-options{bottom:calc(100% + 10px);max-height:calc(100dvh - 200px);}
-.kn-board .board-header{height:auto;min-height:56px;flex-wrap:wrap;padding:8px;}
-.kn-board .board-header>div{flex-wrap:wrap;}
-.board-meta summary{min-height:44px;display:flex;align-items:center;justify-content:flex-end;}
 
 .toolbar-layout{margin:12px 0;border:0;padding:0;font-size:var(--text-xs);}.toolbar-layout>div{display:flex;gap:4px;margin-top:8px;}.toolbar-layout button{min-height:44px;flex:1;border:1px solid var(--color-line-2);border-radius:var(--radius-md);transition:var(--transition-colors);}.toolbar-layout button[aria-pressed=true]{background:var(--color-brand-subtle);color:var(--color-brand-text);border-color:color-mix(in srgb,var(--color-brand) 55%,transparent);}
 .kn-slide-duplicate{min-height:44px;font-size:var(--text-xs);}.kn-slides-panel header button{width:44px;height:44px;}
@@ -173,7 +166,6 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 @media(max-width:1100px){.kn-dock>div{display:none;}}
 @media(max-width:600px){
  .kn-dock>button:is([data-ui="treasure"],[aria-label="Treasure box"]){display:none;}
- .kn-page-navigation>button:is([data-ui="prev-page"],[aria-label="Previous page"]),.kn-page-navigation>button:is([data-ui="next-page"],[aria-label="Next page"]){display:none;}
  .kn-page-navigation button{min-width:44px;min-height:44px;}
  .kn-board .kn-main-tools{gap:2px;}.kn-board .kn-main-tools>.mx-1{display:none;}
  .kn-board .kn-tool-options{position:fixed;bottom:calc(100% + 10px);width:min(330px,calc(100vw - 24px));max-height:calc(100dvh - 240px);}
@@ -214,6 +206,17 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 .kn-page-navigation .kn-page-side svg[data-note3-artwork] path{fill:currentColor;stroke:currentColor}
 [data-window-mode=docked]{border-radius:0 var(--radius-lg) var(--radius-lg) 0}
 
+/* Lesson details: icon button in the top-right corner; opens a card above the slide panel. */
+.board-meta{position:absolute;right:16px;top:12px;z-index:calc(var(--z-chrome) - 5);color:var(--color-ink)}
+.board-meta>summary{list-style:none;cursor:pointer}
+.board-meta>summary::-webkit-details-marker{display:none}
+.board-meta[open]{z-index:calc(var(--z-chrome) - 4)}
+.kn-board .board-header{position:fixed;top:calc(56px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:min(420px,calc(100vw - 24px));max-height:calc(100dvh - 140px);overflow-y:auto;display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:14px;border:1px solid var(--control-line,var(--color-line-2));border-radius:var(--radius-xl);background:var(--control-panel,var(--color-panel));color:var(--control-ink,var(--color-ink));box-shadow:var(--shadow-3);text-align:left}
+.kn-board .board-header .text-muted{color:color-mix(in srgb,var(--control-ink,var(--color-ink)) 72%,transparent)}
+.kn-board .board-header-row{display:flex;align-items:center;gap:8px;min-width:0}
+.kn-board .board-header-actions{flex-wrap:wrap;border-top:1px solid var(--control-line,var(--color-line));padding-top:10px}
+.kn-board .board-header-field{display:grid;gap:4px;font-size:var(--text-xs);font-weight:600;color:color-mix(in srgb,var(--control-ink,var(--color-ink)) 72%,transparent)}
+.kn-board .board-header-field input{width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--color-line-strong);border-radius:var(--radius-md);background:color-mix(in srgb,var(--control-ink,var(--color-ink)) 5%,transparent);color:var(--control-ink,var(--color-ink));font-size:var(--text-base);font-weight:600}
 .kn-board .board-meta{top:env(safe-area-inset-top,0px);right:calc(52px + env(safe-area-inset-right,0px))}
 
 .kn-board .local-assistant-launch{z-index:calc(var(--z-panel) + 20);right:52px;top:64px}
@@ -229,7 +232,7 @@ button,input,select { font:inherit; } button { touch-action:manipulation; }
 .kn-stamp-options{display:flex;gap:6px;margin-bottom:12px}.kn-stamp-options button{flex:1;min-height:62px;border:1px solid var(--color-line-2);border-radius:var(--radius-md);display:grid;justify-items:center;font-size:var(--text-xs);text-transform:capitalize;transition:var(--transition-colors)}
 .kn-more-tools{padding:12px;width:280px;max-height:calc(100dvh - 100px);overflow:auto}
 .kn-more-tools>header{display:flex;justify-content:space-between;align-items:center}.kn-more-tools>header button{min-width:44px;min-height:44px}.kn-more-tools>div{display:grid;gap:6px}.kn-more-tools section{display:flex;align-items:center;gap:10px}.kn-more-tools section>button{flex:1;min-height:44px;display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--color-line-2);border-radius:var(--radius-md);transition:var(--transition-colors)}.kn-more-tools label{min-height:44px;display:flex;align-items:center;gap:6px}
-@media(max-width:1100px){.kn-board .kn-main-tools .kn-responsive-secondary:not(.kn-pinned){display:none}.kn-main-tools>.mx-1{display:none}}
+@media(max-width:1100px){.kn-main-tools>.mx-1{display:none}}
 @media(max-width:1599px){.kn-board .menu-dock,.kn-board .page-toolbar{bottom:calc(56px + env(safe-area-inset-bottom,0px))}}
 
 .kn-board .treasure-panel .kn-library-tool{min-height:82px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--color-ink);padding:10px 4px;font-size:var(--text-xs);line-height:1.2}.kn-board .treasure-panel>div:first-child{background:var(--color-panel-2);color:var(--color-ink)}
@@ -288,8 +291,7 @@ input,textarea{scroll-margin-bottom:var(--keyboard-height,0px)}
 @media(max-width:600px){.kn-board .kn-slides-panel{max-width:calc(100vw - 16px);width:300px}.kn-board .kn-slides-panel.is-large{width:calc(100vw - 16px)}.kn-size-preview{min-width:170px;min-height:170px}}
 
 /* Shared theme surfaces: no light dock overrides inside a dark theme. */
-.kn-board .board-meta>summary{color:var(--guide-ink);background:transparent}
-.kn-board[data-show-time=false] .board-header>div:last-child>div:last-child{display:none}
+
 .kn-visible-controls{border-top:1px solid var(--color-line);margin-top:14px;padding-top:12px;font-size:var(--text-xs)}.kn-visible-controls label{min-height:44px}
 .kn-board[data-flip-tools=true][data-slides-side=left] .kn-dock{flex-direction:row-reverse}
 
@@ -308,7 +310,8 @@ input,textarea{scroll-margin-bottom:var(--keyboard-height,0px)}
 .kn-board .kn-customize-launch{top:env(safe-area-inset-top,0px);right:calc(50px + env(safe-area-inset-right,0px));border-radius:0 0 var(--radius-lg) var(--radius-lg)}
 
 .kn-board .board-meta{right:calc(108px + env(safe-area-inset-right,0px))}
-.kn-board .board-meta>summary,.kn-board .board-meta[open]>summary{font-size:clamp(26px,2.3vw,34px);font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums;letter-spacing:.015em;min-height:44px;padding:2px 8px;white-space:nowrap}
+/* Lesson details: a small icon button (no large clock over the slide). */
+.kn-board .board-meta>summary,.kn-board .board-meta[open]>summary{min-width:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--color-line);border-radius:0 0 var(--radius-lg) var(--radius-lg);background:var(--color-panel);color:var(--color-ink);transition:var(--transition-colors)}
 
 .kn-board:has(.kn-fullscreen-controls>button:nth-child(2)) .kn-customize-launch{right:calc(100px + env(safe-area-inset-right,0px))}
 .kn-board:has(.kn-fullscreen-controls>button:nth-child(2)) .board-meta{right:calc(158px + env(safe-area-inset-right,0px))}
@@ -344,6 +347,7 @@ input,textarea{scroll-margin-bottom:var(--keyboard-height,0px)}
 .kn-board .menu-dock>.kn-dock{max-width:100%;overflow-x:auto;scrollbar-width:none;overscroll-behavior:contain}
 .kn-board .menu-dock [data-dock-action="import"],.kn-board .menu-dock [data-dock-action="save"],.kn-board .menu-dock [data-dock-action="treasure"],.kn-board .menu-dock .kn-dock-fullscreen{display:none}
 }
+@media(min-width:601px){.kn-file-menu .kn-menu-phone-only{display:none!important}}
 .kn-board[data-menu-edge="top"] .menu-dock,.kn-board[data-slides-edge="top"] .page-toolbar{top:calc(52px + env(safe-area-inset-top,0px));bottom:auto}
 .kn-board[data-menu-edge="bottom"] .menu-dock,.kn-board[data-slides-edge="bottom"] .page-toolbar{top:auto;bottom:env(safe-area-inset-bottom,0px)}
 .kn-board[data-menu-edge="left"] .menu-dock,.kn-board[data-menu-edge="right"] .menu-dock,.kn-board[data-slides-edge="left"] .page-toolbar,.kn-board[data-slides-edge="right"] .page-toolbar{top:50%;bottom:auto;transform:translateY(-50%);max-width:none;max-height:calc(100dvh - 24px);overflow:auto}

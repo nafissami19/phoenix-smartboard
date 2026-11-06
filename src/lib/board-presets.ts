@@ -1,7 +1,7 @@
 import {parseStoreCredits,type StoreCredits} from './store-credits';
 export type BoardPreset = {id:string;name:string;background:string;pattern:string;ink:string;credits?:StoreCredits;image?:string};
 export const BOARD_PRESETS:BoardPreset[]=[
-  {id:'dark',name:'Night board',background:'#18212b',pattern:'dots',ink:'#f4f4f5'},
+  {id:'dark',name:'Night board',background:'#18212b',pattern:'dots',ink:'#f43f5e'},
   {id:'chalk',name:'Classic chalkboard',background:'#163d30',pattern:'none',ink:'#f8f4df'},
   {id:'paper',name:'Paper notebook',background:'#fffdf5',pattern:'lines',ink:'#253649'},
   {id:'math',name:'Mathematics grid',background:'#e9f1f7',pattern:'grid',ink:'#133a5b'},
