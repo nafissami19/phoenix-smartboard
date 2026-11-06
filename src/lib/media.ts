@@ -309,7 +309,7 @@ export function classifyFile(file: File): { kind: MediaKind; message?: string } 
   const name = file.name.toLowerCase();
   const type = file.type;
   if(name.endsWith('.xlsx')||name.endsWith('.csv')||type==='text/csv'||type==='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')return {kind:'spreadsheet'};
-  if(name.endsWith('.pptx')||name.endsWith('.odp'))return {kind:'presentation'};
+  if(name.endsWith('.pptx')||name.endsWith('.ppt')||name.endsWith('.odp')||type.includes('presentation'))return {kind:'presentation'};
   if (type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(name)) return { kind: "image" };
   if (type === "application/pdf" || name.endsWith(".pdf")) return { kind: "pdf" };
   if (
@@ -318,16 +318,6 @@ export function classifyFile(file: File): { kind: MediaKind; message?: string } 
     name.endsWith(".docx")
   )
     return { kind: "docx" };
-  if (
-    name.endsWith(".pptx") ||
-    name.endsWith(".ppt") ||
-    type.includes("presentation")
-  ) {
-    return {
-      kind: "unsupported",
-      message: "PowerPoint can't be previewed in-browser yet — export it to PDF for full page-by-page teaching.",
-    };
-  }
   return {
     kind: "unsupported",
     message: `"${file.name}" isn't a supported board format. Use PDF, images or DOCX.`,

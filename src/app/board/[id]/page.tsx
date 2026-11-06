@@ -114,6 +114,8 @@ export default function BoardPage() {
   useEffect(()=>{if(operation)void setWorkActivity(id,operation).catch(()=>{});},[operation,id]);
   const [recoveryEdits,setRecoveryEdits]=useState<EditCheckpoint[]>([]);
   const [slowSave,setSlowSave]=useState(false);
+  const [boardDragging, setBoardDragging] = useState(false);
+  const boardDragCounter = useRef(0);
   useEffect(()=>{if(saveState!=='saving'){setSlowSave(false);return;}const timer=setTimeout(()=>setSlowSave(true),500);return()=>clearTimeout(timer);},[saveState]);
   const saveTimer = useRef<number | null>(null);
 
@@ -835,6 +837,81 @@ export default function BoardPage() {
     const object=createEquipment(vessel,center.x-VESSELS[vessel].w/2+offset,center.y-140+Math.floor(count%6/3)*70,wb.pen.color,reagent);
     wb.addObjects([object]);wb.setTool('select');wb.setSelection({kind:'object',id:object.id});setSubjectTool(null);setPanel(null);
   }
+  const handleBoardDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    boardDragCounter.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setBoardDragging(true);
+    }
+  };
+
+  const handleBoardDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    boardDragCounter.current--;
+    if (boardDragCounter.current <= 0) {
+      setBoardDragging(false);
+      boardDragCounter.current = 0;
+    }
+  };
+
+  const handleBoardDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleBoardDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBoardDragging(false);
+    boardDragCounter.current = 0;
+    if (operation) return;
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (/\.(pptx|ppt|odp)$/i.test(file.name)) {
+      try {
+        await flushSave();
+        setOperation(`Converting ${file.name} to high-fidelity PDF…`);
+        const { convertPptxToPdf } = await import('@/lib/pptx-to-pdf');
+        const { importPdfPages } = await import('@/lib/pdf-pages');
+        const result = await convertPptxToPdf(file, (curr, tot) => {
+          setOperation(`Converting slide ${curr} of ${tot}: ${file.name}…`);
+        });
+        setOperation(`Importing slides into lesson…`);
+        await importPdfPages(id, result.pdfBlob, false);
+        const response = await localRequest(`/api/notebooks/${id}`);
+        const data = await response.json();
+        setNotebook(data.notebook);
+        setPages(data.pages);
+        loadPageIntoBoard(pages.length, data.pages);
+        push(`Imported ${result.slideCount} slides with exact fidelity!`, 'success');
+      } catch (err) {
+        push(err instanceof Error ? err.message : 'Could not import presentation.', 'error');
+      } finally {
+        setOperation(null);
+      }
+    } else if (/\.pdf$/i.test(file.name)) {
+      try {
+        await flushSave();
+        setOperation(`Importing ${file.name}…`);
+        const { importPdfPages } = await import('@/lib/pdf-pages');
+        const added = await importPdfPages(id, file, false);
+        const response = await localRequest(`/api/notebooks/${id}`);
+        const data = await response.json();
+        setNotebook(data.notebook);
+        setPages(data.pages);
+        loadPageIntoBoard(pages.length, data.pages);
+        push(`Imported ${added} pages from PDF!`, 'success');
+      } catch (err) {
+        push(err instanceof Error ? err.message : 'Could not import PDF.', 'error');
+      } finally {
+        setOperation(null);
+      }
+    }
+  };
+
   const guideWindows: { id: FloatingToolId; title: string; icon: string; width: number; kind: "ruler" | "protractor" | "setsquare" | "compass" }[] = [
     { id: "ruler", title: "Ruler", icon: "📏", width: 560, kind: "ruler" },
     { id: "protractor", title: "Protractor", icon: "📐", width: 320, kind: "protractor" },
@@ -843,8 +920,26 @@ export default function BoardPage() {
   ];
 
   return (
-    <div data-drawing={wb.isDrawing} data-menu-edge={ui.menuEdge} data-slides-edge={ui.slidesEdge} data-toolbar-layout={toolbarLayout} data-slides-side={slidesSide} data-flip-tools={ui.flipToolsOnSwap} data-show-fullscreen={ui.showFullscreen} data-show-customize={ui.showCustomize} data-show-time={ui.showTime} data-show-slides={ui.showSlideControls} data-show-menu={ui.showMenu} data-show-toolbar={ui.showToolbar} className="kn-board fixed inset-0 flex flex-col bg-base" style={{'--control-panel':controlPalette(profile.theme??BUILTIN_THEMES[0],background).panel,'--control-ink':controlPalette(profile.theme??BUILTIN_THEMES[0],background).ink,'--control-line':controlPalette(profile.theme??BUILTIN_THEMES[0],background).line,'--guide-ink':(parseInt(background.slice(1,3),16)*.299+parseInt(background.slice(3,5),16)*.587+parseInt(background.slice(5,7),16)*.114)<125?'#e5f3fa':'#153848'} as React.CSSProperties}>
+    <div data-drawing={wb.isDrawing} data-menu-edge={ui.menuEdge} data-slides-edge={ui.slidesEdge} data-toolbar-layout={toolbarLayout} data-slides-side={slidesSide} data-flip-tools={ui.flipToolsOnSwap} data-show-fullscreen={ui.showFullscreen} data-show-customize={ui.showCustomize} data-show-time={ui.showTime} data-show-slides={ui.showSlideControls} data-show-menu={ui.showMenu} data-show-toolbar={ui.showToolbar} onDragEnter={handleBoardDragEnter} onDragLeave={handleBoardDragLeave} onDragOver={handleBoardDragOver} onDrop={handleBoardDrop} className="kn-board fixed inset-0 flex flex-col bg-base" style={{'--control-panel':controlPalette(profile.theme??BUILTIN_THEMES[0],background).panel,'--control-ink':controlPalette(profile.theme??BUILTIN_THEMES[0],background).ink,'--control-line':controlPalette(profile.theme??BUILTIN_THEMES[0],background).line,'--guide-ink':(parseInt(background.slice(1,3),16)*.299+parseInt(background.slice(3,5),16)*.587+parseInt(background.slice(5,7),16)*.114)<125?'#e5f3fa':'#153848'} as React.CSSProperties}>
       {operation&&<LoadingOverlay detail={operation}/>}
+      {boardDragging && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-base/85 backdrop-blur-md border-4 border-dashed border-brand p-8 pointer-events-none">
+          <div className="flex flex-col items-center gap-3 text-center max-w-md p-6 rounded-3xl bg-panel border border-brand/40 shadow-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shadow-inner">
+              <Icon name="board" className="w-7 h-7" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-ink">Drop presentation or PDF to add slides</h3>
+              <p className="text-xs text-muted mt-1">
+                Converts PowerPoint (.pptx) or PDF into high-fidelity slides in this lesson.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand/10 px-3 py-1 rounded-full">
+              <span>✨ Exact Visual Fidelity</span>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ---------------------------- Top bar ---------------------------- */}
       {!presenting && (
         <details className="board-meta"><summary aria-label="Lesson details">{ui.showTime?<BoardTime/>:<Icon name="doc"/>}</summary>

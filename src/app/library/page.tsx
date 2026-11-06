@@ -12,6 +12,7 @@ import { useToast } from "@/lib/toast";
 import { Icon } from "@/components/Icon";
 import { BrandMark } from '@/components/BrandMark';
 import { importPdfPages } from "@/lib/pdf-pages";
+import { convertPptxToPdf } from "@/lib/pptx-to-pdf";
 import { Modal } from "@/components/board/Panels";
 import { COVER_COLORS } from "@/lib/constants";
 import type { Notebook, Page } from "@/db/schema";
@@ -60,6 +61,9 @@ function LibraryInner() {
   const [trashLoading, setTrashLoading] = useState(false);
   const [examTimerOpen, setExamTimerOpen] = useState(false);
   const [themeModalOpen, setThemeModalOpen] = useState(false);
+  const [conversionProgress, setConversionProgress] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const visible = notebooks
     .filter(n => (filter === 'all' || n.subject === filter) && `${n.title} ${n.subject}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
@@ -178,16 +182,77 @@ function LibraryInner() {
     await createLesson(file);
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current <= 0) {
+      setIsDraggingOver(false);
+      dragCounterRef.current = 0;
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    dragCounterRef.current = 0;
+    if (busy) return;
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (/\.(pdf|pptx|ppt|odp)$/i.test(file.name)) {
+        await createLesson(file);
+      } else {
+        push("Please drop a PowerPoint (.pptx) or PDF (.pdf) file to start a lesson.", "error");
+      }
+    }
+  };
+
   async function createLesson(file?: File | null) {
     setBusy(true);
     let createdNotebookId: string | null = null;
     try {
-      const lessonTitle = (file ? file.name.replace(/\.pdf$/i, "") : "").trim() || "Untitled lesson";
+      let lessonTitle = "Untitled lesson";
+      let pdfToImport: Blob | File | null = null;
+      let slideCount: number | undefined;
+
+      if (file) {
+        const isPresentation = /\.(pptx|ppt|odp)$/i.test(file.name);
+        if (isPresentation) {
+          setConversionProgress("Reading presentation slides…");
+          const conversion = await convertPptxToPdf(file, (curr, tot) => {
+            setConversionProgress(`Converting slide ${curr} of ${tot} to high-fidelity PDF…`);
+          });
+          pdfToImport = conversion.pdfBlob;
+          slideCount = conversion.slideCount;
+          lessonTitle = conversion.title || file.name.replace(/\.(pptx|ppt|odp)$/i, "");
+        } else {
+          pdfToImport = file;
+          lessonTitle = file.name.replace(/\.pdf$/i, "");
+        }
+      }
+
+      setConversionProgress("Creating lesson board…");
       const res = await localRequest("/api/notebooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: lessonTitle,
+          title: lessonTitle.trim() || "Untitled lesson",
           subject: "General",
           coverColor: COVER_COLORS[notebooks.length % COVER_COLORS.length] || COVER_COLORS[0],
         }),
@@ -200,9 +265,15 @@ function LibraryInner() {
       if (!data.notebook) throw new Error(data.error || "Could not create the lesson.");
       const notebook = data.notebook;
       createdNotebookId = notebook.id;
-      if (file) {
-        await importPdfPages(notebook.id, file, true);
+
+      if (pdfToImport) {
+        setConversionProgress("Importing high-fidelity slides…");
+        await importPdfPages(notebook.id, pdfToImport, true);
+        if (slideCount) {
+          push(`Imported ${slideCount} slides with exact fidelity!`, 'success');
+        }
       }
+
       router.push(`/board/${notebook.id}`);
     } catch (error) {
       if (createdNotebookId) {
@@ -217,6 +288,7 @@ function LibraryInner() {
       push(msg, "error");
     } finally {
       setBusy(false);
+      setConversionProgress(null);
     }
   }
 
@@ -232,7 +304,13 @@ function LibraryInner() {
   }
 
   return (
-    <div className="kn-workspace kn-scroll h-dvh w-full overflow-y-auto bg-base">
+    <div
+      className="kn-workspace kn-scroll h-dvh w-full overflow-y-auto bg-base"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <div className="kn-workspace-inner">
         <header className="kn-workspace-header">
           <div className="flex items-center gap-3">
@@ -282,9 +360,9 @@ function LibraryInner() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,application/pdf"
+              accept=".pdf,.pptx,.ppt,.odp,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.presentation"
               className="hidden"
-              aria-label="Start lesson from PDF"
+              aria-label="Start lesson from PDF or Presentation"
               disabled={busy}
               onChange={handleFileChange}
             />
@@ -540,13 +618,36 @@ function LibraryInner() {
         )}
       </div>
 
+      {isDraggingOver && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-base/90 backdrop-blur-md border-4 border-dashed border-brand p-8 transition-all pointer-events-none">
+          <div className="flex flex-col items-center gap-4 text-center max-w-md p-8 rounded-3xl bg-panel border border-brand/40 shadow-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shadow-inner">
+              <Icon name="board" className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-ink">Drop file to open class</h3>
+              <p className="text-sm text-muted mt-1.5">
+                Drop any <strong>PowerPoint (.pptx)</strong> or <strong>PDF</strong>. We&apos;ll automatically convert it into a high-fidelity board and open your class instantly.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-brand bg-brand/10 px-3 py-1.5 rounded-full">
+              <span>✨ High-Fidelity Slide Conversion</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {busy && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
-          <div className="flex items-center gap-3.5 rounded-2xl bg-panel border border-line px-6 py-4 shadow-2xl">
-            <Icon name="sync" className="h-5 w-5 animate-spin text-brand" />
+          <div className="flex items-center gap-4 rounded-2xl bg-panel border border-line px-6 py-5 shadow-2xl max-w-md">
+            <Icon name="sync" className="h-6 w-6 animate-spin text-brand shrink-0" />
             <div>
-              <div className="text-sm font-semibold text-ink">Opening lesson from PDF…</div>
-              <div className="text-xs text-muted">Preparing pages for annotation</div>
+              <div className="text-base font-semibold text-ink">
+                {conversionProgress || "Opening lesson…"}
+              </div>
+              <div className="text-xs text-muted mt-0.5">
+                Preserving all slides, graphics, shapes & layout exactly as designed
+              </div>
             </div>
           </div>
         </div>
@@ -825,7 +926,7 @@ function EmptyState({ onCreate, onCreateBlank }: { onCreate: () => void; onCreat
       </span>
       <h2 className="text-lg font-semibold">No lessons yet</h2>
       <p className="mt-1 max-w-sm text-sm text-muted">
-        Create your first board to start writing, importing PDFs and teaching with smart tools.
+        Create your first board to start writing, importing PPTX / PDFs, and teaching with smart tools.
       </p>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
         <button onClick={onCreate} className="kn-focus flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">

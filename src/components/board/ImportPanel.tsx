@@ -40,7 +40,7 @@ export function ImportPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   const [picked, setPicked] = useState<Picked[]>([]);
   const [pdfMode,setPdfMode]=useState("pages");
-  const [presentationMode,setPresentationMode]=useState<'editable'|'flattened'>('editable');
+  const [presentationMode,setPresentationMode]=useState<'pdf'|'editable'|'flattened'>('pdf');
   const [layout,setLayout]=useState<ImportLayout>(()=>{const canvas=document.querySelector<HTMLCanvasElement>('.kn-canvas-surface');return {...DEFAULT_IMPORT_LAYOUT,sizing:'fit',frameWidth:Math.max(200,Math.min(16000,canvas?.clientWidth??1280)),frameHeight:Math.max(200,Math.min(16000,canvas?.clientHeight??720)),margins:{...DEFAULT_IMPORT_LAYOUT.margins}};});
   const [framePreset,setFramePreset]=useState('board');
   const [previewSize,setPreviewSize]=useState({width:600,height:900});
@@ -107,7 +107,26 @@ export function ImportPanel({
       setProgress("Importing "+(usable.indexOf(p)+1)+" of "+usable.length+": "+p.file.name);
       try {
         if(p.kind==="pdf"&&pdfMode==="pages"){addedPages+=await importPdfPages(notebookId,p.file,false,{layout,center});completed++;setPicked(list=>list.map(item=>item===p?{...item,status:"done",error:undefined}:item));continue;}
-        if(p.kind==='presentation'){const result=await importOfficeSlides(notebookId,p.file,false,{layout,center},presentationMode);addedPages+=result.count;completed++;setPicked(list=>list.map(item=>item===p?{...item,status:'done',error:undefined}:item));if(result.warnings.length)push(result.warnings.slice(0,2).join(' '),'info');continue;}
+        if (p.kind === 'presentation') {
+          if (presentationMode === 'pdf') {
+            setProgress(`Converting ${p.file.name} to high-fidelity PDF…`);
+            const { convertPptxToPdf } = await import('@/lib/pptx-to-pdf');
+            const result = await convertPptxToPdf(p.file, (cur, tot) => {
+              setProgress(`Converting slide ${cur}/${tot}: ${p.file.name}`);
+            });
+            addedPages += await importPdfPages(notebookId, result.pdfBlob, false, { layout, center });
+            completed++;
+            setPicked(list => list.map(item => item === p ? { ...item, status: 'done', error: undefined } : item));
+            push(`Imported ${result.slideCount} slides with high fidelity`, 'info');
+            continue;
+          }
+          const result = await importOfficeSlides(notebookId, p.file, false, { layout, center }, presentationMode === 'editable' ? 'editable' : 'flattened');
+          addedPages += result.count;
+          completed++;
+          setPicked(list => list.map(item => item === p ? { ...item, status: 'done', error: undefined } : item));
+          if (result.warnings.length) push(result.warnings.slice(0, 2).join(' '), 'info');
+          continue;
+        }
         // Save the original Blob directly; base64 duplicates large files in memory.
         const asset={id:uid()};
         const storage=await database();
@@ -293,7 +312,38 @@ export function ImportPanel({
           </div>
         </div>
       )}
-      {picked.some(p=>p.kind==='presentation')&&<fieldset disabled={busy} className="mb-4 rounded-xl border border-line p-3"><legend className="px-2 text-sm font-semibold">Presentation</legend><div className="grid grid-cols-2 gap-2">{(['editable','flattened'] as const).map(mode=><button type="button" key={mode} aria-pressed={presentationMode===mode} onClick={()=>setPresentationMode(mode)} className={`min-h-16 rounded-lg border p-3 text-left text-sm ${presentationMode===mode?'border-brand bg-brand/10':'border-line'}`}><strong className="block">{mode==='editable'?'Editable elements':'Flattened slides'}</strong><span className="mt-1 block text-xs text-muted">{mode==='editable'?'Edit text, shapes, images and supported media':'One image per slide; write over it'}</span></button>)}</div><p className="mt-2 text-xs text-muted">Editable mode detects embedded audio/video, YouTube links and Excel worksheets. Flattened mode keeps static previews. Complex layouts may differ; use PDF for closer fidelity.</p></fieldset>}
+      {picked.some(p=>p.kind==='presentation')&&(
+        <fieldset disabled={busy} className="mb-4 rounded-xl border border-line p-3">
+          <legend className="px-2 text-sm font-semibold">Presentation Import Mode</legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              aria-pressed={presentationMode==='pdf'}
+              onClick={()=>setPresentationMode('pdf')}
+              className={`min-h-16 rounded-lg border p-3 text-left text-sm transition-colors ${presentationMode==='pdf'?'border-brand bg-brand/10':'border-line hover:border-brand/40'}`}
+            >
+              <div className="flex items-center gap-1.5 font-bold text-ink">
+                <span>✨ High-Fidelity PDF Pages</span>
+                <span className="text-[10px] bg-brand text-white px-1.5 py-0.5 rounded font-medium">Recommended</span>
+              </div>
+              <span className="mt-1 block text-xs text-muted">
+                Exact PowerPoint visual match, 2x Retina clarity, zero font or layout shifts. Writes over as teacher whiteboard.
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={presentationMode==='editable'}
+              onClick={()=>setPresentationMode('editable')}
+              className={`min-h-16 rounded-lg border p-3 text-left text-sm transition-colors ${presentationMode==='editable'?'border-brand bg-brand/10':'border-line hover:border-brand/40'}`}
+            >
+              <strong className="block text-ink">Editable Whiteboard Shapes</strong>
+              <span className="mt-1 block text-xs text-muted">
+                Decomposes slides into movable text boxes, lines, and shapes. Complex layouts may shift.
+              </span>
+            </button>
+          </div>
+        </fieldset>
+      )}
 
       {!archive&&picked.some(p=>p.kind!=="unsupported")&&<>
       {placementError&&<p role="alert" className="mb-3 rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-200">{placementError}</p>}
