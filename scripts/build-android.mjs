@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { copyFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { platform } from 'node:os';
 
@@ -43,6 +44,29 @@ child.on('close', async (code) => {
     console.log(`Copied release APK to: ${targetApk}`);
   } catch (err) {
     console.warn(`Warning copying release apk: ${err.message}`);
+  }
+
+  const keystorePath = join(releaseDir, 'release.keystore');
+  if (existsSync(keystorePath)) {
+    const apksignerCmd = join(env.ANDROID_HOME, 'build-tools', '35.0.0', isWin ? 'apksigner.bat' : 'apksigner');
+    if (existsSync(apksignerCmd)) {
+      console.log('Signing release APK with release.keystore...');
+      const signProc = spawn(apksignerCmd, [
+        'sign',
+        '--ks', keystorePath,
+        '--ks-key-alias', 'phoenix',
+        '--ks-pass', 'pass:phoenix123',
+        '--key-pass', 'pass:phoenix123',
+        targetApk
+      ], {
+        cwd: root,
+        env,
+        stdio: 'inherit',
+        shell: true
+      });
+      await new Promise((res) => signProc.on('close', res));
+      console.log('Release APK signing complete.');
+    }
   }
 
   process.exit(0);
